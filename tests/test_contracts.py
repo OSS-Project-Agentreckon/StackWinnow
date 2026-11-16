@@ -1,11 +1,11 @@
 """Check the data boundary shared by discovery, setup, and verification."""
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+from conftest import subprocess_environment
 from pydantic import BaseModel, ValidationError
 
 from stackwinnow.contracts import (
@@ -167,9 +167,7 @@ def test_import_and_construction_leave_project_and_settings_untouched(tmp_path: 
     original_settings = b'{"existing_tool": "keep this"}\n'
     settings.write_bytes(original_settings)
     missing_project = tmp_path / "project that does not exist"
-    environment = os.environ.copy()
-    environment.pop("PYTHONPATH", None)
-    environment["PYTHONDONTWRITEBYTECODE"] = "1"
+    environment = subprocess_environment(Path.home())
 
     result = subprocess.run(
         [
