@@ -1,0 +1,1346 @@
+{
+  "schema_version": 1,
+  "tools": [
+    {
+      "tool_id": "aider",
+      "name": "Aider",
+      "description": "Use a terminal coding assistant to edit and discuss an existing codebase.",
+      "repository": "https://github.com/Aider-AI/aider",
+      "license": "Apache-2.0",
+      "category": "coding",
+      "capabilities": [
+        "code-editing",
+        "terminal-assistant"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Use the documented Python-based aider installer.",
+        "Provide a project checkout and configure a supported model/provider."
+      ],
+      "compatibility_notes": "A standalone coding assistant rather than a plugin that StackWinnow can currently register with another assistant.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Model choice affects quality and cost; using Aider does not guarantee lower token consumption."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "opencode",
+        "continue"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/Aider-AI/aider/blob/HEAD/README.md",
+          "sha256": "e40e05367ceacf7138a2605484bf7d1cb5a262d2dba03f52a5327c023b3cd0dc"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/Aider-AI/aider/blob/HEAD/LICENSE.txt",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        }
+      ]
+    },
+    {
+      "tool_id": "autogen",
+      "name": "AutoGen",
+      "description": "Build multi-agent applications using AgentChat and supporting extension packages.",
+      "repository": "https://github.com/microsoft/autogen",
+      "license": "MIT",
+      "category": "orchestration",
+      "capabilities": [
+        "multi-agent-workflows",
+        "agent-orchestration"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Python 3.10+ is documented upstream.",
+        "Install the required AgentChat/extensions packages and configure a model client."
+      ],
+      "compatibility_notes": "This entry covers MIT-licensed code; repository documentation uses CC-BY-4.0.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Upstream recommends Microsoft Agent Framework for new users and provides migration guidance."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "langgraph",
+        "crewai"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Code under LICENSE-CODE (MIT); documentation under the separate CC-BY-4.0 LICENSE is excluded.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/microsoft/autogen/blob/HEAD/README.md",
+          "sha256": "60fa90168565070a61b0f28296ff590bd6853da2477141f5ed0775007c20d7f2"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/microsoft/autogen/blob/HEAD/LICENSE-CODE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "tool_id": "cline",
+      "name": "Cline",
+      "description": "Run coding-agent workflows in supported editors, a terminal, or an application integration.",
+      "repository": "https://github.com/cline/cline",
+      "license": "Apache-2.0",
+      "category": "coding",
+      "capabilities": [
+        "code-editing",
+        "editor-assistant",
+        "terminal-assistant"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Select the VS Code extension, CLI, or another documented open-source component.",
+        "Configure a supported model/provider and the chosen client runtime."
+      ],
+      "compatibility_notes": "The repository includes several clients and a Node.js SDK; this entry excludes the JetBrains plugin that the README says is not open-sourced.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Client capabilities and prerequisites differ; model calls and tool execution need project-specific configuration."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "continue",
+        "aider"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Apache-2.0 source components in this repository; the non-open-source JetBrains plugin is excluded.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/cline/cline/blob/HEAD/README.md",
+          "sha256": "6640ce1ef463f641e05b9b6b3361fa20da3cbb4fe5d613950bf2623218c89b6e"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/cline/cline/blob/HEAD/LICENSE",
+          "sha256": "f704446a5f1271608805598b557e4288cf8580477ea038c9c3d8b361f693f6b8"
+        }
+      ]
+    },
+    {
+      "tool_id": "continue",
+      "name": "Continue",
+      "description": "Provide a configurable coding assistant through a CLI or supported editor integration.",
+      "repository": "https://github.com/continuedev/continue",
+      "license": "Apache-2.0",
+      "category": "coding",
+      "capabilities": [
+        "code-editing",
+        "editor-assistant",
+        "terminal-assistant"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Choose the documented CLI, VS Code extension, or JetBrains plugin.",
+        "Configure supported models and the requirements for that client."
+      ],
+      "compatibility_notes": "Upstream offers several clients; their prerequisites are not interchangeable.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "No universal client setup is claimed; hosted services and model-provider access need separate review."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "aider",
+        "cline"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/continuedev/continue/blob/HEAD/README.md",
+          "sha256": "054b77f9573011fa4ebf89d960300aabd1ebecc37d8f6f261341ba7d27d885e7"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/continuedev/continue/blob/HEAD/LICENSE",
+          "sha256": "b14a17598cb08c4c7c82c070731126304e0a75d001ed59fb9ea3955a0b561802"
+        }
+      ]
+    },
+    {
+      "tool_id": "crewai",
+      "name": "CrewAI",
+      "description": "Build collaborative agent crews and event-driven workflow flows in Python.",
+      "repository": "https://github.com/crewAIInc/crewAI",
+      "license": "MIT",
+      "category": "orchestration",
+      "capabilities": [
+        "multi-agent-workflows",
+        "agent-orchestration"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Python >=3.10,<3.14 is documented upstream.",
+        "Use the documented uv-based CLI/package installation and configure model providers."
+      ],
+      "compatibility_notes": "The open-source Python framework is distinct from the commercial CrewAI AMP control plane.",
+      "supported_platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "supported_assistants": [],
+      "limitations": [
+        "Some dependencies need platform-specific build tools; autonomous collaboration can increase model-call costs."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "autogen",
+        "smolagents"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/crewAIInc/crewAI/blob/HEAD/README.md",
+          "sha256": "b0f39843f93676b12883d5821a34555e2146e62bd2c42dc12733fc41222de013"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/crewAIInc/crewAI/blob/HEAD/LICENSE",
+          "sha256": "28868731966f4aa37f02879839aabc797137e27ddde4e274ef9cf965f9a71774"
+        }
+      ]
+    },
+    {
+      "tool_id": "deepeval",
+      "name": "DeepEval",
+      "description": "Write automated evaluations for language-model applications, retrieval, and agent behavior.",
+      "repository": "https://github.com/confident-ai/deepeval",
+      "license": "Apache-2.0",
+      "category": "evaluation",
+      "capabilities": [
+        "llm-evaluation",
+        "agent-evaluation",
+        "regression-testing"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the deepeval Python package.",
+        "Provide test cases and configure model/provider dependencies for the chosen metrics."
+      ],
+      "compatibility_notes": "A Python evaluation framework suitable for test workflows; hosted Confident AI features are separate from the source package.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Model-judged metrics can incur cost and vary between runs; deterministic and model-based checks should be distinguished."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "promptfoo",
+        "ragas"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/confident-ai/deepeval/blob/HEAD/README.md",
+          "sha256": "e3acb524e2faa6acdfb5d468499a896c05d0cfa0969a653091f9964235955dbe"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/confident-ai/deepeval/blob/HEAD/LICENSE.md",
+          "sha256": "d004e4b8bbfa420b094c13835070b945a93f3c0ac0ea0bf6b7b8a72733533f7f"
+        }
+      ]
+    },
+    {
+      "tool_id": "dspy",
+      "name": "DSPy",
+      "description": "Express language-model pipelines as Python modules and optimize them against an evaluation objective.",
+      "repository": "https://github.com/stanfordnlp/dspy",
+      "license": "MIT",
+      "category": "prompt-optimization",
+      "capabilities": [
+        "prompt-optimization",
+        "evaluation-driven-optimization"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the dspy Python package and configure a language-model backend.",
+        "Provide representative examples and an evaluation metric before running optimization."
+      ],
+      "compatibility_notes": "A Python framework for application and prompt optimization, not an assistant installation plugin.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Optimization consumes model calls and can overfit evaluation examples; measure performance on held-out cases."
+      ],
+      "conflicts": [],
+      "alternatives": [],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/stanfordnlp/dspy/blob/HEAD/README.md",
+          "sha256": "4bee0c96a98daa5521ef4dc9ead9640fdaafd75fe8d5c8896db383838d5fd76f"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/stanfordnlp/dspy/blob/HEAD/LICENSE",
+          "sha256": "fc84421fcf968a696680dacf66ad53db769f699f557690127c5ccb3f6358cfdb"
+        }
+      ]
+    },
+    {
+      "tool_id": "goose",
+      "name": "goose",
+      "description": "Run a local general-purpose agent for coding and developer workflows.",
+      "repository": "https://github.com/block/goose",
+      "license": "Apache-2.0",
+      "category": "coding",
+      "capabilities": [
+        "coding-agents",
+        "workflow-automation",
+        "terminal-assistant"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the documented desktop app or CLI for the operating system.",
+        "Configure a model provider and any required extensions."
+      ],
+      "compatibility_notes": "The README documents desktop downloads for macOS, Linux, and Windows, plus a CLI.",
+      "supported_platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "supported_assistants": [],
+      "limitations": [
+        "Extensions and provider access have their own requirements; an agent installation is not a verified project workflow."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "openhands",
+        "opencode"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/block/goose/blob/HEAD/README.md",
+          "sha256": "0f1df85a0c457caf1f3c4e1c0370f2da3887fffa588d207862cfc298c1d39755"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/block/goose/blob/HEAD/LICENSE",
+          "sha256": "44459b86c2e96fdbfd8a6b5c33d30d4b04b5293fcb2ec96fe4dcc4e0f90b8962"
+        }
+      ]
+    },
+    {
+      "tool_id": "gptcache",
+      "name": "GPTCache",
+      "description": "Cache language-model responses using exact or semantic lookup strategies.",
+      "repository": "https://github.com/zilliztech/GPTCache",
+      "license": "MIT",
+      "category": "caching",
+      "capabilities": [
+        "response-caching",
+        "semantic-caching"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Python 3.8.1+ is documented upstream; install gptcache.",
+        "Choose cache storage, similarity evaluation, and embedding components for the intended usage."
+      ],
+      "compatibility_notes": "The Python library and optional server support application-level caching; provider adapters require separate compatibility checks.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Upstream says it no longer adds support for new model APIs and recommends its get/set interface.",
+        "Semantic cache hits require correctness checks and an invalidation policy; optional features may install additional libraries."
+      ],
+      "conflicts": [],
+      "alternatives": [],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/zilliztech/GPTCache/blob/HEAD/README.md",
+          "sha256": "b87b5f73df7bdca3c15406db78aaa2830e1bc48fd0136cb63a1bca01a2da08de"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/zilliztech/GPTCache/blob/HEAD/LICENSE",
+          "sha256": "d447a5042ca8c9206b4fbfc0b26f13147172c021873fd25cf8a07317f715495d"
+        }
+      ]
+    },
+    {
+      "tool_id": "graphify",
+      "name": "Graphify",
+      "description": "Build a queryable knowledge graph of source code and project material.",
+      "repository": "https://github.com/Graphify-Labs/graphify",
+      "license": "Apache-2.0",
+      "category": "context",
+      "capabilities": [
+        "code-indexing",
+        "code-relationships",
+        "knowledge-graphs"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Python >=3.11,<3.15 in the reviewed package manifest.",
+        "Install the graphifyy Python package with uv, pipx, or pip; configure the selected coding assistant."
+      ],
+      "compatibility_notes": "Upstream documents macOS, Linux, Windows, and clients including Claude Code, Cursor, Codex, Gemini CLI, and GitHub Copilot.",
+      "supported_platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "supported_assistants": [
+        "claude-code",
+        "cursor",
+        "codex",
+        "gemini-cli",
+        "github-copilot"
+      ],
+      "limitations": [
+        "The README quickstart still says Python 3.10+; the reviewed package manifest has the stricter range recorded here.",
+        "Code parsing is local; semantic processing of documents/media can require a model. Cloud features are a separate offering."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "serena"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/HEAD/README.md",
+          "sha256": "d224c14475d2c05146ce60ee3b71677aaf9ec027cd00fa32fc684b25cd0ba1df"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/HEAD/LICENSE",
+          "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30"
+        },
+        {
+          "kind": "requirements",
+          "url": "https://github.com/Graphify-Labs/graphify/blob/HEAD/pyproject.toml",
+          "sha256": "a3527461cc76b35c46ceebd5dacefc9f2e074b2de9faa9f597d5e1f564df3e1c"
+        }
+      ]
+    },
+    {
+      "tool_id": "haystack",
+      "name": "Haystack",
+      "description": "Compose retrieval, generation, and agent components into explicit application pipelines.",
+      "repository": "https://github.com/deepset-ai/haystack",
+      "license": "Apache-2.0",
+      "category": "orchestration",
+      "capabilities": [
+        "rag-pipelines",
+        "agent-orchestration"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the haystack-ai Python package.",
+        "Configure the chosen model, document store, and optional integration components."
+      ],
+      "compatibility_notes": "A Python orchestration framework for RAG and agents; enterprise services are separate from the framework.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Pipeline requirements depend on the components selected; installing the core does not provision databases or models."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "llama-index",
+        "langchain"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/deepset-ai/haystack/blob/HEAD/README.md",
+          "sha256": "e016e944fa840265e85e73520522c6152798330720d53d3d64fdffcc448554e6"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/deepset-ai/haystack/blob/HEAD/LICENSE",
+          "sha256": "3f0a3af7e9b0f3b6358aaa3c7501ab522a67dc5483b870e9a8b3db41ea42e249"
+        }
+      ]
+    },
+    {
+      "tool_id": "headroom",
+      "name": "Headroom",
+      "description": "Compress context, tool outputs, and logs before sending them to a language model.",
+      "repository": "https://github.com/headroomlabs-ai/headroom",
+      "license": "Apache-2.0",
+      "category": "context",
+      "capabilities": [
+        "context-compression",
+        "log-compression",
+        "token-optimization"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Python 3.11+ for the Python package.",
+        "Select the library, proxy, or wrapper mode; extras and provider configuration depend on that mode."
+      ],
+      "compatibility_notes": "The README documents coding-agent wrappers and Python/TypeScript integrations; the npm SDK uses a Python proxy.",
+      "supported_platforms": [],
+      "supported_assistants": [
+        "claude-code",
+        "cursor",
+        "codex",
+        "github-copilot",
+        "aider",
+        "opencode"
+      ],
+      "limitations": [
+        "Compression benefit depends on the input; token savings and preserved task quality need workload-specific measurement."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "llmlingua"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/headroomlabs-ai/headroom/blob/HEAD/README.md",
+          "sha256": "9d9d01971ac36a1052b27cf5c907fcb1bb560672b961045506c87f8fefda5fb9"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/headroomlabs-ai/headroom/blob/HEAD/LICENSE",
+          "sha256": "f14dd440c8e3152b4d4d324615de8251ddb011dc81f484daad0b6902093539cc"
+        },
+        {
+          "kind": "requirements",
+          "url": "https://github.com/headroomlabs-ai/headroom/blob/HEAD/pyproject.toml",
+          "sha256": "4e9866121b7f9c686befec771d69a7d8b511ce2aacf68c69a8daaa2b69e8bc3c"
+        }
+      ]
+    },
+    {
+      "tool_id": "inspect-ai",
+      "name": "Inspect AI",
+      "description": "Define language-model evaluations using datasets, task logic, tools, and scoring components.",
+      "repository": "https://github.com/UKGovernmentBEIS/inspect_ai",
+      "license": "MIT",
+      "category": "evaluation",
+      "capabilities": [
+        "model-evaluation",
+        "tool-use-evaluation"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Provide a supported Python environment and the Inspect package.",
+        "Configure evaluation tasks and their required model providers or execution environments."
+      ],
+      "compatibility_notes": "A Python evaluation framework; individual evaluations can have additional model, dataset, or sandbox requirements.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Requirements are task-specific; installing the framework does not make every evaluation runnable."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "promptfoo"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/UKGovernmentBEIS/inspect_ai/blob/HEAD/README.md",
+          "sha256": "49b6450e8262583fe8c86446c537fdc791b1540305a66235e946b03cf59f88bf"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/UKGovernmentBEIS/inspect_ai/blob/HEAD/LICENSE",
+          "sha256": "c593c2afc81388521eaeb03f0d1a4b01bc3e5147ed9cb16c1f129e5be353b6af"
+        }
+      ]
+    },
+    {
+      "tool_id": "langchain",
+      "name": "LangChain",
+      "description": "Compose models, tools, and integrations into language-model applications and agents.",
+      "repository": "https://github.com/langchain-ai/langchain",
+      "license": "MIT",
+      "category": "orchestration",
+      "capabilities": [
+        "model-integrations",
+        "agent-orchestration"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the Python framework and the integration packages required by the application.",
+        "Configure supported model providers and any application data services."
+      ],
+      "compatibility_notes": "Can be used standalone or with LangGraph; hosted LangSmith services are outside this entry.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Adding a framework does not automatically resolve provider compatibility or reduce model costs."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "haystack",
+        "pydantic-ai"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/langchain-ai/langchain/blob/HEAD/README.md",
+          "sha256": "9e6d706b38215c6979ef398ba72181b0f9099b8150f317c4c221877456c2dc2e"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/langchain-ai/langchain/blob/HEAD/LICENSE",
+          "sha256": "4ec67e4ca6e6721dba849b2ca82261597c86a61ee214bbf21416006b7b2d0478"
+        }
+      ]
+    },
+    {
+      "tool_id": "langfuse",
+      "name": "Langfuse",
+      "description": "Collect AI application traces, track usage, and manage evaluation and prompt workflows.",
+      "repository": "https://github.com/langfuse/langfuse",
+      "license": "MIT",
+      "category": "observability",
+      "capabilities": [
+        "tracing",
+        "spend-tracking",
+        "prompt-management"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Choose a self-hosted deployment or a service endpoint.",
+        "Instrument the application with supported SDKs or OpenTelemetry and configure endpoint credentials."
+      ],
+      "compatibility_notes": "Supports Python/JS integrations and OpenTelemetry; this entry covers the MIT-licensed core, not enterprise modules.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Self-hosting has service and storage requirements; hosted plans and enterprise features have separate terms."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "opik",
+        "openlit"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "MIT-covered core, excluding ee/, web/src/ee/, worker/src/ee/, and packages/shared/src/server/ee/ and separately licensed third-party content.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/langfuse/langfuse/blob/HEAD/README.md",
+          "sha256": "1dae4f71cec43ff4aa0b1309f450d019f1600ecc241d1374fad898a8b3c3abf0"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/langfuse/langfuse/blob/HEAD/LICENSE",
+          "sha256": "9ee6ca42e813fb58bcad18bed834438503bcc997da3b452d3f9ad4af4292b6b3"
+        }
+      ]
+    },
+    {
+      "tool_id": "langgraph",
+      "name": "LangGraph",
+      "description": "Build stateful agent workflows with explicit control over execution and persistence.",
+      "repository": "https://github.com/langchain-ai/langgraph",
+      "license": "MIT",
+      "category": "orchestration",
+      "capabilities": [
+        "stateful-workflows",
+        "agent-orchestration"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the Python langgraph package for this catalog scope.",
+        "Configure models, tools, and any persistence backend needed by the workflow."
+      ],
+      "compatibility_notes": "A low-level orchestration library that can complement LangChain; managed LangSmith deployment is a separate service.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "A framework does not provide a complete working application or an automatic cost reduction."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "autogen",
+        "crewai"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/langchain-ai/langgraph/blob/HEAD/README.md",
+          "sha256": "3a13e257af1216962d53d72414a7f44ac1fc5cea34d994bdff60ea2a3b045933"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/langchain-ai/langgraph/blob/HEAD/LICENSE",
+          "sha256": "d9bb52f2e3540d60ff50d8f0f5b6ba649b7fd346948c4c3d086c8afb120763c7"
+        }
+      ]
+    },
+    {
+      "tool_id": "litellm",
+      "name": "LiteLLM",
+      "description": "Provide a common model API with routing and a gateway for managing model access and spending.",
+      "repository": "https://github.com/BerriAI/litellm",
+      "license": "MIT",
+      "category": "model-gateway",
+      "capabilities": [
+        "model-routing",
+        "provider-gateway",
+        "spend-tracking"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Choose the Python SDK or proxy deployment and its documented dependencies.",
+        "Configure reachable model providers and credentials when those providers require them."
+      ],
+      "compatibility_notes": "Supports Python SDK calls and an API gateway; some features belong to a separately licensed enterprise component.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Provider compatibility, available routing features, and deployment requirements depend on the selected package and configuration.",
+        "A gateway does not by itself establish cost savings."
+      ],
+      "conflicts": [],
+      "alternatives": [],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "MIT-covered content outside litellm/enterprise/. Enterprise content is separately licensed and excluded.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/BerriAI/litellm/blob/HEAD/README.md",
+          "sha256": "e798e6eff3a4d28a70943a477975b6d27bdb3cff1a82aae9ddf2ba79f6e9262a"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/BerriAI/litellm/blob/HEAD/LICENSE",
+          "sha256": "4a5f5d029fb0fa6410cc3d416093d1f41571f0911f04b518088a54ea335bab30"
+        }
+      ]
+    },
+    {
+      "tool_id": "llama-index",
+      "name": "LlamaIndex",
+      "description": "Connect application data to retrieval and agent workflows using the open-source framework.",
+      "repository": "https://github.com/run-llama/llama_index",
+      "license": "MIT",
+      "category": "context",
+      "capabilities": [
+        "data-connectors",
+        "rag-pipelines",
+        "indexing"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install llama-index-core and the required integration packages, or an appropriate starter package.",
+        "Configure data sources, model backends, and any required index storage."
+      ],
+      "compatibility_notes": "This entry covers the open-source framework; LlamaParse/LlamaCloud are separate products.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Upstream describes a shift in company focus toward document parsing products; review the framework and integration packages independently."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "haystack"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/run-llama/llama_index/blob/HEAD/README.md",
+          "sha256": "625c49e7dedf84826b350be28d118e7823e669504689105611e91ff709406d1f"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/run-llama/llama_index/blob/HEAD/LICENSE",
+          "sha256": "24f40b5190fdacabc24ddbb5f76364d15e4f030925220ea300d8a2dd4993c8cb"
+        }
+      ]
+    },
+    {
+      "tool_id": "llmlingua",
+      "name": "LLMLingua",
+      "description": "Use smaller models to compress prompts and retrieved context for language-model applications.",
+      "repository": "https://github.com/microsoft/LLMLingua",
+      "license": "MIT",
+      "category": "context",
+      "capabilities": [
+        "prompt-compression",
+        "context-compression"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the Python package and its model dependencies.",
+        "Obtain an appropriate compression-model checkpoint and provide sufficient compute for it."
+      ],
+      "compatibility_notes": "The README describes Python usage and LangChain/LlamaIndex integrations; this is a library rather than a ready-made coding-assistant adapter.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Compression adds model loading and inference work; evaluate quality and total cost for the selected compression model."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "headroom"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/microsoft/LLMLingua/blob/HEAD/README.md",
+          "sha256": "c402d1b259523cb0b18c45d807e57a0dc039dc67b8ea342fb549d524e11cea69"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/microsoft/LLMLingua/blob/HEAD/LICENSE",
+          "sha256": "c2cfccb812fe482101a8f04597dfc5a9991a6b2748266c47ac91b6a5aae15383"
+        }
+      ]
+    },
+    {
+      "tool_id": "opencode",
+      "name": "OpenCode",
+      "description": "Use a terminal or desktop coding agent with configurable model providers.",
+      "repository": "https://github.com/anomalyco/opencode",
+      "license": "MIT",
+      "category": "coding",
+      "capabilities": [
+        "code-editing",
+        "terminal-assistant"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Choose the documented installation method and matching platform artifact.",
+        "Configure the desired model/provider before running coding tasks."
+      ],
+      "compatibility_notes": "The README documents terminal and desktop installation options; client and release compatibility must be checked separately.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Upstream warns about older versions during installation; upgrades require deliberate version handling."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "aider",
+        "goose"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/anomalyco/opencode/blob/HEAD/README.md",
+          "sha256": "df8e642cd42bf26246dc9aaac2d5ef60a26cbb500aa631667da294112a1c6fc6"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/anomalyco/opencode/blob/HEAD/LICENSE",
+          "sha256": "625f0f619133f89bbbb2abe37369613dfa1885eba1e50d02170deb62bb42cb6b"
+        }
+      ]
+    },
+    {
+      "tool_id": "openhands",
+      "name": "OpenHands",
+      "description": "Coordinate coding agents and automations through a self-hosted developer control center.",
+      "repository": "https://github.com/OpenHands/OpenHands",
+      "license": "MIT",
+      "category": "coding",
+      "capabilities": [
+        "coding-agents",
+        "workflow-automation"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Choose a documented local, Docker, VM, or remote agent backend.",
+        "Configure the selected agent and any required model-provider access."
+      ],
+      "compatibility_notes": "The current README describes Agent Canvas and multiple ACP-compatible agents and backends.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Backend requirements vary; hosted OpenHands services and third-party agent licenses are outside this source-code entry."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "goose",
+        "opencode"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/OpenHands/OpenHands/blob/HEAD/README.md",
+          "sha256": "eca2b7026190577215e9967cc6ba69ff6ed3219d05f2a48a01d4ab590fa6a38a"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/OpenHands/OpenHands/blob/HEAD/LICENSE",
+          "sha256": "e1d1fa9f3a8d7bef24449d488fcd8f00f8f272cac297bb9bed161eb6175b876a"
+        }
+      ]
+    },
+    {
+      "tool_id": "openlit",
+      "name": "OpenLIT",
+      "description": "Use OpenTelemetry to observe agent calls, token costs, and application performance.",
+      "repository": "https://github.com/openlit/openlit",
+      "license": "Apache-2.0",
+      "category": "observability",
+      "capabilities": [
+        "tracing",
+        "spend-tracking",
+        "opentelemetry"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the relevant instrumentation SDK and configure telemetry export.",
+        "The documented self-hosted platform quickstart uses Docker Compose."
+      ],
+      "compatibility_notes": "Documents Python and JavaScript instrumentation and a self-hosted platform; deployment requirements depend on the selected mode.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Instrumentation and storage add operational overhead; enterprise governance features are outside this catalog scope."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "langfuse",
+        "opik"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Apache-2.0 open-source source code; separately offered enterprise governance features are excluded.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/openlit/openlit/blob/HEAD/README.md",
+          "sha256": "ba931279ecf3be009c208063ffa07c2eea7bb610fe69ef6e13ba68d6613b8afc"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/openlit/openlit/blob/HEAD/LICENSE",
+          "sha256": "ff5c9af5dcef9934ca533c0581fe26af59f024f7bc3995fccaa1dac3f5bb7e65"
+        }
+      ]
+    },
+    {
+      "tool_id": "opik",
+      "name": "Opik",
+      "description": "Trace AI applications and run evaluations over datasets, prompts, and agent executions.",
+      "repository": "https://github.com/comet-ml/opik",
+      "license": "Apache-2.0",
+      "category": "observability",
+      "capabilities": [
+        "tracing",
+        "llm-evaluation",
+        "prompt-management"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install an appropriate SDK and configure a tracing/evaluation endpoint.",
+        "Self-hosted local development uses the documented Docker-based deployment."
+      ],
+      "compatibility_notes": "The upstream repository includes the platform and SDK integrations; self-hosted and hosted deployment choices differ.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Self-hosting requires infrastructure; model-judged evaluations may add provider costs."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "langfuse",
+        "openlit"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/comet-ml/opik/blob/HEAD/README.md",
+          "sha256": "f4fffa79c792d196ae93d61ea7a3c503ff16821007543bb2ffda8b4ae3fcf716"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/comet-ml/opik/blob/HEAD/LICENSE",
+          "sha256": "0236cf0195e033d15c120e610d44943e8e478ffed5d60fbba1b5a6b96e778a47"
+        }
+      ]
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "name": "Playwright MCP",
+      "description": "Expose browser navigation and interaction tools to MCP-compatible clients.",
+      "repository": "https://github.com/microsoft/playwright-mcp",
+      "license": "Apache-2.0",
+      "category": "browser-automation",
+      "capabilities": [
+        "browser-automation",
+        "mcp-tools"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Node.js 18+ and an MCP-compatible client are documented upstream.",
+        "Provide a supported browser and any required operating-system browser dependencies."
+      ],
+      "compatibility_notes": "The README provides configurations for clients including Claude Code, Cursor, Codex, Gemini CLI, and GitHub Copilot.",
+      "supported_platforms": [
+        "macos",
+        "linux",
+        "windows"
+      ],
+      "supported_assistants": [
+        "claude-code",
+        "cursor",
+        "codex",
+        "gemini-cli",
+        "github-copilot"
+      ],
+      "limitations": [
+        "Concurrent clients sharing a persistent browser profile can conflict; use isolated sessions or distinct user-data directories.",
+        "Upstream also offers a separate CLI/skills approach; MCP is not automatically the lowest-token choice."
+      ],
+      "conflicts": [],
+      "alternatives": [],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/HEAD/README.md",
+          "sha256": "db4a7eee3e3bd4be105f8f9a10945cda390fe3bd955d05183e961f4e91f0b7ef"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/microsoft/playwright-mcp/blob/HEAD/LICENSE",
+          "sha256": "9a7110fc2d2f964038e5dc49128f908f29f47a574c961cba16085914e879cbda"
+        }
+      ]
+    },
+    {
+      "tool_id": "promptfoo",
+      "name": "promptfoo",
+      "description": "Evaluate prompts and model outputs with repeatable test cases and assertions.",
+      "repository": "https://github.com/promptfoo/promptfoo",
+      "license": "MIT",
+      "category": "evaluation",
+      "capabilities": [
+        "prompt-evaluation",
+        "regression-testing",
+        "model-comparison"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "The reviewed Node package requires Node.js >=22.22.0.",
+        "Prepare evaluation configuration and a provider; external model providers commonly require credentials."
+      ],
+      "compatibility_notes": "A standalone CLI/library with documented npm, Homebrew, and Python entry points; the planned adapter will use one explicitly selected mode.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "A deterministic local-provider evaluation does not establish quality on a real model.",
+        "Provider use and automated red-team workloads can incur costs."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "deepeval",
+        "inspect-ai"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/promptfoo/promptfoo/blob/HEAD/README.md",
+          "sha256": "7fd57809624e22da73bf6b6feb027c9e09aec74e0099bdea711fe2e276e87c4a"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/promptfoo/promptfoo/blob/HEAD/LICENSE",
+          "sha256": "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44"
+        },
+        {
+          "kind": "requirements",
+          "url": "https://github.com/promptfoo/promptfoo/blob/HEAD/package.json",
+          "sha256": "2e5f71584fec1485c09bf38238afc830070c5566269ed8bdc69b2ff48ba1e871"
+        }
+      ]
+    },
+    {
+      "tool_id": "pydantic-ai",
+      "name": "Pydantic AI",
+      "description": "Build typed Python agent applications with model integrations and structured outputs.",
+      "repository": "https://github.com/pydantic/pydantic-ai",
+      "license": "MIT",
+      "category": "orchestration",
+      "capabilities": [
+        "typed-agents",
+        "structured-outputs"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the Python package and the provider extras required by the application.",
+        "Configure a model backend; optional harness components have additional requirements."
+      ],
+      "compatibility_notes": "An application framework; hosted Logfire and gateway services are separate offerings.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Typed output validation does not by itself establish semantic correctness or task success."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "smolagents",
+        "langchain"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/pydantic/pydantic-ai/blob/HEAD/README.md",
+          "sha256": "0ea15a6d4433e885c9a4f49e23865480a3d38bf76df2d9dee2bed6e4b0fb2dd7"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/pydantic/pydantic-ai/blob/HEAD/LICENSE",
+          "sha256": "bc0e89738f36944c8106e1947c3d69631f9c33b8f1bcb60ec4f89d677d2dfcf4"
+        }
+      ]
+    },
+    {
+      "tool_id": "ragas",
+      "name": "Ragas",
+      "description": "Evaluate retrieval and language-model application outputs with configurable metrics.",
+      "repository": "https://github.com/explodinggradients/ragas",
+      "license": "Apache-2.0",
+      "category": "evaluation",
+      "capabilities": [
+        "rag-evaluation",
+        "llm-evaluation"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the ragas Python package.",
+        "Prepare evaluation data and configure LLM or embedding backends required by the selected metrics."
+      ],
+      "compatibility_notes": "The README links to the current vibrantlabsai/ragas project and describes RAG, agent, prompt, and workflow evaluation templates.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Different metrics need different data and model backends; an aggregate score is not proof of correctness for every task."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "deepeval",
+        "trulens"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/explodinggradients/ragas/blob/HEAD/README.md",
+          "sha256": "af20b2258507b12bf930e897b63ee5bb87aac4a4696da078ea5a3c29addb6db7"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/explodinggradients/ragas/blob/HEAD/LICENSE",
+          "sha256": "664b930830f291c2936ab30bcd6ef9ca6c9c7384cc475ae0c526156a27d5a6c6"
+        }
+      ]
+    },
+    {
+      "tool_id": "serena",
+      "name": "Serena",
+      "description": "Give coding agents symbol-aware code navigation, editing, and refactoring tools.",
+      "repository": "https://github.com/oraios/serena",
+      "license": "GPL-3.0-or-later",
+      "category": "context",
+      "capabilities": [
+        "symbol-search",
+        "code-navigation",
+        "refactoring"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install uv; the documented serena-agent setup selects Python 3.13.",
+        "Configure an MCP-capable client and a suitable language-server or other supported backend."
+      ],
+      "compatibility_notes": "An MCP tool service for coding agents; language and backend support must be checked for the chosen project.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Backend and language support vary; selecting a commercial backend does not make that backend open source."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "graphify"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Serena application and combined serena-agent distribution: GPL-3.0-or-later. SolidLSP remains separately MIT-licensed.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/oraios/serena/blob/HEAD/README.md",
+          "sha256": "26c1db5a91658c4fb2d3bd43c4da5aa90fa0efb172a9175a959643c177a14823"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/oraios/serena/blob/HEAD/LICENSE",
+          "sha256": "6239f4be78ccff409aedfbce88ac89b26f488f76aac7ab199fb6876dc7fdeb4c"
+        }
+      ]
+    },
+    {
+      "tool_id": "smolagents",
+      "name": "smolagents",
+      "description": "Build lightweight agents that use tools or generate code to perform actions.",
+      "repository": "https://github.com/huggingface/smolagents",
+      "license": "Apache-2.0",
+      "category": "orchestration",
+      "capabilities": [
+        "code-agents",
+        "tool-use"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install the smolagents Python package and selected extras.",
+        "Configure a model backend and an appropriate execution environment for code agents."
+      ],
+      "compatibility_notes": "Supports multiple model backends and tool sources; code execution configuration is part of application setup.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Generated-code execution and external tools need suitable isolation; optional model/tool dependencies vary."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "crewai",
+        "pydantic-ai"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/huggingface/smolagents/blob/HEAD/README.md",
+          "sha256": "131628d2669b4ee983c715002b57ea4b375b62c8502f6354b8d9fdf3fbc39f8d"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/huggingface/smolagents/blob/HEAD/LICENSE",
+          "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+        }
+      ]
+    },
+    {
+      "tool_id": "trulens",
+      "name": "TruLens",
+      "description": "Instrument and evaluate agent or retrieval workflows using traces and feedback functions.",
+      "repository": "https://github.com/truera/trulens",
+      "license": "MIT",
+      "category": "evaluation",
+      "capabilities": [
+        "agent-evaluation",
+        "rag-evaluation",
+        "tracing"
+      ],
+      "availability": "catalog_only",
+      "prerequisites": [
+        "Install trulens and the relevant provider/instrumentation packages.",
+        "Configure feedback functions and any model credentials they need."
+      ],
+      "compatibility_notes": "The README describes OpenTelemetry-native traces and separate provider packages for feedback evaluation.",
+      "supported_platforms": [],
+      "supported_assistants": [],
+      "limitations": [
+        "Provider-based feedback requires additional setup and may incur model costs; benchmark claims require independent reproduction."
+      ],
+      "conflicts": [],
+      "alternatives": [
+        "ragas",
+        "deepeval"
+      ],
+      "reviewed_on": "2026-11-16",
+      "license_review": "reviewed",
+      "license_scope": "Source code covered by the linked upstream license. Third-party dependencies, model weights, and hosted services retain their own terms.",
+      "sources": [
+        {
+          "kind": "readme",
+          "url": "https://github.com/truera/trulens/blob/HEAD/README.md",
+          "sha256": "274df1f3c9d070e1d461d20d14e1c0c6315eafd6348403a05333760d7d124b73"
+        },
+        {
+          "kind": "license",
+          "url": "https://github.com/truera/trulens/blob/HEAD/LICENSE",
+          "sha256": "cbc129d2a89ca1684a46c719a8e75b7f3602a5f00d6c17a12ec9c49a7cfa3d33"
+        }
+      ]
+    }
+  ]
+}

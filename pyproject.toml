@@ -30,6 +30,9 @@ where = ["src"]
 include = ["stackwinnow", "stackwinnow.*"]
 namespaces = false
 
+[tool.setuptools.package-data]
+stackwinnow = ["data/*.json"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
