@@ -1,12 +1,21 @@
 """Offline catalog loading and conservative, explainable setup eligibility."""
 
+from collections.abc import Mapping
+from copy import deepcopy
 from datetime import date
 from enum import StrEnum
 from importlib.resources import files
 from pathlib import Path
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
-from pydantic import Field, HttpUrl, StringConstraints, ValidationError, model_validator
+from pydantic import (
+    Field,
+    HttpUrl,
+    PrivateAttr,
+    StringConstraints,
+    ValidationError,
+    model_validator,
+)
 
 from stackwinnow.contracts import (
     Contract,
@@ -62,6 +71,7 @@ class ReviewedSource(Contract):
 class CatalogEntry(ToolSpec):
     """Extend catalog metadata without changing the shared bootstrap contracts."""
 
+    tool_id: Identifier = Field(frozen=True)
     category: Category
     prerequisites: list[NonEmptyText] = Field(min_length=1)
     compatibility_notes: NonEmptyText
@@ -95,7 +105,8 @@ class CatalogEntry(ToolSpec):
 
 class Catalog(Contract):
     schema_version: Literal[1] = 1
-    tools: list[CatalogEntry] = Field(min_length=1)
+    tools: tuple[CatalogEntry, ...] = Field(min_length=1, frozen=True)
+    _by_id: dict[str, CatalogEntry] = PrivateAttr(default_factory=dict)
 
     @model_validator(mode="after")
     def validate_references(self) -> "Catalog":
@@ -111,13 +122,22 @@ class Catalog(Contract):
                     raise ValueError(
                         f"{tool.tool_id}: conflict with '{conflict}' must be reciprocal"
                     )
+        self._by_id = by_id
         return self
 
     def get(self, tool_id: str) -> CatalogEntry:
-        for tool in self.tools:
-            if tool.tool_id == tool_id:
-                return tool
-        raise KeyError(tool_id)
+        return self._by_id[tool_id]
+
+    def model_copy(
+        self, *, update: Mapping[str, Any] | None = None, deep: bool = False
+    ) -> "Catalog":
+        """Validate copies and rebuild the index, including when entries are replaced."""
+        data = {name: getattr(self, name) for name in type(self).model_fields}
+        if deep:
+            data = deepcopy(data)
+        if update is not None:
+            data.update(update)
+        return type(self).model_validate(data)
 
 
 class CatalogError(ValueError):

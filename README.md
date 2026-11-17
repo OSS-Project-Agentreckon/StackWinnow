@@ -59,8 +59,8 @@ The JSON list envelope contains `schema_version`, `count`, and `tools`; each ite
 contains `tool` and `eligibility`. The show envelope contains `schema_version`,
 `tool`, and `eligibility`. Eligibility includes `installable` and reasons with
 stable codes and explanatory messages.
-The envelope and each tool carry their own schema version: tool objects retain
-the shared contract's version and can be validated independently.
+CLI JSON includes `schema_version` only in the response envelope; nested tool
+objects omit it. The Python models and stored catalog retain their schema versions.
 
 `catalog list --installable` currently returns no entries: all 30 tools are
 `catalog_only`, with no registered StackWinnow adapters. Empty documented
@@ -102,6 +102,14 @@ below. Validation rejects missing fields, duplicate IDs, invalid categories,
 duplicate source URLs, and dangling or self-referencing relationships.
 Conflicts must be reciprocal: if A lists B, B must list A. This ensures either
 selection order blocks the pair. Alternatives do not need reciprocal entries.
+
+Catalog lookup uses an index built during validation. In Python, `Catalog.tools`
+is a tuple and tool IDs cannot be reassigned, keeping that index consistent.
+To add or replace entries, construct a new `Catalog` or use
+`catalog.model_copy(update={"tools": replacement_entries})`, which validates the
+replacement and rebuilds the index. JSON still represents tools as an array.
+General validation supports any nonempty catalog; one separate acceptance test
+checks the assignment's current 30-entry deliverable.
 
 ### Eligibility handoff
 

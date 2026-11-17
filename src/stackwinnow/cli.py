@@ -34,7 +34,7 @@ def _add_display_arguments(parser: argparse.ArgumentParser) -> None:
 
 def _view(tool: CatalogEntry, eligibility: Eligibility) -> dict[str, object]:
     return {
-        "tool": tool.model_dump(mode="json"),
+        "tool": tool.model_dump(mode="json", exclude={"schema_version"}),
         "eligibility": eligibility.model_dump(mode="json"),
     }
 
@@ -113,6 +113,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 tool = catalog.get(args.tool_id)
             except KeyError:
                 parser.error(f"Unknown tool '{args.tool_id}'. Use 'stackwinnow catalog list'.")
+                return 2
             if args.json:
                 print(
                     json.dumps(

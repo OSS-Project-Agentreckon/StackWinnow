@@ -7,12 +7,13 @@ import sysconfig
 from collections import Counter
 from importlib.metadata import version
 from pathlib import Path
+from unittest.mock import Mock
 
 import pytest
 from conftest import subprocess_environment
 
 from stackwinnow import cli
-from stackwinnow.catalog import CatalogEntry, Eligibility, EligibilityContext
+from stackwinnow.catalog import CatalogEntry, Eligibility, EligibilityContext, load_catalog
 
 
 def run_cli(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -71,11 +72,14 @@ def test_packaged_catalog_is_available_outside_checkout(tmp_path: Path) -> None:
 
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
-    assert payload["count"] == 30
+    assert payload["count"] == len(payload["tools"])
+    assert {item["tool"]["tool_id"] for item in payload["tools"]} == {
+        tool.tool_id for tool in load_catalog().tools
+    }
     assert payload["schema_version"] == 1
     for item in payload["tools"]:
+        assert "schema_version" not in item["tool"]
         assert CatalogEntry.model_validate(item["tool"]).schema_version == 1
-    assert len(payload["tools"]) == 30
     assert all(not item["eligibility"]["installable"] for item in payload["tools"])
     assert list(tmp_path.iterdir()) == []
 
@@ -104,6 +108,8 @@ def test_category_filter_and_show_json(tmp_path: Path) -> None:
     )
     assert shown.returncode == 0, shown.stderr
     payload = json.loads(shown.stdout)
+    assert payload["schema_version"] == 1
+    assert "schema_version" not in payload["tool"]
     assert payload["tool"]["license"] == "Apache-2.0"
     assert {reason["code"] for reason in payload["eligibility"]["reasons"]} == {
         "adapter-unavailable",
@@ -152,6 +158,18 @@ def test_catalog_human_output_explains_limits(tmp_path: Path) -> None:
         "Sources:",
     ):
         assert text in result.stdout
+
+
+@pytest.mark.parametrize("flags", [[], ["--json"]])
+def test_unknown_tool_returns_failure_even_if_error_handler_returns(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], flags: list[str]
+) -> None:
+    handler = Mock(return_value=None)
+    monkeypatch.setattr(cli.argparse.ArgumentParser, "error", handler)
+    assert cli.main(["catalog", "show", "does-not-exist", *flags]) == 2
+    handler.assert_called_once()
+    assert "Unknown tool 'does-not-exist'" in handler.call_args.args[0]
+    assert capsys.readouterr().out == ""
 
 
 def test_installable_json_reuses_the_evaluation_used_for_selection(

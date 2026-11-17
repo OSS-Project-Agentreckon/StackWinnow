@@ -63,11 +63,10 @@ def codes(tool: CatalogEntry, context: EligibilityContext) -> set[str]:
     return {reason.code for reason in result.reasons}
 
 
-def test_bundled_catalog_has_30_unique_reviewed_entries() -> None:
+def test_bundled_catalog_has_unique_reviewed_entries() -> None:
     catalog = load_catalog()
-    # The agreed first-release acceptance criterion is exactly 30 reviewed entries.
-    assert len(catalog.tools) == 30
-    assert len({tool.tool_id for tool in catalog.tools}) == 30
+    assert catalog.tools
+    assert len({tool.tool_id for tool in catalog.tools}) == len(catalog.tools)
     for tool in catalog.tools:
         assert tool.license_review == "reviewed"
         assert {source.kind for source in tool.sources} >= {"license", "readme"}
@@ -78,6 +77,11 @@ def test_bundled_catalog_has_30_unique_reviewed_entries() -> None:
     assert {"headroom", "graphify", "promptfoo", "playwright-mcp"} <= {
         tool.tool_id for tool in catalog.tools
     }
+
+
+def test_assignment_deliverable_has_30_catalog_entries() -> None:
+    # Keep the agreed deliverable size separate from general catalog validation.
+    assert len(load_catalog().tools) == 30
 
 
 def test_reviewed_license_scope_preserves_upstream_exceptions() -> None:
@@ -117,11 +121,60 @@ def test_invalid_catalog_files_produce_actionable_errors(tmp_path: Path) -> None
         load_catalog(path)
 
 
-def test_local_catalog_round_trip(tmp_path: Path) -> None:
-    catalog = Catalog(tools=[entry()])
+@pytest.mark.parametrize("size", [1, 5, 31])
+def test_local_catalog_round_trip(tmp_path: Path, size: int) -> None:
+    catalog = Catalog(tools=[entry(tool_id=f"tool-{index}") for index in range(size)])
     path = tmp_path / "catalog.json"
     path.write_text(catalog.model_dump_json())
     assert load_catalog(path) == catalog
+
+
+def test_indexed_lookup_after_json_round_trip() -> None:
+    catalog = Catalog(tools=[entry(), entry(tool_id="other-tool")])
+    restored = Catalog.model_validate_json(catalog.model_dump_json())
+    for tool in restored.tools:
+        assert restored.get(tool.tool_id) is tool
+    with pytest.raises(KeyError, match="missing-tool"):
+        restored.get("missing-tool")
+    assert set(restored.model_dump()) == {"schema_version", "tools"}
+
+
+def test_catalog_membership_and_ids_cannot_invalidate_index() -> None:
+    source = [entry()]
+    catalog = Catalog(tools=source)
+    source.append(entry(tool_id="other-tool"))
+    assert len(catalog.tools) == 1
+    with pytest.raises(ValidationError, match="frozen"):
+        catalog.tools = ()
+    with pytest.raises(TypeError):
+        catalog.tools[0] = entry(tool_id="replacement")
+    with pytest.raises(ValidationError, match="frozen"):
+        catalog.get("example-tool").tool_id = "renamed-tool"
+    assert catalog.get("example-tool") is catalog.tools[0]
+    with pytest.raises(KeyError):
+        catalog.get("renamed-tool")
+
+
+@pytest.mark.parametrize("deep", [False, True])
+def test_copied_catalog_index_matches_its_entries(deep: bool) -> None:
+    catalog = Catalog(tools=[entry()])
+    copied = catalog.model_copy(deep=deep)
+    assert copied.get("example-tool") is copied.tools[0]
+    assert (copied.get("example-tool") is catalog.get("example-tool")) is not deep
+
+
+def test_replacing_entries_rebuilds_index_and_preserves_original() -> None:
+    catalog = Catalog(tools=[entry()])
+    replacement = entry(tool_id="replacement").model_dump(mode="json")
+    copied = catalog.model_copy(update={"tools": [replacement]})
+    assert copied.get("replacement") is copied.tools[0]
+    with pytest.raises(KeyError):
+        copied.get("example-tool")
+    assert catalog.get("example-tool") is catalog.tools[0]
+    with pytest.raises(ValidationError, match="IDs must be unique"):
+        catalog.model_copy(update={"tools": [entry(), entry()]})
+    with pytest.raises(ValidationError, match="Extra inputs"):
+        catalog.model_copy(update={"toools": []})
 
 
 def test_duplicate_ids_and_dangling_relationships_are_rejected() -> None:
@@ -191,7 +244,9 @@ def test_a_runtime_must_supply_all_readiness_checks() -> None:
     assert result.installable
     assert result.reasons == []
     catalog = Catalog(tools=[entry()])
-    assert filter_catalog(catalog, installable_only=True, context=ready_context()) == catalog.tools
+    assert filter_catalog(catalog, installable_only=True, context=ready_context()) == list(
+        catalog.tools
+    )
 
 
 @pytest.mark.parametrize(
