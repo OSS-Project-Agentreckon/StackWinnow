@@ -1,0 +1,6 @@
+[project]
+name = "stackwinnow-fixture-project"
+version = "0.0.0"
+description = "Synthetic fixture; never publish or install as a real project."
+requires-python = ">=3.11"
+dependencies = []

@@ -1,0 +1,9 @@
+{
+  "theme": "keep-existing-theme",
+  "mcpServers": {
+    "existing-fixture-server": {
+      "command": "fixture-only-do-not-execute",
+      "args": ["--preserve-this"]
+    }
+  }
+}

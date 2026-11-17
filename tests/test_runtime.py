@@ -11,8 +11,6 @@ import sys
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from stackwinnow.contracts import OperationStatus, ProjectProfile
 from stackwinnow.runtime import (
     _check_node,
@@ -21,7 +19,6 @@ from stackwinnow.runtime import (
     _find_package_managers,
     inspect_environment,
 )
-
 
 # ---------------------------------------------------------------------------
 # inspect_environment — top-level contract

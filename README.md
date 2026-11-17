@@ -7,10 +7,11 @@ functional verification, and removal that preserves the user's settings.
 
 ## Current scope
 
-This is the first bootstrap commit, version `0.1.0.dev0`. It provides an
-installable Python package, CLI help/version, validated shared contracts, and
-tests. Inspection, recommendations, installation, configuration, verification,
-and removal are **planned and not implemented**.
+Version `0.1.0.dev0` provides an installable Python package, CLI help/version,
+validated shared contracts, a read-only runtime inspection API, and local tests
+with reusable isolated fixtures and initial CI. The inspection API is not yet a
+CLI command. Recommendations, installation, configuration, functional tool
+verification, and removal remain **planned and not implemented**.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -48,10 +49,16 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
-The tests exercise the installed CLI from temporary working directories. Tests
-for shared contracts use small examples, without installing tools or changing
-assistant settings. CI and the reusable integration fixture harness are planned
-for subsequent commits.
+The tests exercise the installed CLI from temporary working directories and use
+copied project/configuration fixtures. They install no agent tools and leave
+personal assistant settings unchanged. Runtime unit tests declare available
+tools through mocks; a local browser fixture uses loopback HTTP only. Real
+integration/provider checks require explicit pytest opt-ins and are not yet
+implemented. See [testing](docs/testing.md) for fixtures, commands, and CI scope.
+
+The [chronological work plan](docs/chronological-commit-plan.md) and
+[implementation progress](docs/implementation-progress.md) track the 36 planned
+work commits separately from actual completion and merge history.
 
 ## Shared contracts
 

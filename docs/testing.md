@@ -1,0 +1,61 @@
+# Testing StackWinnow
+
+The default suite checks the implemented contracts/CLI/runtime and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
+
+## Run local checks
+
+Use Python 3.11+ in a project virtual environment:
+
+```sh
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev]"
+python -m pip check
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest
+```
+
+Dependency installation needs package-index access. Default tests need no provider credentials or installed agent tools. One fixture test serves copied HTML on an ephemeral 127.0.0.1 port: loopback HTTP, not the Internet. CI runs these checks on Ubuntu/Python 3.11 and 3.14. This is a package/testing matrix, not an upstream integration compatibility claim.
+
+## Reusable fixtures
+
+| Fixture/helper | Purpose |
+| --- | --- |
+| `test_home` (automatic) | A temporary home for in-process `Path.home()` discovery; the parent shell environment is unchanged. |
+| `no_host_tool_discovery` (automatic for local tests) | Runtime executable discovery finds no tools unless explicitly mocked, making tests independent of laptop installations. |
+| `subprocess_env` | A separate child-process environment with temporary home/config/cache/temp paths; no inherited provider credentials or `PYTHONPATH`. |
+| `project_factory` | Independent copies of synthetic project files and generic MCP-shaped settings. |
+| `fixture_project` | One copied project with spaces in its root path, exposed through `root`, `settings`, and `page`. |
+| `browser_fixture_url` | Loopback HTTP serving only the copied web directory; server/thread cleanup happens during teardown. |
+
+The settings seed has an unrelated theme and existing server entry. Its command is fictional and must not be executed. This is a generic configuration shape, not a validated real-assistant setup.
+
+The Python fixture has a known edge: `sample_app.greetings.greet` calls `sample_app.names.normalize_name`. Calling `greet("  ada   lovelace ")` yields `Hello, Ada Lovelace!`. Future Graphify checks can use this oracle. The current fixture test checks the Python result and data, not Graphify itself.
+
+The browser page has a **Complete check** button (`complete-check`). A browser click should update `result` to `StackWinnow fixture passed`. This commit checks HTTP delivery and isolation only; browser/JavaScript execution belongs in the later Playwright adapter.
+
+Operate on copies, not `tests/fixtures/` seeds or personal projects. In-process home redirection covers only `Path.home()`; other configuration APIs must receive explicit temporary paths. Child-process tests must pass `env=subprocess_env` and a fixture working directory. These helpers are test-isolation tools, not a security sandbox for untrusted programs.
+
+## Real tool and provider checks
+
+Use `integration` for tests needing actual upstream tools/clients. `requires_provider` indicates model-provider access and also implies integration.
+
+| Invocation | Local tests | Tool integration | Provider tests |
+| --- | --- | --- | --- |
+| `python -m pytest` | Run | Skip with reason | Skip with reason |
+| `python -m pytest --run-integration` | Run | Run | Skip with reason |
+| `python -m pytest --run-integration --run-provider` | Run | Run | Run |
+| `python -m pytest --run-provider` | Usage error | Usage error | Usage error |
+
+There are **no real upstream/provider tests yet**. Marker-policy tests execute a synthetic nested pytest suite to verify gating; these dummy cases are not upstream evidence. Selecting only integration tests currently selects none. A skipped/unavailable check does not mean verified.
+
+Flags do not install prerequisites or automatically expose credentials. Future adapters must document temporary configuration, prerequisites, known-result checks, and provider costs. After explicit opt-in, provider tests may add only their required credentials to the child environment instead of inheriting the full personal environment.
+
+Strict markers/configuration catch misspelled markers and unknown pytest settings. Behavior changes should include their own relevant tests.
+
+## Baseline and evidence
+
+Before this harness, main `6616b86` passed 52 tests on macOS/Python 3.14.0. Ruff reported an unused `pytest` import and import-block spacing in runtime tests. Step 3 includes that minimal test-only cleanup so initial CI can pass; production runtime behavior is unchanged.
+
+Final validation and review references are recorded in [implementation-progress.md](implementation-progress.md). Local success does not mean hosted GitHub Actions has run.
