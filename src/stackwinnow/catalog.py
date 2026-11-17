@@ -77,6 +77,9 @@ class CatalogEntry(ToolSpec):
 
     @model_validator(mode="after")
     def validate_review(self) -> "CatalogEntry":
+        urls = [source.url for source in self.sources]
+        if len(urls) != len(set(urls)):
+            raise ValueError("sources must contain unique URLs")
         kinds = {source.kind for source in self.sources}
         if "readme" not in kinds:
             raise ValueError("a reviewed README source is required")
@@ -96,13 +99,18 @@ class Catalog(Contract):
 
     @model_validator(mode="after")
     def validate_references(self) -> "Catalog":
-        ids = {tool.tool_id for tool in self.tools}
-        if len(ids) != len(self.tools):
+        by_id = {tool.tool_id: tool for tool in self.tools}
+        if len(by_id) != len(self.tools):
             raise ValueError("catalog tool IDs must be unique")
         for tool in self.tools:
             for related in [*tool.conflicts, *tool.alternatives]:
-                if related == tool.tool_id or related not in ids:
+                if related == tool.tool_id or related not in by_id:
                     raise ValueError(f"{tool.tool_id}: invalid related tool reference '{related}'")
+            for conflict in tool.conflicts:
+                if tool.tool_id not in by_id[conflict].conflicts:
+                    raise ValueError(
+                        f"{tool.tool_id}: conflict with '{conflict}' must be reciprocal"
+                    )
         return self
 
     def get(self, tool_id: str) -> CatalogEntry:
@@ -145,7 +153,8 @@ class EligibilityContext(Contract):
             "windows": Platform.WINDOWS,
         }
         return cls(
-            platform=aliases.get(name.lower()) if name else None, assistant=profile.assistant
+            platform=aliases.get(name.split()[0].lower()) if name else None,
+            assistant=profile.assistant,
         )
 
 
@@ -169,6 +178,8 @@ def evaluate_eligibility(
     def block(code: str, message: str) -> None:
         reasons.append(EligibilityReason(code=code, message=message))
 
+    # Assignment and model_copy(update=...) can bypass the construction-time validator.
+    # Keep the license gate even when a mutable entry still claims to be reviewed.
     if tool.license_review != "reviewed" or tool.license not in OPEN_SOURCE_LICENSES:
         block("license-unresolved", "The open-source license scope has not been resolved.")
     if tool.availability != IntegrationAvailability.ADAPTER_AVAILABLE:

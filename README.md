@@ -41,7 +41,8 @@ If `python3` is older than 3.11, use an installed newer interpreter, for example
 package index. Catalog discovery runs offline and needs no API key or running
 coding assistant. Bare `stackwinnow` and `stackwinnow catalog` display help.
 Invalid commands, tool IDs, flags, or catalog data return exit status 2. A valid
-empty result returns 0.
+empty result returns 0. Long option names must be written in full; abbreviated
+flags such as `--inst` or `--j` are rejected.
 
 ## Browse the catalog
 
@@ -58,6 +59,8 @@ The JSON list envelope contains `schema_version`, `count`, and `tools`; each ite
 contains `tool` and `eligibility`. The show envelope contains `schema_version`,
 `tool`, and `eligibility`. Eligibility includes `installable` and reasons with
 stable codes and explanatory messages.
+The envelope and each tool carry their own schema version: tool objects retain
+the shared contract's version and can be validated independently.
 
 `catalog list --installable` currently returns no entries: all 30 tools are
 `catalog_only`, with no registered StackWinnow adapters. Empty documented
@@ -96,7 +99,9 @@ lists empty and new tools `catalog_only`. A `reviewed` license requires an
 identifier in the validator's supported OSS license set and a license source;
 extend that set only after review when adding another license. Run the checks
 below. Validation rejects missing fields, duplicate IDs, invalid categories,
-and dangling or self-referencing relationships.
+duplicate source URLs, and dangling or self-referencing relationships.
+Conflicts must be reciprocal: if A lists B, B must list A. This ensures either
+selection order blocks the pair. Alternatives do not need reciprocal entries.
 
 ### Eligibility handoff
 
@@ -106,7 +111,10 @@ Person B supplies `EligibilityContext` with the target platform/client, actual
 registered adapter IDs, and tool-specific prerequisite statuses. The helper
 `EligibilityContext.from_profile(profile)` maps runtime OS facts and assistant
 identity; it deliberately leaves adapter registration and prerequisite checks
-empty. A successful generic environment check must not be treated as success
+empty. When the OS fact is absent or empty, it recognizes a leading OS name in
+the descriptive operating-system field (for example, Darwin Kernel Version 27.0.0).
+Unrecognized names remain unknown and produce an eligibility reason.
+A successful generic environment check must not be treated as success
 for every tool. Selected tool IDs allow recorded conflicts to block setup.
 
 Setup eligibility requires a reviewed OSS license scope, an available and

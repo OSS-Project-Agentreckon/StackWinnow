@@ -11,6 +11,7 @@ from stackwinnow.catalog import (
     CatalogEntry,
     CatalogError,
     Category,
+    Eligibility,
     EligibilityContext,
     Platform,
     evaluate_eligibility,
@@ -31,10 +32,10 @@ def _add_display_arguments(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _view(tool: CatalogEntry, context: EligibilityContext) -> dict[str, object]:
+def _view(tool: CatalogEntry, eligibility: Eligibility) -> dict[str, object]:
     return {
         "tool": tool.model_dump(mode="json"),
-        "eligibility": evaluate_eligibility(tool, context).model_dump(mode="json"),
+        "eligibility": eligibility.model_dump(mode="json"),
     }
 
 
@@ -80,10 +81,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
-    catalog_parser = commands.add_parser("catalog", help="Browse the reviewed tool catalog.")
+    catalog_parser = commands.add_parser(
+        "catalog", help="Browse the reviewed tool catalog.", allow_abbrev=False
+    )
     catalog_commands = catalog_parser.add_subparsers(dest="catalog_command")
     listing = catalog_commands.add_parser(
-        "list", help="List tools, optionally filtering the catalog."
+        "list", help="List tools, optionally filtering the catalog.", allow_abbrev=False
     )
     listing.add_argument("--category", choices=[item.value for item in Category])
     listing.add_argument(
@@ -91,7 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     _add_display_arguments(listing)
     showing = catalog_commands.add_parser(
-        "show", help="Explain one tool and its setup eligibility."
+        "show", help="Explain one tool and its setup eligibility.", allow_abbrev=False
     )
     showing.add_argument("tool_id")
     _add_display_arguments(showing)
@@ -111,23 +114,33 @@ def main(argv: Sequence[str] | None = None) -> int:
             except KeyError:
                 parser.error(f"Unknown tool '{args.tool_id}'. Use 'stackwinnow catalog list'.")
             if args.json:
-                print(json.dumps({"schema_version": 1, **_view(tool, context)}, indent=2))
+                print(
+                    json.dumps(
+                        {"schema_version": 1, **_view(tool, evaluate_eligibility(tool, context))},
+                        indent=2,
+                    )
+                )
             else:
                 _show(tool, context)
         else:
             entries = filter_catalog(
                 catalog,
                 category=Category(args.category) if args.category else None,
-                installable_only=args.installable,
-                context=context,
             )
+            eligibility = (
+                {tool.tool_id: evaluate_eligibility(tool, context) for tool in entries}
+                if args.json or args.installable
+                else {}
+            )
+            if args.installable:
+                entries = [tool for tool in entries if eligibility[tool.tool_id].installable]
             if args.json:
                 print(
                     json.dumps(
                         {
                             "schema_version": 1,
                             "count": len(entries),
-                            "tools": [_view(tool, context) for tool in entries],
+                            "tools": [_view(tool, eligibility[tool.tool_id]) for tool in entries],
                         },
                         indent=2,
                     )

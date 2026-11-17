@@ -65,6 +65,7 @@ def codes(tool: CatalogEntry, context: EligibilityContext) -> set[str]:
 
 def test_bundled_catalog_has_30_unique_reviewed_entries() -> None:
     catalog = load_catalog()
+    # The agreed first-release acceptance criterion is exactly 30 reviewed entries.
     assert len(catalog.tools) == 30
     assert len({tool.tool_id for tool in catalog.tools}) == 30
     for tool in catalog.tools:
@@ -156,6 +157,24 @@ def test_license_review_requires_the_actual_license_reference() -> None:
         entry(sources=[source])
 
 
+@pytest.mark.parametrize("changes", [{}, {"kind": "requirements"}, {"sha256": "c" * 64}])
+def test_duplicate_source_urls_are_rejected(changes: dict[str, str]) -> None:
+    sources = entry().model_dump(mode="json")["sources"]
+    sources.append({**sources[0], **changes})
+    with pytest.raises(ValidationError, match="sources must contain unique URLs"):
+        entry(sources=sources)
+
+
+@pytest.mark.parametrize("use_copy", [False, True])
+def test_license_gate_rechecks_entries_changed_after_validation(use_copy: bool) -> None:
+    tool = entry()
+    if use_copy:
+        tool = tool.model_copy(update={"license": "proprietary"})
+    else:
+        tool.license = "proprietary"
+    assert "license-unresolved" in codes(tool, ready_context())
+
+
 def test_metadata_alone_cannot_mark_an_entry_installable() -> None:
     result = evaluate_eligibility(entry())
     assert not result.installable
@@ -210,12 +229,30 @@ def test_unknown_or_unavailable_metadata_blocks_setup(
     assert expected in codes(entry(**changes), ready_context())
 
 
-def test_a_known_conflict_blocks_a_selected_combination() -> None:
+@pytest.mark.parametrize("candidate", ["example-tool", "other-tool"])
+def test_a_known_conflict_blocks_both_selection_orders(candidate: str) -> None:
     tool = entry(conflicts=["other-tool"])
-    catalog = Catalog(tools=[tool, entry(tool_id="other-tool")])
-    assert "selection-conflict" in codes(
-        catalog.get("example-tool"), ready_context(selected_tools=["other-tool"])
+    catalog = Catalog(tools=[tool, entry(tool_id="other-tool", conflicts=["example-tool"])])
+    context = ready_context(
+        registered_adapters=[candidate], prerequisite_checks={candidate: "succeeded"}
     )
+    assert evaluate_eligibility(catalog.get(candidate), context).installable
+    context.selected_tools = [tool.tool_id for tool in catalog.tools if tool.tool_id != candidate]
+    assert codes(catalog.get(candidate), context) == {"selection-conflict"}
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+def test_one_sided_conflicts_are_rejected_regardless_of_entry_order(reverse: bool) -> None:
+    tools = [entry(conflicts=["other-tool"]), entry(tool_id="other-tool")]
+    if reverse:
+        tools.reverse()
+    with pytest.raises(ValidationError, match="conflict with 'other-tool' must be reciprocal"):
+        Catalog(tools=tools)
+
+
+def test_alternatives_can_be_one_sided() -> None:
+    catalog = Catalog(tools=[entry(alternatives=["other-tool"]), entry(tool_id="other-tool")])
+    assert catalog.get("example-tool").alternatives == ["other-tool"]
 
 
 def test_environment_profile_is_consumed_without_inventing_runtime_readiness() -> None:
@@ -242,3 +279,33 @@ def test_catalog_json_has_only_documented_top_level_fields(tmp_path: Path) -> No
     path.write_text(json.dumps(data))
     with pytest.raises(CatalogError, match="Extra inputs"):
         load_catalog(path)
+
+
+@pytest.mark.parametrize("facts", [{}, {"os": []}])
+@pytest.mark.parametrize(
+    ("description", "expected"),
+    [
+        ("Darwin Kernel Version 27.0.0", Platform.MACOS),
+        ("Linux 6.8.0 (x86_64)", Platform.LINUX),
+        ("Windows 11 (AMD64)", Platform.WINDOWS),
+        ("mAcOS 15.0", Platform.MACOS),
+        ("FreeBSD 14.0", None),
+    ],
+)
+def test_descriptive_os_fallback(
+    facts: dict[str, list[str]], description: str, expected: Platform | None
+) -> None:
+    profile = ProjectProfile(project_root="./sample", facts=facts, operating_system=description)
+    context = EligibilityContext.from_profile(profile)
+    assert context.platform == expected
+    if expected is None:
+        assert "platform-unknown" in codes(entry(), context)
+
+
+def test_canonical_os_fact_takes_precedence_over_description() -> None:
+    profile = ProjectProfile(
+        project_root="./sample",
+        facts={"os": ["Linux"]},
+        operating_system="Darwin Kernel Version 27.0.0",
+    )
+    assert EligibilityContext.from_profile(profile).platform == Platform.LINUX

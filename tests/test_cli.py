@@ -4,11 +4,15 @@ import json
 import os
 import subprocess
 import sysconfig
+from collections import Counter
 from importlib.metadata import version
 from pathlib import Path
 
 import pytest
 from conftest import subprocess_environment
+
+from stackwinnow import cli
+from stackwinnow.catalog import CatalogEntry, Eligibility, EligibilityContext
 
 
 def run_cli(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -68,6 +72,9 @@ def test_packaged_catalog_is_available_outside_checkout(tmp_path: Path) -> None:
     assert result.returncode == 0, result.stderr
     payload = json.loads(result.stdout)
     assert payload["count"] == 30
+    assert payload["schema_version"] == 1
+    for item in payload["tools"]:
+        assert CatalogEntry.model_validate(item["tool"]).schema_version == 1
     assert len(payload["tools"]) == 30
     assert all(not item["eligibility"]["installable"] for item in payload["tools"])
     assert list(tmp_path.iterdir()) == []
@@ -116,6 +123,12 @@ def test_no_installable_tools_are_advertised(tmp_path: Path) -> None:
         ("catalog", "show", "does-not-exist"),
         ("catalog", "list", "--category", "made-up"),
         ("catalog", "show", "graphify", "--assistant", "Invalid ID"),
+        ("catalog", "list", "--inst", "--j"),
+        ("catalog", "list", "--j"),
+        ("catalog", "list", "--cat", "evaluation"),
+        ("catalog", "show", "graphify", "--j"),
+        ("catalog", "show", "graphify", "--plat", "macos"),
+        ("catalog", "show", "graphify", "--assist", "codex"),
     ],
 )
 def test_catalog_input_errors_have_nonzero_exit_status(
@@ -139,3 +152,29 @@ def test_catalog_human_output_explains_limits(tmp_path: Path) -> None:
         "Sources:",
     ):
         assert text in result.stdout
+
+
+def test_installable_json_reuses_the_evaluation_used_for_selection(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    calls: Counter[str] = Counter()
+
+    def evaluate(tool: CatalogEntry, context: EligibilityContext) -> Eligibility:
+        calls[tool.tool_id] += 1
+        # Synthetic results exercise CLI selection/rendering, not real tool readiness.
+        if tool.tool_id == "promptfoo":
+            return Eligibility(installable=True, reasons=[])
+        return Eligibility(
+            installable=False,
+            reasons=[{"code": "adapter-unavailable", "message": "Synthetic blocked result."}],
+        )
+
+    monkeypatch.setattr(cli, "evaluate_eligibility", evaluate)
+    assert cli.main(["catalog", "list", "--category", "evaluation", "--installable", "--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["count"] == 1
+    assert payload["tools"][0]["tool"]["tool_id"] == "promptfoo"
+    assert payload["tools"][0]["eligibility"] == {"installable": True, "reasons": []}
+    assert calls == Counter(
+        {"deepeval": 1, "inspect-ai": 1, "promptfoo": 1, "ragas": 1, "trulens": 1}
+    )

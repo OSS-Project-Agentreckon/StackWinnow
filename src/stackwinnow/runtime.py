@@ -60,7 +60,7 @@ def _check_node() -> tuple[str | None, OperationResult]:
     if not node_path:
         return None, OperationResult(
             status=OperationStatus.BLOCKED,
-            message="Node.js not found — required for Graphify and Playwright MCP",
+            message="Node.js not found — required for Playwright MCP",
             errors=["Install Node.js 18 or later: https://nodejs.org"],
         )
     raw = _run_version(["node", "--version"])  # e.g. "v20.11.0"
