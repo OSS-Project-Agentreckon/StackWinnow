@@ -98,10 +98,11 @@ def test_node_not_found_returns_blocked() -> None:
     assert result.errors
 
 
-def test_node_blocked_message_names_dependent_tools() -> None:
+def test_node_blocked_message_does_not_claim_graphify_requires_node() -> None:
     with patch("stackwinnow.runtime.shutil.which", return_value=None):
         _, result = _check_node()
-    assert "Graphify" in result.message or "Playwright" in result.message
+    assert "Playwright MCP" in result.message
+    assert "Graphify" not in result.message
 
 
 def test_node_too_old_returns_failure() -> None:

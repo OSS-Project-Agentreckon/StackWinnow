@@ -30,13 +30,105 @@ source .venv/bin/activate
 python -m pip install .
 stackwinnow --help
 stackwinnow --version
+stackwinnow catalog list
+stackwinnow catalog list --category evaluation
+stackwinnow catalog show graphify --platform macos --assistant codex
+stackwinnow catalog list --json
 ```
 
 If `python3` is older than 3.11, use an installed newer interpreter, for example
 `python3.11 -m venv .venv`. Initial dependency installation needs access to a
-package index. Help, version, and contract validation need no API key or running
-coding assistant. Bare `stackwinnow` displays help; unavailable commands return
-a nonzero exit status.
+package index. Catalog discovery runs offline and needs no API key or running
+coding assistant. Bare `stackwinnow` and `stackwinnow catalog` display help.
+Invalid commands, tool IDs, flags, or catalog data return exit status 2. A valid
+empty result returns 0. Long option names must be written in full; abbreviated
+flags such as `--inst` or `--j` are rejected.
+
+## Browse the catalog
+
+`catalog list` sorts entries by tool ID. Use `--category` to filter by context,
+caching, model-gateway, evaluation, browser-automation, observability, coding,
+orchestration, or prompt-optimization. `catalog show TOOL_ID` displays prerequisites,
+compatibility, limitations, related alternatives, license scope, and sources.
+
+Both commands accept `--json`, `--platform macos|linux|windows`, and
+`--assistant ASSISTANT_ID`. These target flags supply context for explanations;
+they do not inspect the machine or prove compatibility. IDs use lowercase
+letters/digits and optional hyphen or underscore separators, for example `codex`.
+The JSON list envelope contains `schema_version`, `count`, and `tools`; each item
+contains `tool` and `eligibility`. The show envelope contains `schema_version`,
+`tool`, and `eligibility`. Eligibility includes `installable` and reasons with
+stable codes and explanatory messages.
+CLI JSON includes `schema_version` only in the response envelope; nested tool
+objects omit it. The Python models and stored catalog retain their schema versions.
+
+`catalog list --installable` currently returns no entries: all 30 tools are
+`catalog_only`, with no registered StackWinnow adapters. Empty documented
+platform/client lists mean unknown compatibility. Empty conflict lists mean
+no conflicts recorded, not proof that a combination works. Alternatives are
+related options, not necessarily interchangeable tools. There are no measured
+cost-saving claims or completed upstream integration tests in this catalog.
+
+### Sources and license review
+
+The bundled [catalog](src/stackwinnow/data/catalog.json) records an AI-assisted
+review of upstream README, license, and selected requirement files on
+2026-11-16. Each source has a URL and SHA-256 digest of the downloaded content.
+URLs referencing `HEAD` can change; the digests record what was reviewed but do
+not pin installable versions or replace immutable release references. This is
+documentation review, not human peer review or functional verification.
+
+License scope matters: AutoGen code uses MIT while its documentation uses
+CC-BY-4.0; Serena's application uses GPL-3.0-or-later; LiteLLM and Langfuse have
+separately licensed enterprise directories. Those exclusions are recorded in
+the entries. Reviewing the listed code's license does not resolve licenses of
+every dependency, model, hosted service, or future downloaded artifact.
+
+Requirements must be checked per tool. The reviewed Graphify manifest requires
+Python >=3.11,<3.15 despite its README quickstart saying 3.10+. The reviewed
+promptfoo package requires Node >=22.22.0. A generic runtime Node >=18 check is
+insufficient for promptfoo, and does not establish Graphify prerequisites.
+
+### Add or update an entry
+
+Edit `src/stackwinnow/data/catalog.json` with a unique ID, category, capability
+tags, prerequisites, compatibility notes, limitations, relationships, license
+scope, review date, and reviewed source URLs/digests. Read the actual upstream
+license and requirement files, including exceptions. Leave undocumented support
+lists empty and new tools `catalog_only`. A `reviewed` license requires an
+identifier in the validator's supported OSS license set and a license source;
+extend that set only after review when adding another license. Run the checks
+below. Validation rejects missing fields, duplicate IDs, invalid categories,
+duplicate source URLs, and dangling or self-referencing relationships.
+Conflicts must be reciprocal: if A lists B, B must list A. This ensures either
+selection order blocks the pair. Alternatives do not need reciprocal entries.
+
+Catalog lookup uses an index built during validation. In Python, `Catalog.tools`
+is a tuple and tool IDs cannot be reassigned, keeping that index consistent.
+To add or replace entries, construct a new `Catalog` or use
+`catalog.model_copy(update={"tools": replacement_entries})`, which validates the
+replacement and rebuilds the index. JSON still represents tools as an array.
+General validation supports any nonempty catalog; one separate acceptance test
+checks the assignment's current 30-entry deliverable.
+
+### Eligibility handoff
+
+`stackwinnow.catalog.load_catalog()` loads and validates the packaged data.
+`evaluate_eligibility(entry, context)` returns setup eligibility and reasons.
+Person B supplies `EligibilityContext` with the target platform/client, actual
+registered adapter IDs, and tool-specific prerequisite statuses. The helper
+`EligibilityContext.from_profile(profile)` maps runtime OS facts and assistant
+identity; it deliberately leaves adapter registration and prerequisite checks
+empty. When the OS fact is absent or empty, it recognizes a leading OS name in
+the descriptive operating-system field (for example, Darwin Kernel Version 27.0.0).
+Unrecognized names remain unknown and produce an eligibility reason.
+A successful generic environment check must not be treated as success
+for every tool. Selected tool IDs allow recorded conflicts to block setup.
+
+Setup eligibility requires a reviewed OSS license scope, an available and
+registered adapter, documented platform/client support, successful prerequisites,
+and no recorded selection conflict. It does not execute installation. Person C's
+post-install functional checks remain a separate requirement.
 
 ## Develop and check
 
@@ -160,5 +252,5 @@ documentation commit.
 ## License
 
 StackWinnow's original code is licensed under the [MIT License](LICENSE).
-Third-party tools retain their own licenses. This bootstrap does not bundle
-Graphify, Headroom, promptfoo, or Playwright MCP.
+Third-party tools retain their own licenses. StackWinnow includes catalog
+metadata and source references, not upstream tool code or binaries.
