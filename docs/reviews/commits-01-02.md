@@ -42,18 +42,20 @@ from unittest.mock import patch
 from stackwinnow.runtime import inspect_environment, _check_node
 
 with (
-    patch('stackwinnow.runtime.shutil.which', return_value=None),
-    patch.object(Path, 'is_dir', return_value=True),
-    patch.object(Path, 'iterdir', side_effect=PermissionError('fixture: unreadable extension directory')),
+    patch("stackwinnow.runtime.shutil.which", return_value=None),
+    patch.object(Path, "is_dir", return_value=True),
+    patch.object(
+        Path, "iterdir", side_effect=PermissionError("fixture: unreadable extension directory")
+    ),
 ):
     try:
-        inspect_environment('/fixture/project')
+        inspect_environment("/fixture/project")
     except PermissionError as exc:
         print(type(exc).__name__, str(exc))
 
 with (
-    patch('stackwinnow.runtime.shutil.which', return_value='/fixture/bin/node'),
-    patch('stackwinnow.runtime._run_version', return_value='v20.not-a-version'),
+    patch("stackwinnow.runtime.shutil.which", return_value="/fixture/bin/node"),
+    patch("stackwinnow.runtime._run_version", return_value="v20.not-a-version"),
 ):
     version, result = _check_node()
     print(version, result.status.value)
