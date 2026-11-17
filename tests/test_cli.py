@@ -8,6 +8,7 @@ from importlib.metadata import version
 from pathlib import Path
 
 import pytest
+from conftest import subprocess_environment
 
 
 def run_cli(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
@@ -15,8 +16,7 @@ def run_cli(tmp_path: Path, *args: str) -> subprocess.CompletedProcess[str]:
         "stackwinnow.exe" if os.name == "nt" else "stackwinnow"
     )
     assert executable.is_file(), "Install the package before running CLI tests."
-    environment = os.environ.copy()
-    environment.pop("PYTHONPATH", None)
+    environment = subprocess_environment(Path.home())
     return subprocess.run(
         [str(executable), *args],
         cwd=tmp_path,
