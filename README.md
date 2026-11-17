@@ -7,11 +7,12 @@ functional verification, and removal that preserves the user's settings.
 
 ## Current scope
 
-Version `0.1.0.dev0` provides an installable Python package, CLI help/version,
-validated shared contracts, a read-only runtime inspection API, and local tests
-with reusable isolated fixtures and initial CI. The inspection API is not yet a
-CLI command. Recommendations, installation, configuration, functional tool
-verification, and removal remain **planned and not implemented**.
+Version `0.1.0.dev0` provides an installable Python package, catalog discovery
+commands, validated shared contracts, a read-only runtime inspection API, and
+an API for previewing/applying owned project-local JSON configuration edits.
+Local tests use isolated fixtures and initial CI. Runtime inspection and
+configuration are not yet CLI commands. Recommendations, installation,
+functional tool verification, and removal remain **planned and not implemented**.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -130,6 +131,20 @@ registered adapter, documented platform/client support, successful prerequisites
 and no recorded selection conflict. It does not execute installation. Person C's
 post-install functional checks remain a separate requirement.
 
+## Project configuration API
+
+`stackwinnow.configure.plan_json_edits()` previews changes to one explicitly
+selected project-local JSON file. `apply_json_edits()` checks that the preview
+still matches, applies the changes atomically, and returns ownership records
+with original and written values. Unrelated settings survive; matching existing
+values are left unowned, and replacing a different value requires an explicit
+request. Changed or malformed input blocks the operation.
+
+This first implementation uses strict UTF-8 JSON and POSIX file operations for
+macOS/Linux. It does not establish support for a particular coding assistant.
+See [configuration](docs/configuration.md) for a runnable temporary-project
+example, formatting/concurrency limits, and the handoff to the later executor.
+
 ## Develop and check
 
 Inside the virtual environment:
@@ -164,6 +179,9 @@ filesystem, fetch repositories, or execute plans. The top-level models use
 | `ToolSpec` | Describe a catalog tool, its source and license, and whether an adapter exists. An unknown license remains `None`. |
 | `InstallPlan` | Describe selected tools and ordered intended steps. Tool and step IDs are unique; steps must reference selected tools. |
 | `OperationResult` | Report an explicit operation status, message, optional errors, and evidence. Status never defaults to success. |
+| `JsonConfigEdit` | Request one JSON key change, with an explicit option to replace an existing different value. |
+| `ConfigPatch` | Record a configuration preview, expected/written file state, original/written key values, and created ancestor objects. |
+| `ConfigApplyResult` | Return the operation result and ownership only when configuration publication occurred. |
 
 `EvidenceRef` supplies a source and supporting detail. `PlanStep` is a description
 of intended work, not a shell command or execution receipt. Paths and evidence

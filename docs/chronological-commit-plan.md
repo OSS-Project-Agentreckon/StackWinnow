@@ -10,7 +10,7 @@ The target is **12 substantive work commits per person, 36 total**: a 30-entry O
 | B | Runtime, execution, state, Headroom, packaging | 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 |
 | C | Fixtures/CI, configuration, verification/removal, promptfoo, Playwright | 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 |
 
-Work commits 1 and 2 are already on main. Step 3 is the current user's first contribution. Step 4 has a separate draft PR and is not on main. The runtime PR used a merge commit, so the real history is not a 36-commit linear history. Preserve it and distinguish work commits from merge commits when reporting equal counts.
+As checked on **17 November 2026**, steps 1–4 are merged on main at `fe55d36`. Step 5 is still pending. Step 6 is C's second contribution and can be developed independently because its dependencies are 1 and 3; merge step 5 first to preserve the planned integration order. Actual main has seven non-merge commits (A: 5, B: 1, C: 1) plus four merges because the catalog PR included three follow-up commits. The 36/12-each target therefore needs revised future commit boundaries while preserving the required work and published history; see the progress log.
 
 Numbering below is the planned integration order, not a completion claim or an instruction to change authors or timestamps. Each change includes relevant tests and review. Dedicated test steps add scenario or reproduction evidence. Work can proceed concurrently where dependencies allow.
 

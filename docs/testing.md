@@ -1,6 +1,6 @@
 # Testing StackWinnow
 
-The default suite checks the implemented contracts/CLI/runtime and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
+The default suite checks the implemented contracts/CLI/runtime, JSON configuration API, and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
 
 ## Run local checks
 
@@ -36,6 +36,16 @@ The Python fixture has a known edge: `sample_app.greetings.greet` calls `sample_
 The browser page has a **Complete check** button (`complete-check`). A browser click should update `result` to `StackWinnow fixture passed`. This commit checks HTTP delivery and isolation only; browser/JavaScript execution belongs in the later Playwright adapter.
 
 Operate on copies, not `tests/fixtures/` seeds or personal projects. In-process home redirection covers only `Path.home()`; other configuration APIs must receive explicit temporary paths. Child-process tests must pass `env=subprocess_env` and a fixture working directory. These helpers are test-isolation tools, not a security sandbox for untrusted programs.
+
+## Configuration checks
+
+The configuration tests in `tests/test_configuration_patches.py` are local
+filesystem tests, not tool integrations. They preview/apply only in copied
+projects, exercise preservation and ownership, and inject failures around
+staging/publication. POSIX mode, symlink, directory-descriptor, and atomic-link
+checks run on macOS/Linux; this module is skipped on Windows, where the
+configuration writer is not implemented. Core CLI/catalog/contract tests
+remain separate. See [configuration](configuration.md) for the API boundary.
 
 ## Real tool and provider checks
 
