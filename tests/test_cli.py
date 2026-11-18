@@ -41,6 +41,7 @@ def test_help_is_available_without_a_project(tmp_path: Path, args: tuple[str, ..
     assert "usage: stackwinnow" in result.stdout
     assert "--version" in result.stdout
     assert "catalog" in result.stdout
+    assert "inspect" in result.stdout
     assert "Installation is not available yet" in result.stdout
     assert result.stderr == ""
     assert list(tmp_path.iterdir()) == []
@@ -196,3 +197,81 @@ def test_installable_json_reuses_the_evaluation_used_for_selection(
     assert calls == Counter(
         {"deepeval": 1, "inspect-ai": 1, "promptfoo": 1, "ragas": 1, "trulens": 1}
     )
+
+
+def test_inspect_installed_cli_reports_intent_and_one_schema_version(tmp_path: Path) -> None:
+    root = tmp_path / "project with spaces"
+    root.mkdir()
+    (root / "package.json").write_text('{"dependencies":{"react":"^18"}}')
+    result = run_cli(
+        tmp_path,
+        "inspect",
+        str(root),
+        "--goal",
+        "Evaluate answers",
+        "--assistant",
+        "codex",
+        "--tool",
+        "graphify",
+        "--model-preference",
+        "local",
+        "--json",
+    )
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["schema_version"] == 1
+    assert payload["complete"]
+    assert payload["profile"]["facts"]["node.dependencies"] == ["react"]
+    assert payload["profile"]["goals"] == ["Evaluate answers"]
+    assert payload["selected_tools"] == ["graphify"]
+    assert payload["model_preference"] == "local"
+    assert "schema_version" not in payload["profile"]
+    assert all("schema_version" not in item for item in payload["diagnostics"])
+    assert not (root / ".stackwinnow").exists()
+
+
+def test_inspect_no_manifest_is_success_with_unknowns(tmp_path: Path) -> None:
+    result = run_cli(tmp_path, "inspect", ".")
+    assert result.returncode == 0, result.stderr
+    assert "Assistant: unknown" in result.stdout
+    assert "No supported declarations" in result.stdout
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("extra", [[], ["--json"]])
+def test_inspect_parse_failure_reports_partial_findings_and_exit_one(
+    tmp_path: Path, extra: list[str]
+) -> None:
+    (tmp_path / "package.json").write_text('{"bad": synthetic-secret}')
+    (tmp_path / "pyproject.toml").write_text('[project]\ndependencies=["requests"]')
+    result = run_cli(tmp_path, "inspect", ".", *extra)
+    assert result.returncode == 1
+    assert "requests" in result.stdout
+    assert "synthetic-secret" not in result.stdout + result.stderr
+    assert "Traceback" not in result.stderr
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("inspect", "does-not-exist"),
+        ("inspect", ".", "--tool", "does-not-exist"),
+        ("inspect", ".", "--goal", " "),
+        ("inspect", ".", "--assistant", "Invalid ID"),
+        ("inspect", ".", "--config", "../outside.json"),
+        ("inspect", ".", "--model-preference", "invalid"),
+        ("inspect", ".", "--j"),
+    ],
+)
+def test_inspect_invalid_inputs_fail_without_writes(tmp_path: Path, args: tuple[str, ...]) -> None:
+    result = run_cli(tmp_path, *args)
+    assert result.returncode == 2
+    assert "error:" in result.stderr
+    assert "Traceback" not in result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_inspect_explicit_missing_configuration_exits_one(tmp_path: Path) -> None:
+    result = run_cli(tmp_path, "inspect", ".", "--config", "missing.json", "--json")
+    assert result.returncode == 1
+    assert not json.loads(result.stdout)["complete"]

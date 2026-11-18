@@ -10,7 +10,17 @@ The target is **12 substantive work commits per person, 36 total**: a 30-entry O
 | B | Runtime, execution, state, Headroom, packaging | 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 |
 | C | Fixtures/CI, configuration, verification/removal, promptfoo, Playwright | 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 |
 
-As checked on **17 November 2026**, steps 1–4 are merged on main at `fe55d36`. Step 5 is still pending. Step 6 is C's second contribution and can be developed independently because its dependencies are 1 and 3; merge step 5 first to preserve the planned integration order. Actual main has seven non-merge commits (A: 5, B: 1, C: 1) plus four merges because the catalog PR included three follow-up commits. The 36/12-each target therefore needs revised future commit boundaries while preserving the required work and published history; see the progress log.
+As checked on **18 November 2026**, local main is `a7c7654`. Steps 1–4 and
+step 6 are merged. PR #5 supplies part of step 8's executor work; step 5's
+pinned-command runner and managed environments are still pending. Integration
+has not followed every planned step in order, so use actual delivered behavior
+and dependencies rather than PR numbers to select the next task. A's step 7 is
+implemented and tested locally on `feat/project-detection`, pending PR review/merge;
+see the progress log for validation and the next dependency gates.
+Review-fix and merge commits are additional history for their work items, not
+new completed steps. Preserve the required work and genuine authorship rather
+than rewriting history to force a Git commit count. The progress log retains
+the dated contribution counts and validation evidence.
 
 Numbering below is the planned integration order, not a completion claim or an instruction to change authors or timestamps. Each change includes relevant tests and review. Dedicated test steps add scenario or reproduction evidence. Work can proceed concurrently where dependencies allow.
 
