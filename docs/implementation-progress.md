@@ -1,8 +1,8 @@
 # StackWinnow implementation progress
 
-Last updated: **17 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **18 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
-Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow). Base main: `fe55d36f780209ade0d512f6a0ccea2aeae0c32c`. Current contribution branch: `feat/config-ownership`.
+Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow). Branch base: `fe55d36f780209ade0d512f6a0ccea2aeae0c32c`. Current contribution branch: `feat/config-ownership`.
 
 ## Completed work recorded before starting step 3
 
@@ -69,7 +69,7 @@ from this base; no corresponding remote PR was found during the review.
 
 - Owner: Kalwarala Abhignan / AbhignanSharma, `abhignansharma.k@gmail.com`.
 - Title: `feat(config): plan and apply owned project configuration edits`.
-- Status: implemented on `feat/config-ownership`; integration is pending.
+- Status: [PR #4](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4) is open on `feat/config-ownership`; integration is pending. The original implementation is `484e3d3`, followed by a review-fix commit on the same branch.
 - Dependencies: steps 1 and 3 are merged. Work proceeds independently of step 5;
   preserve the planned integration order by merging step 5 first.
 - Scope: strict JSON previews, targeted object-key edits, original/written
@@ -83,7 +83,7 @@ stale previews, write failures, path redirection, and publication/cleanup
 failures. This uses POSIX filesystem operations and copied fixture projects;
 no upstream tools or live assistant settings are involved.
 
-Final step-6 validation performed locally on macOS:
+Initial step-6 validation performed locally on macOS on 17 November:
 
 | Check | Result |
 | --- | --- |
@@ -94,29 +94,46 @@ Final step-6 validation performed locally on macOS:
 | Dependency compatibility, both Python environments | Passed |
 | Documented temporary-project example | Executed successfully |
 
-Hosted CI has not yet run for this contribution; the successful run above
-belongs to the base main SHA. Receipt persistence, complete removal, and real
-assistant integration remain later work. Step-6 design, implementation, tests,
-and documentation were AI-assisted and require the contributor's review and
+The initial feature commit also passed both Ubuntu/Python 3.11 and 3.14 jobs in
+[CI run 44145287862](https://github.com/OSS-Project-Agentreckon/StackWinnow/actions/runs/44145287862).
+Receipt persistence, complete removal, and real assistant integration are
+outside this configuration change. Step-6 design, implementation, tests, and
+documentation were AI-assisted and require the contributor's review and
 understanding.
+
+On 18 November, BASKARUNIBASKARRAJU's [review](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4#pullrequestreview-5950525150)
+identified two reproducible correctness issues: sorted JSON serialization
+invalidated preview digests, and symlink-loop exceptions escaped the expected
+planning/apply outcomes. The follow-up renders object keys deterministically
+and normalizes both Python 3.11's RuntimeError and newer OSError(ELOOP) into
+configuration conflicts.
+
+Three regression tests failed against `484e3d3` on both Python versions before
+the fixes. The updated branch passed **215 tests** on each of Python 3.11.14
+and 3.14.0 with warnings treated as errors, plus Ruff lint/format checks. There
+are now **76 configuration scenarios**. The author requested a separate fix
+commit on the existing branch, preserving the original implementation commit.
+The earlier CI result above covers `484e3d3`; the review-fix commit has its own
+checks on PR #4.
 
 ## Contribution-count baseline
 
 The historical baseline `6616b86` had **A: 1, B: 1, C: 0** non-merge commits.
-Current base main `fe55d36` has **A: 5, B: 1, C: 1**, plus four merge commits
-(11 total Git commits). Step 6 adds C's second authored contribution as one
-logical commit, making the feature branch's non-merge counts **A: 5, B: 1, C: 2**.
+Branch base `fe55d36` has **A: 5, B: 1, C: 1**, plus four merge commits
+(11 total Git commits). Step 6's original implementation and requested review
+fix are two Git commits for one planned work item. This branch's non-merge
+counts are therefore **A: 5, B: 1, C: 3**. The review fix does not complete
+another numbered plan step.
 
-The catalog PR's three follow-up commits consume three extra A commit slots.
-Keeping every remaining plan item as its own commit would yield A: 15, B: 12,
-C: 12 (39 non-merge commits). Retaining the 36/12-each target requires
-consolidating three future A commit boundaries while preserving all required
-work. No accepted history was rewritten and no separate housekeeping/review
-commit was added for step 6.
+The catalog follow-ups and this review fix consume additional commit slots.
+Retaining the 36/12-each target requires revising future commit boundaries
+while preserving required work and genuine authorship. Existing commits and
+the branch history are preserved. These counts describe this branch from
+`fe55d36`; other work merged into origin/main after that base is separate.
 
 ```sh
-git shortlog -sne --no-merges main
-git log --reverse --format='%h %an <%ae> %s' main
+git shortlog -sne --no-merges HEAD
+git log --reverse --format='%h %an <%ae> %s' HEAD
 ```
 
 ## Evidence and boundaries

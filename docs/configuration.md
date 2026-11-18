@@ -75,10 +75,12 @@ installation, assistant discovery, or provider calls.
 - Duplicate or overlapping paths are rejected. One patch concerns one file
   and one tool; multiple files are separate operations for the executor.
 
-An actual write serializes the resulting complete JSON object with two-space
-indentation and a final newline. Unrelated keys and values are retained; source
-whitespace is normalized. A no-op keeps the original bytes and modification
-time. Comments, trailing commas, duplicate keys, a non-object root, malformed
+An actual write serializes the resulting complete JSON object with sorted object
+keys, two-space indentation, and a final newline. This keeps the planned output
+digest stable when an executor serializes previews with reordered object keys.
+Unrelated keys and values are retained; object key order and source whitespace
+are normalized. Array order is preserved. A no-op keeps the original bytes and
+modification time. Comments, trailing commas, duplicate keys, a non-object root, malformed
 UTF-8, and non-finite numbers are rejected without a write. Decimal literals
 that would lose precision through Python's JSON encoder are also rejected.
 TOML, YAML, and JSON with comments need separate implementations.
@@ -133,6 +135,8 @@ failures. An exceptional cleanup failure is reported accurately.
 Project-relative paths cannot escape through `..` or absolute paths. A chosen
 project root is resolved during planning. Changed symlink ancestors, symlink
 file/parent paths, multiply linked files, and special files are rejected.
+Project-path symlink loops raise `ConfigurationConflict` during planning and
+return `blocked` without ownership during apply on all supported Python versions.
 Directory descriptors keep staging and publication anchored to the opened
 parent; its current path is checked before publication.
 

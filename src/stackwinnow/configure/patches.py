@@ -40,6 +40,19 @@ class ConfigurationConflict(ConfigurationError):
     """Input is unsupported, conflicts with an edit, or changed since preview."""
 
 
+def _resolve_project_root(project_root: Path | str) -> str:
+    try:
+        return str(Path(project_root).resolve(strict=True))
+    except (RuntimeError, OSError) as exc:
+        # Path.resolve used RuntimeError for symlink loops before Python 3.13;
+        # newer versions raise OSError(ELOOP). Other IO failures keep their meaning.
+        if isinstance(exc, OSError) and exc.errno != errno.ELOOP:
+            raise
+        raise ConfigurationConflict(
+            "The project path contains a symlink loop; correct it and preview again."
+        ) from exc
+
+
 def _json(value: object) -> str:
     # Python considers True == 1; JSON configuration must distinguish them.
     return json.dumps(value, sort_keys=True, allow_nan=False, separators=(",", ":"))
@@ -93,7 +106,7 @@ def _parent(project_root: str, relative_path: str) -> Iterator[tuple[int, str]]:
     """Hold directory descriptors so path traversal never follows child symlinks."""
     if os.name != "posix":
         raise ConfigurationConflict("Configuration writes currently support macOS and Linux.")
-    if str(Path(project_root).resolve(strict=True)) != project_root:
+    if _resolve_project_root(project_root) != project_root:
         raise ConfigurationConflict("The project path now resolves elsewhere; preview again.")
     descriptors: list[int] = []
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW
@@ -194,7 +207,9 @@ def _prepare(
             )
         )
     if changes:
-        rendered = (json.dumps(document, indent=2, allow_nan=False) + "\n").encode("utf-8")
+        rendered = (json.dumps(document, indent=2, sort_keys=True, allow_nan=False) + "\n").encode(
+            "utf-8"
+        )
         written = ConfigFileState(
             exists=True,
             sha256=hashlib.sha256(rendered).hexdigest(),
@@ -230,7 +245,7 @@ def plan_json_edits(
     invalid request contracts. The result can be serialized before mutation.
     """
     try:
-        root = str(Path(project_root).resolve(strict=True))
+        root = _resolve_project_root(project_root)
         relative = Path(relative_path).as_posix()
         # Validate scope before passing any caller-supplied path to open().
         scope = ConfigPatch(

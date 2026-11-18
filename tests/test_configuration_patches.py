@@ -59,6 +59,29 @@ def test_preview_can_be_persisted_before_any_mutation(fixture_project: FixturePr
     assert patch.created_objects == ()
 
 
+def test_preview_survives_sorted_json_serialization(fixture_project: FixtureProject) -> None:
+    value = {
+        "command": "fixture-only-do-not-execute",
+        "env": {"Z_LAST": "last", "A_FIRST": "first"},
+        "args": ["second", "first"],
+    }
+    patch = preview(
+        fixture_project, JsonConfigEdit(key_path=("mcpServers", "fixture-tool"), value=value)
+    )
+    serialized = json.dumps(patch.model_dump(mode="json"), sort_keys=True)
+    restored = ConfigPatch.model_validate_json(serialized)
+    assert restored == patch
+
+    outcome = apply_json_edits(restored)
+
+    assert outcome.result.status == "succeeded"
+    assert outcome.ownership == patch
+    actual = fixture_project.settings.read_bytes()
+    assert hashlib.sha256(actual).hexdigest() == patch.written_file.sha256
+    assert json.loads(actual)["mcpServers"]["fixture-tool"] == value
+    assert_no_staging_files(fixture_project.root)
+
+
 def test_apply_preserves_unrelated_settings_and_permissions(
     fixture_project: FixtureProject,
 ) -> None:
@@ -513,6 +536,35 @@ def test_changed_project_ancestor_cannot_redirect_apply(tmp_path: Path) -> None:
     assert outcome.ownership is None
     assert outside.read_text() == "{}"
     assert_no_staging_files(outside.parent)
+
+
+def test_plan_rejects_project_symlink_loop(fixture_project: FixtureProject) -> None:
+    original = fixture_project.settings.read_bytes()
+    moved = fixture_project.root.with_name("moved project")
+    fixture_project.root.rename(moved)
+    fixture_project.root.symlink_to(fixture_project.root.name, target_is_directory=True)
+
+    with pytest.raises(ConfigurationConflict, match="symlink loop"):
+        preview(fixture_project)
+
+    assert (moved / fixture_project.settings.name).read_bytes() == original
+    assert_no_staging_files(moved)
+
+
+def test_apply_blocks_project_symlink_loop(fixture_project: FixtureProject) -> None:
+    patch = preview(fixture_project)
+    original = fixture_project.settings.read_bytes()
+    moved = fixture_project.root.with_name("moved project")
+    fixture_project.root.rename(moved)
+    fixture_project.root.symlink_to(fixture_project.root.name, target_is_directory=True)
+
+    outcome = apply_json_edits(patch)
+
+    assert outcome.result.status == "blocked"
+    assert "symlink loop" in outcome.result.message
+    assert outcome.ownership is None
+    assert (moved / fixture_project.settings.name).read_bytes() == original
+    assert_no_staging_files(moved)
 
 
 def test_parent_disappearing_after_preview_is_a_conflict(fixture_project: FixtureProject) -> None:
