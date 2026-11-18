@@ -2,7 +2,69 @@
 
 Last updated: **18 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
-Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow). Branch base: `fe55d36f780209ade0d512f6a0ccea2aeae0c32c`. Current contribution branch: `feat/config-ownership`.
+Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
+
+## Latest observed main and Person A's next work
+
+On 18 November, the user's pulled main is `a7c7654`. PR #5's executor merged as
+`45167a3`, followed by PR #4's configuration API and review fixes as `a7c7654`.
+The catalog, initial fixtures/CI, runtime inspection, executor, and configuration
+API are now in the local main history. The entries below retain earlier branch
+snapshots; their old branch names, test totals, and counts are not current-main
+claims. Historical references to "the current user" identify the contributor
+who wrote that section, not the reader of this log.
+
+Person A's **step 7: project manifest detection and explicit user goals** is now
+implemented and locally validated on `feat/project-detection`, based on
+`a7c7654`. It is prepared for PR review and is not merged. Its dependencies
+(1, 2, 4) were already merged; the numbered scope remains in the shared plan.
+
+The step-5 pinned-command runner and managed environments are still absent from
+this tree. PR #5 corresponds to executor work in step 8, not step 5. A callback
+executor is present, but full runner/configuration-ownership integration and real
+adapter acceptance remain pending. Do not infer completion from PR numbering or
+merge order. All catalog entries remain catalog-only.
+
+## Step 7 local implementation / Person A
+
+- Adds `inspect_project()` and `stackwinnow inspect` for root Python/Node
+  manifests, declared dependency groups/runtime constraints, and names from an
+  explicitly selected project-local JSON `mcpServers` object.
+- Records goals, assistant choice, manual catalog selections, and model
+  preference separately from observed facts/evidence. This does not install
+  tools, execute scripts, inspect host tools, or establish compatibility.
+- Preserves unknowns and partial findings; includes bounded reads, sanitized
+  diagnostics, and explicit complete/incomplete/input-error exit statuses.
+- Uses `packaging` as a declared dependency for PEP 508 names and Python
+  constraints, including prerelease/development versions. Initial bounded
+  inspection is supported on macOS/Linux.
+- Local review fixes preserve exact `ProjectProfile.project_root` and
+  `EvidenceRef.source` strings in the shared contracts while still rejecting
+  whitespace-only values. Padded MCP registration names produce diagnostics
+  without corrupting JSON reloads; valid names are retained. Catalog selection
+  reuses indexed lookup, and dynamic metadata is validated once.
+- Usage, schema, handoff, and limitations: [project inspection](project-inspection.md).
+- Validation on Python 3.11: merged-main baseline **243 tests passed**; after
+  implementation and review fixes **317 tests passed**, both with warnings treated as errors.
+  Ruff lint/format, dependency compatibility, and diff checks passed. Built and
+  reinstalled the package, exercised the installed CLI outside the checkout in
+  tests, and ran inspection against this repository. These validation results
+  are local; they do not include hosted CI.
+- The next action is PR review and integration of this feature.
+  Next A engineering milestone is step 10, explainable recommendations, with the
+  shared plan's first-real-adapter integration dependency still outstanding.
+
+PR #7 review follow-up: dependency declarations that exceed the parser's
+recursion limit now produce a sanitized failed diagnostic while other
+dependencies and manifests remain available. Regression coverage includes
+regular/optional Python dependencies and the installed CLI's partial JSON
+response. All **320 tests passed** locally on Python 3.11 with warnings treated
+as errors; Ruff lint/format and package build/reinstallation passed. Hosted CI
+passed on Python 3.11/3.14 for the original `2abbeae` commit; those results do
+not cover this follow-up.
+
+Implementation, documentation, and test preparation were AI-assisted. These are
+local feature results, not a claim that main or any upstream integration is ready.
 
 ## Completed work recorded before starting step 3
 
@@ -65,13 +127,14 @@ passed on Ubuntu/Python 3.11 and 3.14. Both earlier runtime P2 findings were
 reproduced again. Step 5's command runner and managed environments are absent
 from this base; no corresponding remote PR was found during the review.
 
-## Current work: step 6 / person C's second contribution
+## Step 6 implementation and review history / person C's second contribution
 
 - Owner: Kalwarala Abhignan / AbhignanSharma, `abhignansharma.k@gmail.com`.
 - Title: `feat(config): plan and apply owned project configuration edits`.
-- Status: [PR #4](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4) is open on `feat/config-ownership`; integration is pending. The original implementation is `484e3d3`, followed by a review-fix commit on the same branch.
-- Dependencies: steps 1 and 3 are merged. Work proceeds independently of step 5;
-  preserve the planned integration order by merging step 5 first.
+- Status: [PR #4](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4) merged as `a7c7654`. The original implementation is `484e3d3`, followed by review-fix commit `6a07797`. The validation narrative below records that contribution's history.
+- Dependencies at implementation time: steps 1 and 3 were merged. Work proceeded
+  independently of step 5. Actual integration occurred before the planned
+  step-5 runner was delivered; that dependency gap is recorded above.
 - Scope: strict JSON previews, targeted object-key edits, original/written
   ownership data, expected-state checks, atomic publication, and tests.
 - Shared contracts and the executor handoff are documented in

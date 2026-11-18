@@ -7,11 +7,11 @@ functional verification, and removal that preserves the user's settings.
 
 ## Current scope
 
-Version `0.1.0.dev0` provides an installable Python package, catalog discovery
-commands, validated shared contracts, a read-only runtime inspection API, and
-an API for previewing/applying owned project-local JSON configuration edits.
-Local tests use isolated fixtures and initial CI. Runtime inspection and
-configuration are not yet CLI commands. Recommendations, installation,
+Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
+project inspection with explicit goals/preferences, shared contracts, runtime
+inspection, execution receipts, and owned JSON configuration edits. The
+`inspect` command reads project declarations; host runtime inspection and
+configuration remain Python APIs. Recommendations, real tool installation,
 functional tool verification, and removal remain **planned and not implemented**.
 
 The team's first-release target is 30 researched catalog entries and four
@@ -35,6 +35,7 @@ stackwinnow catalog list
 stackwinnow catalog list --category evaluation
 stackwinnow catalog show graphify --platform macos --assistant codex
 stackwinnow catalog list --json
+stackwinnow inspect . --json
 ```
 
 If `python3` is older than 3.11, use an installed newer interpreter, for example
@@ -44,6 +45,26 @@ coding assistant. Bare `stackwinnow` and `stackwinnow catalog` display help.
 Invalid commands, tool IDs, flags, or catalog data return exit status 2. A valid
 empty result returns 0. Long option names must be written in full; abbreviated
 flags such as `--inst` or `--j` are rejected.
+
+## Inspect a project
+
+```bash
+stackwinnow inspect ./my-project --goal "Reduce model calls" --assistant codex
+stackwinnow inspect ./my-project --tool graphify --model-preference local --json
+stackwinnow inspect ./my-project --config assistant-settings.json
+```
+
+Inspection reports root `pyproject.toml` and `package.json` declarations, dependency
+names, declared runtime constraints, and names from an explicitly selected
+`mcpServers` configuration. It keeps user goals and tool choices separate from
+observations. It performs no installations or provider calls. Missing information
+stays unknown, and malformed/unreadable files produce diagnostics alongside any
+valid findings. The initial bounded file reader supports macOS and Linux.
+
+Exit statuses are 0 for complete inspection (including absent optional manifests),
+1 for incomplete inspection, and 2 for invalid inputs. See
+[project inspection](docs/project-inspection.md) for the schema, supported fields,
+limits, and API handoff.
 
 ## Browse the catalog
 

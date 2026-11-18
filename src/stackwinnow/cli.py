@@ -1,4 +1,4 @@
-"""Read-only catalog discovery commands."""
+"""Read-only catalog discovery and project inspection commands."""
 
 import argparse
 import json
@@ -18,6 +18,58 @@ from stackwinnow.catalog import (
     filter_catalog,
     load_catalog,
 )
+from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
+
+
+def _inspect(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        result = inspect_project(
+            args.project_root,
+            goals=args.goal,
+            assistant=args.assistant,
+            selected_tools=args.tool,
+            model_preference=args.model_preference,
+            config_path=args.config,
+        )
+    except (InspectionError, CatalogError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+    except ValidationError:
+        # Validation errors may include input values. Do not echo arbitrary input.
+        parser.exit(2, "error: Supply nonempty goals and valid assistant/tool IDs.\n")
+    if args.json:
+        payload = result.model_dump(
+            mode="json",
+            exclude={
+                "profile": {"schema_version"},
+                "diagnostics": {"__all__": {"schema_version"}},
+            },
+        )
+        print(json.dumps({**payload, "complete": result.complete}, indent=2))
+    else:
+        _show_inspection(result)
+    return 0 if result.complete else 1
+
+
+def _show_inspection(result: InspectionResult) -> None:
+    profile = result.profile
+    print(f"Project: {profile.project_root}")
+    print(f"Inspection: {'complete' if result.complete else 'incomplete'}")
+    print(f"Assistant: {profile.assistant or 'unknown'}")
+    print("Goals: " + ("; ".join(profile.goals) or "not supplied"))
+    print("Selected tools: " + (", ".join(result.selected_tools) or "none"))
+    print(f"Model preference: {result.model_preference or 'not supplied'}")
+    print("Declared facts:")
+    if not profile.facts:
+        print("  No supported declarations found; project details remain unknown.")
+    for key, values in sorted(profile.facts.items()):
+        print(f"  {key}: {', '.join(values) if values else '(explicitly empty)'}")
+    print("Evidence:")
+    for evidence in profile.evidence:
+        print(f"  {evidence.source}: {evidence.detail}")
+    print("Diagnostics:")
+    for item in result.diagnostics:
+        print(f"  [{item.status}] {item.message}")
+    print("Declarations and selections do not establish installation or functional readiness.")
 
 
 def _add_display_arguments(parser: argparse.ArgumentParser) -> None:
@@ -81,6 +133,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    inspection = commands.add_parser(
+        "inspect", help="Read project manifests and record explicit goals.", allow_abbrev=False
+    )
+    inspection.add_argument("project_root", help="Existing project directory.")
+    inspection.add_argument(
+        "--goal", action="append", help="Explicit goal; repeat for multiple goals."
+    )
+    inspection.add_argument("--assistant", help="Explicit assistant ID; omitted means unknown.")
+    inspection.add_argument(
+        "--tool", action="append", help="Catalog tool ID; repeat to select tools."
+    )
+    inspection.add_argument("--model-preference", choices=["local", "hosted", "any"])
+    inspection.add_argument(
+        "--config", help="Project-relative JSON file; read mcpServers names only."
+    )
+    inspection.add_argument("--json", action="store_true", help="Emit structured JSON.")
     catalog_parser = commands.add_parser(
         "catalog", help="Browse the reviewed tool catalog.", allow_abbrev=False
     )
@@ -102,6 +170,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command == "inspect":
+        return _inspect(args, parser)
     if args.catalog_command is None:
         catalog_parser.print_help()
         return 0

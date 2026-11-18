@@ -22,6 +22,8 @@ from pydantic import (
 )
 
 NonEmptyText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+# Paths and source references must retain their exact spelling.
+UntrimmedText = Annotated[str, StringConstraints(min_length=1, pattern=r"\S")]
 Identifier = Annotated[
     str,
     StringConstraints(pattern=r"^[a-z][a-z0-9]*(?:[-_][a-z0-9]+)*$", max_length=80),
@@ -37,7 +39,7 @@ class Contract(BaseModel):
 class EvidenceRef(Contract):
     """A document/file reference and the observation it supports."""
 
-    source: NonEmptyText
+    source: UntrimmedText
     detail: NonEmptyText
 
 
@@ -45,7 +47,7 @@ class ProjectProfile(Contract):
     """User goals and observed project facts, without inferred defaults."""
 
     schema_version: Literal[1] = 1
-    project_root: NonEmptyText
+    project_root: UntrimmedText
     goals: list[NonEmptyText] = Field(default_factory=list)
     assistant: Identifier | None = None
     operating_system: NonEmptyText | None = None
