@@ -275,3 +275,24 @@ def test_inspect_explicit_missing_configuration_exits_one(tmp_path: Path) -> Non
     result = run_cli(tmp_path, "inspect", ".", "--config", "missing.json", "--json")
     assert result.returncode == 1
     assert not json.loads(result.stdout)["complete"]
+
+
+def test_inspect_deep_dependency_marker_returns_partial_json(tmp_path: Path) -> None:
+    nested = "synthetic-secret; " + "(" * 1000 + 'python_version >= "3.11"' + ")" * 1000
+    dependencies = json.dumps(["requests", nested, "pydantic"])
+    (tmp_path / "pyproject.toml").write_text(f"[project]\ndependencies = {dependencies}")
+    (tmp_path / "package.json").write_text('{"dependencies": {"react": "^18"}}')
+
+    result = run_cli(tmp_path, "inspect", ".", "--json")
+
+    assert result.returncode == 1
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert not payload["complete"]
+    assert payload["profile"]["facts"]["python.dependencies"] == ["pydantic", "requests"]
+    assert payload["profile"]["facts"]["node.dependencies"] == ["react"]
+    assert any(
+        item["status"] == "failed" and "project.dependencies" in item["message"]
+        for item in payload["diagnostics"]
+    )
+    assert "synthetic-secret" not in result.stdout

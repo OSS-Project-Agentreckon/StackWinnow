@@ -172,7 +172,9 @@ def _python_dependencies(
             if not isinstance(item, str):
                 raise InvalidRequirement("Not a string")
             names.append(canonicalize_name(Requirement(item).name))
-        except InvalidRequirement:
+        except (InvalidRequirement, RecursionError):
+            # Deeply nested markers can exceed the parser's recursion limit.
+            # Reject only this declaration so the remaining findings survive.
             invalid = True
     if names or not value:
         _fact(result, source, key, names, field)
@@ -180,7 +182,7 @@ def _python_dependencies(
         _diagnostic(
             result,
             source,
-            f"{field} contains invalid dependencies; valid names retained.",
+            f"{field} contains invalid or overly complex dependencies; valid names retained.",
             "failed",
         )
 

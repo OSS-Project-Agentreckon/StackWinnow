@@ -54,6 +54,15 @@ merge order. All catalog entries remain catalog-only.
   Next A engineering milestone is step 10, explainable recommendations, with the
   shared plan's first-real-adapter integration dependency still outstanding.
 
+PR #7 review follow-up: dependency declarations that exceed the parser's
+recursion limit now produce a sanitized failed diagnostic while other
+dependencies and manifests remain available. Regression coverage includes
+regular/optional Python dependencies and the installed CLI's partial JSON
+response. All **320 tests passed** locally on Python 3.11 with warnings treated
+as errors; Ruff lint/format and package build/reinstallation passed. Hosted CI
+passed on Python 3.11/3.14 for the original `2abbeae` commit; those results do
+not cover this follow-up.
+
 Implementation, documentation, and test preparation were AI-assisted. These are
 local feature results, not a claim that main or any upstream integration is ready.
 

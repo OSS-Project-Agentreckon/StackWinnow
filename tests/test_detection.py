@@ -182,6 +182,34 @@ def test_malformed_toml_does_not_leak_source_values(tmp_path: Path) -> None:
 
 
 @pytest.mark.parametrize(
+    ("table", "field", "fact"),
+    [
+        ("project", "dependencies", "python.dependencies"),
+        ("project.optional-dependencies", "test", "python.optional_dependencies.test"),
+    ],
+)
+def test_deep_dependency_marker_preserves_partial_findings(
+    tmp_path: Path, table: str, field: str, fact: str
+) -> None:
+    nested = "synthetic-secret; " + "(" * 1000 + 'python_version >= "3.11"' + ")" * 1000
+    dependencies = json.dumps(["requests", nested, "pydantic"])
+    (tmp_path / "pyproject.toml").write_text(f"[{table}]\n{field} = {dependencies}")
+    write_json(tmp_path / "package.json", {"dependencies": {"react": "^18"}})
+
+    result = inspect_project(tmp_path)
+
+    assert not result.complete
+    assert result.profile.facts[fact] == ["pydantic", "requests"]
+    assert result.profile.facts["node.dependencies"] == ["react"]
+    assert any(
+        item.status == "failed" and f"{table}.{field}" in item.message
+        for item in result.diagnostics
+    )
+    assert "synthetic-secret" not in result.model_dump_json()
+    assert InspectionResult.model_validate_json(result.model_dump_json()) == result
+
+
+@pytest.mark.parametrize(
     "document",
     [
         {"dependencies": []},
