@@ -9,8 +9,11 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 from stackwinnow.environments import (
     _MANAGED_ROOT,
+    EnvironmentBoundaryError,
     bootstrap_pip_args,
     create_venv_args,
     node_env_path,
@@ -130,3 +133,59 @@ def test_bootstrap_pip_args_uses_venv_python(tmp_path: Path) -> None:
     args = bootstrap_pip_args(venv)
     assert str(python_executable(venv)) == args[0]
     assert "ensurepip" in args
+
+
+# ---------------------------------------------------------------------------
+# pip_install_args uses python -m pip, not the pip script  (P1-1 regression)
+# ---------------------------------------------------------------------------
+
+
+def test_pip_install_args_uses_venv_python_not_script(tmp_path: Path) -> None:
+    """pip_install_args must invoke 'python -m pip', not the bin/pip script.
+
+    After --without-pip + ensurepip, the unversioned pip script is not guaranteed
+    to exist; 'python -m pip' is always available once ensurepip has run.
+    """
+    venv = tmp_path / "venv"
+    args = pip_install_args(venv, "headroom", "0.4.1")
+    assert args[0] == str(python_executable(venv)), "first arg must be the venv python interpreter"
+    assert args[1] == "-m", "second arg must be -m"
+    assert args[2] == "pip", "third arg must be pip"
+    assert not args[0].endswith("pip"), "must not point directly to a pip script"
+
+
+def test_bootstrap_chain_pip_accessible_via_python_module(tmp_path: Path) -> None:
+    """After create_venv_args + bootstrap_pip_args, 'python -m pip' must be callable."""
+    from stackwinnow.runner import run_command
+
+    venv = python_env_path(str(tmp_path), "chain-test")
+
+    r1 = run_command(create_venv_args(venv), cwd=tmp_path)
+    assert r1.succeeded, f"venv creation failed: {r1.stderr}"
+
+    r2 = run_command(bootstrap_pip_args(venv), cwd=tmp_path)
+    assert r2.succeeded, f"ensurepip failed: {r2.stderr}"
+
+    check = [str(python_executable(venv)), "-m", "pip", "--version"]
+    r3 = run_command(check, cwd=tmp_path)
+    assert r3.succeeded, (
+        f"'python -m pip' not accessible after bootstrap — "
+        f"the argument chain is broken: {r3.stderr}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Symlinked envs directory is rejected  (P2-1 regression)
+# ---------------------------------------------------------------------------
+
+
+def test_symlinked_envs_directory_is_rejected(tmp_path: Path) -> None:
+    """If .stackwinnow/envs/ is a symlink, EnvironmentBoundaryError must be raised."""
+    managed = tmp_path / ".stackwinnow"
+    managed.mkdir()
+    real_dir = tmp_path / "real_envs"
+    real_dir.mkdir()
+    (managed / "envs").symlink_to(real_dir)
+
+    with pytest.raises(EnvironmentBoundaryError):
+        python_env_path(str(tmp_path), "headroom")

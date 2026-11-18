@@ -2,24 +2,24 @@
 
 All commands are run as argument lists, never shell strings, to prevent
 injection. Secrets from the parent process are not inherited by subprocesses.
-A timed-out process is killed and the caller receives an explicit timed_out
-result rather than a hung process.
+A timed-out process is killed — including all of its descendants — and the
+caller receives an explicit timed_out result rather than a hung process.
 """
 
 from __future__ import annotations
 
 import os
+import signal
 import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-# Env-var name fragments that identify sensitive values.
-_SENSITIVE_PATTERNS: tuple[str, ...] = (
-    "_SECRET",
-    "_KEY",
-    "_TOKEN",
-    "_PASSWORD",
-    "_CREDENTIAL",
+# Sensitive words matched against each underscore-separated segment of an
+# env-var name. Standalone names like TOKEN and PASSWORD are covered because
+# splitting "TOKEN" on "_" yields {"TOKEN"}, which is in this set.
+_SENSITIVE_WORDS: frozenset[str] = frozenset(
+    {"SECRET", "KEY", "TOKEN", "PASSWORD", "CREDENTIAL", "API"}
 )
 
 # Env-var names that are safe to pass through to subprocesses.
@@ -69,12 +69,35 @@ def _build_env(extra: dict[str, str] | None) -> dict[str, str]:
     return env
 
 
+def _is_sensitive_key(key: str) -> bool:
+    """True if any underscore-separated word in the key name is a known secret word.
+
+    Matches both prefixed names (MY_SECRET_KEY) and standalone names (TOKEN).
+    """
+    return bool(set(key.upper().split("_")) & _SENSITIVE_WORDS)
+
+
 def _redact_secrets(text: str, env: dict[str, str]) -> str:
-    """Replace values of sensitive env vars with <redacted> in text."""
-    for key, value in env.items():
-        if value and any(pattern in key.upper() for pattern in _SENSITIVE_PATTERNS):
-            text = text.replace(value, "<redacted>")
+    """Replace sensitive env values in text.
+
+    Values are replaced longest-first so that a short secret that is a prefix
+    of a longer secret does not leave a partial match visible.
+    """
+    sensitive = sorted(
+        (v for k, v in env.items() if v and _is_sensitive_key(k)),
+        key=len,
+        reverse=True,
+    )
+    for value in sensitive:
+        text = text.replace(value, "<redacted>")
     return text
+
+
+def _decode(data: bytes | str) -> str:
+    """Decode bytes to str, replacing any undecodable sequences."""
+    if isinstance(data, bytes):
+        return data.decode("utf-8", errors="replace")
+    return data
 
 
 def run_command(
@@ -86,35 +109,42 @@ def run_command(
 ) -> CommandResult:
     """Run args as a subprocess. Never uses shell=True.
 
+    Uses start_new_session=True so that on timeout the entire process group
+    (including any children the command spawned) is killed before returning.
     Sensitive values passed via extra_env are redacted from the returned
     stdout and stderr so diagnostics are safe to log.
     """
     env = _build_env(extra_env)
     try:
-        proc = subprocess.run(
+        proc = subprocess.Popen(
             args,
             cwd=str(cwd),
             env=env,
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True,  # new session = new process group on POSIX
         )
+        try:
+            stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            # Kill the entire process group so no descendant outlives the timeout.
+            if sys.platform != "win32":
+                try:
+                    os.killpg(proc.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            proc.kill()
+            stdout_bytes, stderr_bytes = proc.communicate()
+            return CommandResult(
+                returncode=-1,
+                stdout=_redact_secrets(_decode(stdout_bytes), env),
+                stderr=_redact_secrets(_decode(stderr_bytes), env),
+                timed_out=True,
+            )
         return CommandResult(
             returncode=proc.returncode,
-            stdout=_redact_secrets(proc.stdout, env),
-            stderr=_redact_secrets(proc.stderr, env),
-        )
-    except subprocess.TimeoutExpired as exc:
-        raw_out = exc.stdout or b""
-        raw_err = exc.stderr or b""
-        stdout = raw_out.decode(errors="replace") if isinstance(raw_out, bytes) else raw_out
-        stderr = raw_err.decode(errors="replace") if isinstance(raw_err, bytes) else raw_err
-        return CommandResult(
-            returncode=-1,
-            stdout=_redact_secrets(stdout, env),
-            stderr=_redact_secrets(stderr, env),
-            timed_out=True,
+            stdout=_redact_secrets(_decode(stdout_bytes), env),
+            stderr=_redact_secrets(_decode(stderr_bytes), env),
         )
     except FileNotFoundError:
         return CommandResult(

@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 from stackwinnow.runner import (
     DEFAULT_TIMEOUT,
@@ -201,3 +204,88 @@ def test_redact_secrets_leaves_non_sensitive_values_intact() -> None:
 
 def test_default_timeout_is_positive() -> None:
     assert DEFAULT_TIMEOUT > 0
+
+
+# ---------------------------------------------------------------------------
+# Process-tree kill on timeout  (P1-2 regression)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="process-group kill is POSIX-only")
+def test_timeout_kills_entire_process_tree(tmp_path: Path) -> None:
+    """After timeout, no descendant of the timed-out process must remain alive."""
+    pid_file = tmp_path / "grandchild.pid"
+    script = (
+        "import subprocess, sys, time\n"
+        f"child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])\n"
+        f"open({str(pid_file)!r}, 'w').write(str(child.pid))\n"
+        "time.sleep(60)\n"
+    )
+    result = run_command([sys.executable, "-c", script], cwd=tmp_path, timeout=3)
+    assert result.timed_out
+
+    time.sleep(0.3)  # let the OS finish reaping the process group
+
+    if not pid_file.exists():
+        pytest.skip("PID file not written before timeout; environment too slow")
+
+    grandchild_pid = int(pid_file.read_text().strip())
+    try:
+        os.kill(grandchild_pid, 0)
+        alive = True
+    except ProcessLookupError:
+        alive = False
+
+    assert not alive, (
+        f"Grandchild process {grandchild_pid} is still alive after timeout — "
+        "process-group kill did not reach descendants."
+    )
+
+
+# ---------------------------------------------------------------------------
+# Redaction — standalone sensitive names and overlap ordering  (P2-2 regression)
+# ---------------------------------------------------------------------------
+
+
+def test_redact_standalone_token_name() -> None:
+    """A bare env-var name 'TOKEN' (no underscore prefix) must be caught as sensitive."""
+    env = {"TOKEN": "bare-token-xyz"}
+    result = _redact_secrets("the value is bare-token-xyz end", env)
+    assert "bare-token-xyz" not in result
+    assert "<redacted>" in result
+
+
+def test_redact_standalone_password_name() -> None:
+    """A bare env-var name 'PASSWORD' must be caught even without a prefix."""
+    env = {"PASSWORD": "bare-pass-xyz"}
+    result = _redact_secrets("pass is bare-pass-xyz done", env)
+    assert "bare-pass-xyz" not in result
+    assert "<redacted>" in result
+
+
+def test_redact_longer_overlapping_secret_first() -> None:
+    """When one secret value is a prefix of another, the longer must be replaced first."""
+    env = {
+        "SHORT_TOKEN": "sec",
+        "LONG_TOKEN": "secret-value",
+    }
+    result = _redact_secrets("output: secret-value here", env)
+    assert "secret-value" not in result
+    # If shorter were replaced first, 'ret-value' would remain visible.
+    assert "ret-value" not in result
+
+
+# ---------------------------------------------------------------------------
+# Non-UTF-8 output must not raise  (P2-3 regression)
+# ---------------------------------------------------------------------------
+
+
+def test_non_utf8_stdout_does_not_raise(tmp_path: Path) -> None:
+    """Commands that emit non-UTF-8 bytes must not raise; invalid bytes are replaced."""
+    result = run_command(
+        [sys.executable, "-c", "import sys; sys.stdout.buffer.write(b'\\xff\\xfe output')"],
+        cwd=tmp_path,
+    )
+    assert result.succeeded
+    assert isinstance(result.stdout, str)
+    assert "�" in result.stdout
