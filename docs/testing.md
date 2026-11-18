@@ -1,6 +1,6 @@
 # Testing StackWinnow
 
-The default suite checks the implemented contracts/CLI/runtime, JSON configuration API, and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
+The default suite checks the implemented contracts/CLI/runtime, JSON configuration API, promptfoo adapter with command doubles, receipt handoff, and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
 
 ## Run local checks
 
@@ -58,9 +58,32 @@ Use `integration` for tests needing actual upstream tools/clients. `requires_pro
 | `python -m pytest --run-integration --run-provider` | Run | Run | Run |
 | `python -m pytest --run-provider` | Usage error | Usage error | Usage error |
 
-There are **no real upstream/provider tests yet**. Marker-policy tests execute a synthetic nested pytest suite to verify gating; these dummy cases are not upstream evidence. Selecting only integration tests currently selects none. A skipped/unavailable check does not mean verified.
+`tests/integration/test_promptfoo.py` contains a real install/evaluate/fail/repeat
+test and a separately gated OpenAI test. Both require the shared runner and the
+declared macOS arm64/Node 24 environment. In this branch, default execution is
+blocked because the runner from PR #6 is not yet integrated; the tests report
+that dependency as a skip. A skipped/unavailable check does not mean verified.
 
-Flags do not install prerequisites or automatically expose credentials. Future adapters must document temporary configuration, prerequisites, known-result checks, and provider costs. After explicit opt-in, provider tests may add only their required credentials to the child environment instead of inheriting the full personal environment.
+```sh
+python -m pytest tests/integration/test_promptfoo.py --run-integration -rA
+# The following additionally permits provider usage and possible charges:
+python -m pytest tests/integration/test_promptfoo.py --run-integration --run-provider -rA
+```
+
+The hosted test requires explicitly set `STACKWINNOW_PROMPTFOO_MODEL` and
+`OPENAI_API_KEY`; neither is given a default credential/model. The regular real
+test uses the local fixture provider only. It installs from npm into a temporary
+project and needs registry access. See [promptfoo](integrations/promptfoo.md)
+for exact artifact, environment, file, and output expectations.
+
+Marker-policy tests also execute a synthetic nested pytest suite to verify
+gating; those dummy cases are not upstream evidence. Default CI intentionally
+does not opt into registry installations or paid providers.
+
+Flags do not install Node/npm prerequisites or automatically expose credentials.
+After explicit opt-in, the hosted evaluation receives only its required API key;
+install/version commands never receive it. Adapter command-double tests verify
+this routing with synthetic values. They are not evidence of hosted model access.
 
 Strict markers/configuration catch misspelled markers and unknown pytest settings. Behavior changes should include their own relevant tests.
 

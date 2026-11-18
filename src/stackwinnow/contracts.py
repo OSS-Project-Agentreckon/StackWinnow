@@ -88,7 +88,7 @@ class InstallPlan(Contract):
     """Ordered intentions; execution details and receipts belong to the runtime."""
 
     schema_version: Literal[1] = 1
-    project_root: NonEmptyText
+    project_root: UntrimmedText
     assistant: Identifier | None = None
     tool_ids: list[Identifier]
     steps: list[PlanStep] = Field(default_factory=list)

@@ -16,6 +16,7 @@ dist/
 htmlcov/
 
 # Local credentials and configuration
+.stackwinnow/
 .env
 .env.*
 !.env.example

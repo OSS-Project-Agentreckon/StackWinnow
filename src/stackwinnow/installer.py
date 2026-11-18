@@ -6,7 +6,9 @@ in an understandable state. Dry runs never touch the filesystem.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import os
+import tempfile
+from collections.abc import Callable, Mapping
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
@@ -14,13 +16,16 @@ from typing import Literal
 from pydantic import Field
 
 from stackwinnow.contracts import (
+    ConfigPatch,
     Contract,
+    EvidenceRef,
     Identifier,
     InstallPlan,
     NonEmptyText,
     OperationResult,
     OperationStatus,
     PlanStep,
+    UntrimmedText,
 )
 
 _STATE_DIR = ".stackwinnow"
@@ -37,7 +42,9 @@ class RunnerOutcome(Contract):
     status: OperationStatus
     message: NonEmptyText
     errors: list[NonEmptyText] = Field(default_factory=list)
-    owned_paths: list[NonEmptyText] = Field(default_factory=list)
+    owned_paths: list[UntrimmedText] = Field(default_factory=list)
+    configuration_ownership: list[ConfigPatch] = Field(default_factory=list)
+    evidence: list[EvidenceRef] = Field(default_factory=list)
 
 
 StepRunner = Callable[[PlanStep], RunnerOutcome]
@@ -54,14 +61,17 @@ class StepReceipt(Contract):
     timestamp: NonEmptyText  # ISO 8601 UTC
     dry_run: bool = False
     errors: list[NonEmptyText] = Field(default_factory=list)
-    owned_paths: list[NonEmptyText] = Field(default_factory=list)
+    owned_paths: list[UntrimmedText] = Field(default_factory=list)
+    configuration_intents: list[ConfigPatch] = Field(default_factory=list)
+    configuration_ownership: list[ConfigPatch] = Field(default_factory=list)
+    evidence: list[EvidenceRef] = Field(default_factory=list)
 
 
 class ExecutionRecord(Contract):
     """All step receipts for one project root."""
 
     schema_version: Literal[1] = 1
-    project_root: NonEmptyText
+    project_root: UntrimmedText
     steps: list[StepReceipt] = Field(default_factory=list)
 
     def receipt_for(self, step_id: str) -> StepReceipt | None:
@@ -135,9 +145,17 @@ def _persist(record: ExecutionRecord, *, project_root: str) -> None:
     path = _receipts_path(project_root)
     _assert_safe_path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(record.model_dump_json(indent=2), encoding="utf-8")
-    tmp.replace(path)  # atomic on POSIX (same filesystem)
+    descriptor, name = tempfile.mkstemp(prefix=".receipts-", suffix=".tmp", dir=path.parent)
+    tmp = Path(name)
+    try:
+        with os.fdopen(descriptor, "w", encoding="utf-8") as stream:
+            stream.write(record.model_dump_json(indent=2))
+            stream.flush()
+            os.fsync(stream.fileno())
+        _assert_safe_path(path)
+        tmp.replace(path)  # atomic on POSIX (same filesystem)
+    finally:
+        tmp.unlink(missing_ok=True)
 
 
 def _now() -> str:
@@ -155,6 +173,7 @@ def execute_plan(
     *,
     dry_run: bool = False,
     step_runner: StepRunner | None = None,
+    configuration_intents: Mapping[str, list[ConfigPatch]] | None = None,
 ) -> tuple[ExecutionRecord, list[OperationResult]]:
     """Execute each step in order, persisting a receipt after every real step.
 
@@ -168,6 +187,20 @@ def execute_plan(
     - Raises InstallerError if receipts are corrupt or belong to another project;
       the caller must resolve the state before retrying.
     """
+    intents: dict[str, list[ConfigPatch]] = {}
+    steps = {step.step_id: step for step in plan.steps}
+    for step_id, patches in (configuration_intents or {}).items():
+        if step_id not in steps:
+            raise InstallerError("Configuration intent refers to an unknown plan step.")
+        intents[step_id] = []
+        for patch in patches:
+            checked = ConfigPatch.model_validate_json(patch.model_dump_json())
+            if (
+                checked.project_root != plan.project_root
+                or checked.tool_id != steps[step_id].tool_id
+            ):
+                raise InstallerError("Configuration intent does not match the step's project/tool.")
+            intents[step_id].append(checked)
     record = load_record(plan.project_root)
     results: list[OperationResult] = []
 
@@ -200,6 +233,7 @@ def execute_plan(
                 status=OperationStatus.FAILED,
                 message="Step execution began but did not complete.",
                 timestamp=_now(),
+                configuration_intents=intents.get(step.step_id, []),
             )
             _record_step(record, intent)
             _persist(record, project_root=plan.project_root)
@@ -212,6 +246,7 @@ def execute_plan(
                 tool_id=step.tool_id,
                 step_id=step.step_id,
                 errors=raw.errors,
+                evidence=raw.evidence,
             )
             receipt = StepReceipt(
                 step_id=step.step_id,
@@ -221,6 +256,9 @@ def execute_plan(
                 timestamp=_now(),
                 errors=raw.errors,
                 owned_paths=raw.owned_paths,
+                configuration_intents=intents.get(step.step_id, []),
+                configuration_ownership=raw.configuration_ownership,
+                evidence=raw.evidence,
             )
         else:
             result = OperationResult(

@@ -42,7 +42,8 @@ def test_help_is_available_without_a_project(tmp_path: Path, args: tuple[str, ..
     assert "--version" in result.stdout
     assert "catalog" in result.stdout
     assert "inspect" in result.stdout
-    assert "Installation is not available yet" in result.stdout
+    assert "promptfoo" in result.stdout
+    assert "Promptfoo execution requires the shared runner" in " ".join(result.stdout.split())
     assert result.stderr == ""
     assert list(tmp_path.iterdir()) == []
 

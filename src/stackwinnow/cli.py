@@ -7,6 +7,12 @@ from collections.abc import Sequence
 from pydantic import ValidationError
 
 from stackwinnow import __version__
+from stackwinnow.adapters.promptfoo import (
+    PromptfooError,
+    apply_promptfoo,
+    load_promptfoo_plan,
+    plan_promptfoo,
+)
 from stackwinnow.catalog import (
     CatalogEntry,
     CatalogError,
@@ -18,7 +24,49 @@ from stackwinnow.catalog import (
     filter_catalog,
     load_catalog,
 )
+from stackwinnow.configure import ConfigurationError
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
+
+
+def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        if args.promptfoo_command == "plan":
+            plan = plan_promptfoo(
+                args.project_root, provider=args.provider, model=args.model, scenario=args.scenario
+            )
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(f"Project: {plan.project_root}")
+                print(f"Pinned release: promptfoo {plan.version} (MIT)")
+                print(f"Provider: {plan.provider}; scenario: {plan.scenario}")
+                if plan.provider == "openai":
+                    print(
+                        "Applying this plan sends the two fixture prompts to OpenAI and may incur charges."
+                    )
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print(
+                    "Use --json to save a reviewable plan; 'promptfoo apply PLAN.json' applies it."
+                )
+            return 0
+        plan = load_promptfoo_plan(args.plan_file)
+        result = apply_promptfoo(
+            plan, dry_run=args.dry_run, allow_provider_usage=args.allow_provider_usage
+        )
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except ValidationError:
+        parser.exit(2, "error: Invalid promptfoo plan or provider/model selection.\n")
+    except (PromptfooError, ConfigurationError, CatalogError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+    except OSError:
+        parser.exit(2, "error: Cannot read the project or selected plan file.\n")
 
 
 def _inspect(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -124,15 +172,44 @@ def _show(tool: CatalogEntry, context: EligibilityContext) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Discover tools without modifying the project or installing dependencies."""
+    """Discover tools, inspect projects, and explicitly plan/apply promptfoo setup."""
     parser = argparse.ArgumentParser(
         prog="stackwinnow",
         description="Choose suitable open-source AI tools for your project.",
-        epilog="Catalog discovery is read-only. Installation is not available yet.",
+        epilog="Catalog discovery is read-only. Promptfoo execution requires the shared runner.",
         allow_abbrev=False,
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    promptfoo = commands.add_parser(
+        "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
+    )
+    promptfoo_commands = promptfoo.add_subparsers(dest="promptfoo_command", required=True)
+    promptfoo_plan = promptfoo_commands.add_parser("plan", allow_abbrev=False)
+    promptfoo_plan.add_argument("project_root", help="Existing project directory.")
+    promptfoo_plan.add_argument(
+        "--provider", choices=["deterministic", "openai"], default="deterministic"
+    )
+    promptfoo_plan.add_argument(
+        "--model", help="Explicit OpenAI model ID for the optional hosted path."
+    )
+    promptfoo_plan.add_argument("--scenario", choices=["pass", "fail"], default="pass")
+    promptfoo_plan.add_argument(
+        "--json", action="store_true", help="Emit a plan suitable for saving and applying."
+    )
+    promptfoo_apply = promptfoo_commands.add_parser("apply", allow_abbrev=False)
+    promptfoo_apply.add_argument("plan_file", help="Saved JSON plan from 'promptfoo plan --json'.")
+    promptfoo_apply.add_argument(
+        "--dry-run", action="store_true", help="Revalidate and describe the plan without changes."
+    )
+    promptfoo_apply.add_argument(
+        "--allow-provider-usage",
+        action="store_true",
+        help="Explicitly permit the selected hosted provider calls and their possible charges.",
+    )
+    promptfoo_apply.add_argument(
+        "--json", action="store_true", help="Emit structured results and receipts."
+    )
     inspection = commands.add_parser(
         "inspect", help="Read project manifests and record explicit goals.", allow_abbrev=False
     )
@@ -172,6 +249,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "inspect":
         return _inspect(args, parser)
+    if args.command == "promptfoo":
+        return _promptfoo(args, parser)
     if args.catalog_command is None:
         catalog_parser.print_help()
         return 0

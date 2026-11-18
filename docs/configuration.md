@@ -97,12 +97,19 @@ TOML, YAML, and JSON with comments need separate implementations.
 | `ConfigPatch.created_objects` | Ancestor objects created to reach the selected keys; their later contents are not all automatically owned. |
 | `ConfigApplyResult.ownership` | The patch if publication occurred; otherwise `None`. |
 
-A preview is intent, not evidence that a write happened. Person B's step-8
-executor should persist the reviewed patch as planned state before calling
-apply, then record the returned result and ownership. It must retain ownership
-even if a post-publication cleanup error returns `failed`. Re-previewing an
-already configured value returns `skipped`; preserve earlier receipts instead
-of replacing their ownership with that no-op result.
+A preview is intent, not evidence that a write happened. The executor now accepts
+`configuration_intents={step_id: [patch]}` and persists them before invoking the
+step callback. `RunnerOutcome.configuration_ownership` and `.evidence` carry
+the applied patch and verification references into durable receipts. The
+promptfoo adapter uses this handoff and retains ownership even if a
+post-publication cleanup error returns `failed`. Re-previewing an already
+configured value returns `skipped`; earlier receipts remain instead of losing
+their ownership to that no-op result. Existing receipts without these optional
+fields load with empty lists.
+
+Receipt publication uses a private, randomly named staged file, fsync, and an
+atomic replacement. If final persistence fails after configuration publication,
+the earlier intent remains on disk for recovery; that is not a success receipt.
 
 Preview/ownership data can contain the selected original and written values.
 Store it as local private state, use environment references instead of literal

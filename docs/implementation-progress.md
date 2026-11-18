@@ -4,7 +4,68 @@ Last updated: **18 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
-## Latest observed main and Person A's next work
+## Step 9 / person C's third planned contribution
+
+The promptfoo work is on `feat/promptfoo-onboarding`, based on main
+`fa3616e856cd2ecbf918bfb3e6c816c33cca610b` (the merge of PR #7). Step 7 and its
+review fix are now merged. PR #6's step-5 runner remains open at `6057fb5`; its
+reviewed defects must be addressed before normal adapter integration.
+
+This change delivers C's step-9 implementation: the MIT `promptfoo@0.125.1`
+adapter, reviewable plan/apply CLI, bundled deterministic provider, owned
+configuration, durable intent/ownership/evidence handoff, and fresh evaluation
+results. It includes a deliberate failing case, repeat-run behavior, an explicit
+optional OpenAI path, and an [integration guide](integrations/promptfoo.md) with
+artifact/license evidence and a [demo](../examples/evaluation/README.md).
+
+Normal apply is **blocked before writes when the shared runner is absent**.
+Planning and dry-run are usable. The catalog stays `catalog_only`; full default
+CLI readiness is pending runner integration and acceptance against its fixed
+revision. This adapter change does not copy or merge the other contributor's
+unreviewed runner implementation.
+
+Local verification on 18 November 2026:
+
+| Check | Result |
+| --- | --- |
+| Baseline at main `fa3616e` | 320 existing tests |
+| Full default suite, Python 3.11.14 | **395 passed, 2 explicitly skipped**, warnings treated as errors |
+| Full default suite, Python 3.14.0 | **395 passed, 2 explicitly skipped**, warnings treated as errors |
+| Ruff lint/format, dependency and diff checks | Passed |
+| Wheel build and isolated installation | Passed; installed CLI plan/dry-run/block behavior and bundled CJS provider verified outside the checkout |
+| Real manager acceptance with injected PR #6 runner `6057fb5` | **1 passed, 1 provider test skipped** on Darwin 27.2.0 arm64, Node 24.13.1, npm 11.8.0 |
+| Positive evaluation | Two successes, zero failures/errors; upstream exit 0 |
+| Deliberate negative evaluation | Zero successes, two assertion failures, zero errors; upstream exit 100 and manager failure |
+| Repeat evaluation | Two successes with a fresh report; the owned install/configuration were reused |
+| Real hosted model/paid provider | Not executed |
+| Hosted CI for this contribution | Not run; this is a local contribution |
+
+The real manager test uses the unmerged runner as an explicit test dependency,
+not a shipped default. An initial uncached attempt encountered npm
+`EIDLETIMEOUT`; the adapter recorded failure and did not configure/evaluate.
+The successful attempt seeded its isolated npm cache with registry bytes from
+the independent artifact probe, then ran the actual unmodified npm install
+command and promptfoo CLI. The installed tree contains 626 packages; its locked
+versions/integrities match the reviewed probe (691 lock entries include optional
+platform packages). Nine step receipts and three distinct result files record
+the positive, negative, and repeat operations, each with zero model tokens.
+Unrelated project settings, manifests, npmrc, and default tool config survived.
+
+The 75 new offline cases cover the adapter/executor handoff, stale plans,
+ownership, modified files, directory links, interrupted persistence, locks,
+exact paths, invalid reports, explicit provider opt-in, and credential routing
+with synthetic values. Implementation and verification were AI-assisted; the
+contributor should review and understand the code and evidence.
+
+Commit accounting: C's earlier numbered contributions are 3 and 6, but the
+step-6 review fix is a third actual non-merge Git commit. This step-9 change
+adds **one** commit, making **four actual C work commits across three planned
+contributions**. At base `fa3616e`, non-merge counts are A: 7, B: 5, C: 3; after
+this contribution they are A: 7, B: 5, C: 4. The 36/12-each target still needs
+honest reconciliation of future work boundaries; history and authorship are
+preserved.
+
+## Earlier main snapshot and Person A's step-7 work
 
 On 18 November, the user's pulled main is `a7c7654`. PR #5's executor merged as
 `45167a3`, followed by PR #4's configuration API and review fixes as `a7c7654`.

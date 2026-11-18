@@ -9,16 +9,19 @@ functional verification, and removal that preserves the user's settings.
 
 Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
 project inspection with explicit goals/preferences, shared contracts, runtime
-inspection, execution receipts, and owned JSON configuration edits. The
-`inspect` command reads project declarations; host runtime inspection and
-configuration remain Python APIs. Recommendations, real tool installation,
-functional tool verification, and removal remain **planned and not implemented**.
+inspection, execution receipts, owned JSON configuration edits, and a pinned
+promptfoo adapter with plan/apply commands. The `inspect` command reads project
+declarations; host runtime inspection remains a Python API. The promptfoo
+adapter requires the shared runner from pending PR #6 for execution; planning
+and dry-run work without it. Recommendations, other tool adapters, general
+verification, and removal remain planned.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
 membership will not imply installation support. The supported integration OS,
 coding assistant, and tool versions must be agreed and tested before any
-integration is advertised as supported. No adapter is currently implemented.
+integration is advertised as supported. The initial promptfoo execution scope
+is macOS arm64 with Node 24; its default integration still awaits the runner.
 
 ## Install and run
 
@@ -89,7 +92,8 @@ objects omit it. The Python models and stored catalog retain their schema versio
 platform/client lists mean unknown compatibility. Empty conflict lists mean
 no conflicts recorded, not proof that a combination works. Alternatives are
 related options, not necessarily interchangeable tools. There are no measured
-cost-saving claims or completed upstream integration tests in this catalog.
+cost-saving claims in this catalog. The promptfoo adapter and its separate
+acceptance evidence do not change the catalog's pending integration status.
 
 ### Sources and license review
 
@@ -166,6 +170,27 @@ macOS/Linux. It does not establish support for a particular coding assistant.
 See [configuration](docs/configuration.md) for a runnable temporary-project
 example, formatting/concurrency limits, and the handoff to the later executor.
 
+## Preview a promptfoo evaluation
+
+```sh
+stackwinnow promptfoo plan ./my-project --json > promptfoo-plan.json
+stackwinnow promptfoo apply promptfoo-plan.json --dry-run --json
+stackwinnow promptfoo apply promptfoo-plan.json --json
+```
+
+With the shared runner integrated on the declared environment, apply installs
+`promptfoo@0.125.1`, creates an owned evaluation configuration, runs two local
+uppercase checks, and records their results. Without the runner, apply returns
+`blocked` before changes. A separate `--scenario fail` plan verifies failure
+reporting. Each repeat evaluation needs a new plan and a fresh result.
+
+The default fixture needs no API key or model calls and does not measure LLM
+quality. Optional OpenAI execution requires an explicit model and
+`--allow-provider-usage`, and may incur charges. See the
+[integration guide](docs/integrations/promptfoo.md) for the dependency gate,
+release/license evidence, prerequisites, ownership, and limitations, or follow
+the [disposable-project example](examples/evaluation/README.md).
+
 ## Develop and check
 
 Inside the virtual environment:
@@ -177,12 +202,12 @@ python -m ruff check .
 python -m ruff format --check .
 ```
 
-The tests exercise the installed CLI from temporary working directories and use
+The default tests exercise the installed CLI from temporary working directories and use
 copied project/configuration fixtures. They install no agent tools and leave
 personal assistant settings unchanged. Runtime unit tests declare available
 tools through mocks; a local browser fixture uses loopback HTTP only. Real
-integration/provider checks require explicit pytest opt-ins and are not yet
-implemented. See [testing](docs/testing.md) for fixtures, commands, and CI scope.
+promptfoo integration/provider checks require explicit pytest opt-ins and the
+shared runner. See [testing](docs/testing.md) for fixtures, commands, and CI scope.
 
 The [chronological work plan](docs/chronological-commit-plan.md) and
 [implementation progress](docs/implementation-progress.md) track the 36 planned
