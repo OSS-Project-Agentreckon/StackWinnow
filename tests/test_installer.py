@@ -8,8 +8,6 @@ import pytest
 
 from stackwinnow.contracts import InstallPlan, OperationResult, OperationStatus, PlanStep
 from stackwinnow.installer import (
-    ExecutionRecord,
-    StepReceipt,
     _receipts_path,
     execute_plan,
     load_record,

@@ -7,7 +7,7 @@ in an understandable state. Dry runs never touch the filesystem.
 from __future__ import annotations
 
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
@@ -89,7 +89,7 @@ def _persist(record: ExecutionRecord) -> None:
 
 
 def _now() -> str:
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _record_step(record: ExecutionRecord, receipt: StepReceipt) -> None:
