@@ -18,7 +18,11 @@ from stackwinnow.installer import (
 # ---------------------------------------------------------------------------
 
 STEP_A = {"step_id": "install-headroom", "tool_id": "headroom", "description": "Install Headroom"}
-STEP_B = {"step_id": "configure-headroom", "tool_id": "headroom", "description": "Configure Headroom"}
+STEP_B = {
+    "step_id": "configure-headroom",
+    "tool_id": "headroom",
+    "description": "Configure Headroom",
+}
 
 
 def _plan(project_root: str, steps: list[dict] | None = None) -> InstallPlan:
