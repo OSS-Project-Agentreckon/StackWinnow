@@ -1,8 +1,8 @@
 # StackWinnow implementation progress
 
-Last updated: **16 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **18 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
-Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow). Base main: `6616b86435c2425a85581255ccc8e522e66faeab`. Current branch: `feat/fixture-harness-ci`.
+Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow). Branch base: `fe55d36f780209ade0d512f6a0ccea2aeae0c32c`. Current contribution branch: `feat/config-ownership`.
 
 ## Completed work recorded before starting step 3
 
@@ -13,11 +13,11 @@ Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project
 
 These two work commits were verified in Git history. Their correctness review was completed after implementing step 3; see [review of commits 1 and 2](reviews/commits-01-02.md). There are two completed work changes, but only one merged PR because the bootstrap was a root commit.
 
-## Current work: step 3 / person C
+## Completed step 3 / person C's first contribution
 
 - Owner: the current user; the existing local Git identity is **Kalwarala Abhignan**.
 - Planned title: `test(project): add fixture harness and initial CI checks`.
-- Status: implemented and verified on `feat/fixture-harness-ci`; integration into main is pending.
+- Status: merged through [PR #3](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/3) on 17 November as `eebe447`. The work commit is `c30b667b1fa1a3d79c5f788cb9739bf130540d38`, attributed to AbhignanSharma with `abhignansharma.k@gmail.com`.
 - Scope: isolated project/config/browser/code fixtures, meaningful fixture checks, initial lint/unit CI, testing documentation, and progress records.
 - The chronological plan and steps 1–2 were documented before implementation.
 - This step does not install agent tools or modify personal assistant configuration.
@@ -27,7 +27,7 @@ configuration entry, a known Python call relationship/result, a loopback browser
 page, isolated subprocess environments, and explicit integration/provider test
 opt-ins. Initial CI checks Python 3.11 and 3.14 with read-only repository access.
 
-Validation actually performed locally on macOS:
+Validation performed locally on macOS during step 3:
 
 | Check | Result |
 | --- | --- |
@@ -38,9 +38,9 @@ Validation actually performed locally on macOS:
 | Dependency compatibility, both environments | Passed |
 | Workflow syntax, triggers, permissions, action pins, Python matrix | Checked locally |
 | Chronological plan count and local documentation links | 36 steps; 12 per owner; links resolve |
-| Hosted GitHub Actions / real agent integrations | Not run |
+| Hosted GitHub Actions / real agent integrations at step-3 implementation time | Not run then; newer main CI evidence is recorded below |
 
-The existing runtime-test lint failure was corrected with a test-only import/spacing cleanup. Production code under `src/stackwinnow/` is unchanged. Implementation and review preparation were AI-assisted; the student should inspect and understand the fixtures, CI, and findings.
+The existing runtime-test lint failure was corrected with a test-only import/spacing cleanup. Step 3 did not change production code under `src/stackwinnow/`. Implementation and review preparation were AI-assisted; the student should inspect and understand the fixtures, CI, and findings.
 
 ## Review outcome
 
@@ -53,20 +53,92 @@ The existing runtime-test lint failure was corrected with a test-only import/spa
 
 ## Other observed work
 
-[Draft PR #2](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/2) is A's planned step 4 (catalog/eligibility), at `2b0e5c5f848a09b6113a147bfc3fc1190b5b6811`. It is **not merged** and asks to remain draft until step 3 is integrated. Do not count it as completed on main or mix it into the fixture work.
+[PR #2](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/2), A's step 4
+(catalog/eligibility), merged on 17 November as `fe55d36`. Its initial work
+commit was `2b0e5c5`; follow-up commits were `069f707`, `d4c19a2`, and `b9533e4`.
+It delivers 30 validated catalog entries, eligibility explanations, and
+list/filter/detail CLI commands. All entries remain catalog-only.
+
+Main at `fe55d36` passed 139 tests locally on Python 3.14 with warnings treated
+as errors, plus lint/format/dependency checks. [Hosted CI run 44074282186](https://github.com/OSS-Project-Agentreckon/StackWinnow/actions/runs/44074282186)
+passed on Ubuntu/Python 3.11 and 3.14. Both earlier runtime P2 findings were
+reproduced again. Step 5's command runner and managed environments are absent
+from this base; no corresponding remote PR was found during the review.
+
+## Current work: step 6 / person C's second contribution
+
+- Owner: Kalwarala Abhignan / AbhignanSharma, `abhignansharma.k@gmail.com`.
+- Title: `feat(config): plan and apply owned project configuration edits`.
+- Status: [PR #4](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4) is open on `feat/config-ownership`; integration is pending. The original implementation is `484e3d3`, followed by a review-fix commit on the same branch.
+- Dependencies: steps 1 and 3 are merged. Work proceeds independently of step 5;
+  preserve the planned integration order by merging step 5 first.
+- Scope: strict JSON previews, targeted object-key edits, original/written
+  ownership data, expected-state checks, atomic publication, and tests.
+- Shared contracts and the executor handoff are documented in
+  [configuration](configuration.md). No runtime production fixes are included.
+
+Tests cover unrelated settings, existing-value replacement, missing versus null,
+no-op ownership, new files/parents, malformed data, precision preservation,
+stale previews, write failures, path redirection, and publication/cleanup
+failures. This uses POSIX filesystem operations and copied fixture projects;
+no upstream tools or live assistant settings are involved.
+
+Initial step-6 validation performed locally on macOS on 17 November:
+
+| Check | Result |
+| --- | --- |
+| Python 3.14.0, warnings treated as errors | **212 tests passed** |
+| Python 3.11.14, warnings treated as errors | **212 tests passed** |
+| New configuration scenarios | **73 cases**, included in both full-suite runs |
+| Ruff lint and formatting | Passed |
+| Dependency compatibility, both Python environments | Passed |
+| Documented temporary-project example | Executed successfully |
+
+The initial feature commit also passed both Ubuntu/Python 3.11 and 3.14 jobs in
+[CI run 44145287862](https://github.com/OSS-Project-Agentreckon/StackWinnow/actions/runs/44145287862).
+Receipt persistence, complete removal, and real assistant integration are
+outside this configuration change. Step-6 design, implementation, tests, and
+documentation were AI-assisted and require the contributor's review and
+understanding.
+
+On 18 November, BASKARUNIBASKARRAJU's [review](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/4#pullrequestreview-5950525150)
+identified two reproducible correctness issues: sorted JSON serialization
+invalidated preview digests, and symlink-loop exceptions escaped the expected
+planning/apply outcomes. The follow-up renders object keys deterministically
+and normalizes both Python 3.11's RuntimeError and newer OSError(ELOOP) into
+configuration conflicts.
+
+Three regression tests failed against `484e3d3` on both Python versions before
+the fixes. The updated branch passed **215 tests** on each of Python 3.11.14
+and 3.14.0 with warnings treated as errors, plus Ruff lint/format checks. There
+are now **76 configuration scenarios**. The author requested a separate fix
+commit on the existing branch, preserving the original implementation commit.
+The earlier CI result above covers `484e3d3`; the review-fix commit has its own
+checks on PR #4.
 
 ## Contribution-count baseline
 
-At base main `6616b86`, non-merge work commits are **A: 1, B: 1, C: 0**. The additional merge commit is attributed to komalnandiniakam. Preserve the actual history; work-commit equality and raw counts are different measures.
+The historical baseline `6616b86` had **A: 1, B: 1, C: 0** non-merge commits.
+Branch base `fe55d36` has **A: 5, B: 1, C: 1**, plus four merge commits
+(11 total Git commits). Step 6's original implementation and requested review
+fix are two Git commits for one planned work item. This branch's non-merge
+counts are therefore **A: 5, B: 1, C: 3**. The review fix does not complete
+another numbered plan step.
+
+The catalog follow-ups and this review fix consume additional commit slots.
+Retaining the 36/12-each target requires revising future commit boundaries
+while preserving required work and genuine authorship. Existing commits and
+the branch history are preserved. These counts describe this branch from
+`fe55d36`; other work merged into origin/main after that base is separate.
 
 ```sh
-git shortlog -sne --no-merges main
-git log --reverse --format='%h %an <%ae> %s' main
+git shortlog -sne --no-merges HEAD
+git log --reverse --format='%h %an <%ae> %s' HEAD
 ```
 
 ## Evidence and boundaries
 
 - Git history was inspected locally and PR state read through the public GitHub API.
-- The local `gh` login returned HTTP 401. Local work and public read-only review still work; no review or comment was posted through that account.
+- The earlier HTTP 401 authentication problem was resolved on 17 November; the step-3 push was verified under AbhignanSharma. No review or comment was published as part of this local work.
 - AI-assisted review notes must be labeled as such and are not a substitute for the student's own review and understanding.
 - This log does not establish faculty approval, upstream integration success, or a final supported assistant/platform.
