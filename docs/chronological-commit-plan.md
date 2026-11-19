@@ -10,13 +10,15 @@ The target is **12 substantive work commits per person, 36 total**: a 30-entry O
 | B | Runtime, execution, state, Headroom, packaging | 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 |
 | C | Fixtures/CI, configuration, verification/removal, promptfoo, Playwright | 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 |
 
-As checked on **18 November 2026**, local main is `a7c7654`. Steps 1–4 and
-step 6 are merged. PR #5 supplies part of step 8's executor work; step 5's
-pinned-command runner and managed environments are still pending. Integration
-has not followed every planned step in order, so use actual delivered behavior
-and dependencies rather than PR numbers to select the next task. A's step 7 is
-implemented and tested locally on `feat/project-detection`, pending PR review/merge;
-see the progress log for validation and the next dependency gates.
+As checked on **18 November 2026**, the step-9 branch starts from main
+`fa3616e`, including PR #7's step-7 detection and review fix. Steps 1–4, 6, and 7
+are merged. PR #5 supplies part of step 8's executor work; step 5's pinned-command
+runner and managed environments remain pending in PR #6. C's step-9 promptfoo
+implementation now supplies the configuration receipt handoff and real adapter
+acceptance with an explicitly injected unmerged runner. Normal execution remains
+blocked until that dependency is fixed/integrated. Integration has not followed
+every planned step in order, so use actual behavior and dependencies rather than
+PR numbers to select work; see the progress log for validation and commit counts.
 Review-fix and merge commits are additional history for their work items, not
 new completed steps. Preserve the required work and genuine authorship rather
 than rewriting history to force a Git commit count. The progress log retains

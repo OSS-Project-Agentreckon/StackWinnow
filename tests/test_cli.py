@@ -42,7 +42,8 @@ def test_help_is_available_without_a_project(tmp_path: Path, args: tuple[str, ..
     assert "--version" in result.stdout
     assert "catalog" in result.stdout
     assert "inspect" in result.stdout
-    assert "Installation is not available yet" in result.stdout
+    assert "promptfoo" in result.stdout
+    assert "Promptfoo execution requires the shared runner" in " ".join(result.stdout.split())
     assert result.stderr == ""
     assert list(tmp_path.iterdir()) == []
 
@@ -268,6 +269,19 @@ def test_inspect_invalid_inputs_fail_without_writes(tmp_path: Path, args: tuple[
     assert result.returncode == 2
     assert "error:" in result.stderr
     assert "Traceback" not in result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize("options", [["--tool", "does-not-exist"], ["--goal", " "]])
+def test_inspect_failure_does_not_render_when_exit_is_replaced(
+    tmp_path, monkeypatch, capsys, options
+):
+    exit_stub = Mock()
+    monkeypatch.setattr(cli.argparse.ArgumentParser, "exit", exit_stub)
+    assert cli.main(["inspect", str(tmp_path), "--json", *options]) == 2
+    exit_stub.assert_called_once()
+    assert exit_stub.call_args.args[0] == 2
+    assert capsys.readouterr().out == ""
     assert list(tmp_path.iterdir()) == []
 
 
