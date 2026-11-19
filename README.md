@@ -8,12 +8,12 @@ functional verification, and removal that preserves the user's settings.
 ## Current scope
 
 Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
-project inspection with explicit goals/preferences, shared contracts, runtime
+project inspection with explicit goals/preferences, explainable recommendations, shared contracts, runtime
 inspection, execution receipts, owned JSON configuration edits, and a pinned
 promptfoo adapter with plan/apply commands. The `inspect` command reads project
 declarations; host runtime inspection remains a Python API. The promptfoo
 adapter requires the shared runner from pending PR #6 for execution; planning
-and dry-run work without it. Recommendations, other tool adapters, general
+and dry-run work without it. Other tool adapters, general
 verification, and removal remain planned.
 
 The team's first-release target is 30 researched catalog entries and four
@@ -39,6 +39,7 @@ stackwinnow catalog list --category evaluation
 stackwinnow catalog show graphify --platform macos --assistant codex
 stackwinnow catalog list --json
 stackwinnow inspect . --json
+stackwinnow recommend . --goal "Evaluate answers" --json
 ```
 
 If `python3` is older than 3.11, use an installed newer interpreter, for example
@@ -68,6 +69,24 @@ Exit statuses are 0 for complete inspection (including absent optional manifests
 1 for incomplete inspection, and 2 for invalid inputs. See
 [project inspection](docs/project-inspection.md) for the schema, supported fields,
 limits, and API handoff.
+
+## Get tool recommendations
+
+```sh
+stackwinnow recommend . --goal "Understand relationships across source files"
+stackwinnow recommend . --goal "Evaluate answers" --tool promptfoo --json
+stackwinnow recommend . --goal "Reduce context tokens" --model-preference local
+```
+
+Recommendations explain matches using declared dependencies, explicit choices,
+and documented goal phrases. Existing frameworks rank ahead of new suggestions;
+alternatives and conflicts stay visible. The command runs offline and makes no
+model calls. It reports incomplete inspection and unmatched goals explicitly.
+
+Tool fit and installation readiness are separate. Local/hosted model support is
+reported as unverified where the catalog lacks evidence. See
+[recommendation rules](docs/recommendation-rules.md) for supported phrases,
+ranking, dependency aliases, JSON output, and the Python API.
 
 ## Browse the catalog
 

@@ -4,6 +4,38 @@ Last updated: **19 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 10 / Person A: local recommendation implementation
+
+Based on fetched main `9c245d4` (PR #8 merged), step 10 is implemented on
+`feat/tool-recommendations` and locally validated; it is prepared for PR review
+and is not merged. Step 7 is merged through PR #7 as `fa3616e`. Earlier sections below
+retain their original branch-specific evidence.
+
+- Adds `recommend_tools()` and `stackwinnow recommend` with human/JSON output.
+  Rules match goals to catalog capabilities and exact dependency aliases, with
+  manual choices first, declared tools next, and stable ordering of goal matches.
+- Keeps source inspection/evidence and partial-failure diagnostics, explains
+  alternatives and conflicts, and evaluates setup eligibility independently.
+  No tools are installed or model providers called. Local/hosted preference is
+  recorded with an explicit unverified status because catalog backend evidence
+  is not yet structured; it never implies compatibility.
+- Documents rule phrases, aliases, ranking, schema and boundaries in
+  [recommendation rules](recommendation-rules.md). Implementation was AI-assisted.
+- Local review fixes normalize apostrophes/negative contractions, separate
+  compression/caching/monitoring/routing from broad cost goals, expose exact
+  matched capabilities, and share one catalog across inspection and matching.
+- Python 3.11 validation: baseline **413 passed, 2 skipped**; feature **473 passed,
+  2 skipped**, warnings treated as errors. Skipped cases require explicit
+  integration/provider opt-ins. The package was built/reinstalled before installed
+  CLI checks. Ruff lint/format, dependency checks and diff checks passed.
+  No hosted CI result is claimed for this local branch.
+
+PR #6 remains the runner integration gate. The merged promptfoo implementation
+does not establish default installation readiness until the fixed runner is
+integrated and accepted. The next action is PR review and integration.
+Person A's next engineering milestone is step 13 (Graphify), subject to
+the runner, executor, preflight, and verification dependencies in the shared plan.
+
 ## Step 9 / person C's third planned contribution
 
 The promptfoo work is on `feat/promptfoo-onboarding`, based on main

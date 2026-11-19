@@ -11,6 +11,7 @@ from conftest import FixtureProject
 from pydantic import ValidationError
 
 from stackwinnow import detect
+from stackwinnow.catalog import Catalog, load_catalog
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
 
 pytestmark = pytest.mark.skipif(os.name != "posix", reason="Bounded file reader uses POSIX APIs")
@@ -291,6 +292,21 @@ def test_config_unknown_empty_and_invalid_are_distinct(tmp_path: Path, document:
 
 def test_selected_missing_config_is_an_error(tmp_path: Path) -> None:
     assert not inspect_project(tmp_path, config_path="missing.json").complete
+
+
+def test_supplied_catalog_controls_selection_validation_without_reloading(tmp_path, monkeypatch):
+    entry = load_catalog().get("graphify").model_copy(update={"alternatives": [], "conflicts": []})
+    catalog = Catalog(tools=(entry,))
+
+    def forbidden():
+        raise AssertionError("The supplied catalog must be reused")
+
+    monkeypatch.setattr(detect, "load_catalog", forbidden)
+    assert inspect_project(
+        tmp_path, selected_tools=["graphify"], catalog=catalog
+    ).selected_tools == ["graphify"]
+    with pytest.raises(InspectionError, match="Unknown tool ID"):
+        inspect_project(tmp_path, selected_tools=["promptfoo"], catalog=catalog)
 
 
 @pytest.mark.parametrize("name", ["   ", " server", "server "])

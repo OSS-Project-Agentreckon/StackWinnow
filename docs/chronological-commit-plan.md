@@ -10,13 +10,15 @@ The target is **12 substantive work commits per person, 36 total**: a 30-entry O
 | B | Runtime, execution, state, Headroom, packaging | 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 |
 | C | Fixtures/CI, configuration, verification/removal, promptfoo, Playwright | 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 |
 
-As checked on **18 November 2026**, the step-9 branch starts from main
-`fa3616e`, including PR #7's step-7 detection and review fix. Steps 1–4, 6, and 7
-are merged. PR #5 supplies part of step 8's executor work; step 5's pinned-command
+As checked on **19 November 2026**, fetched main is `9c245d4`, including
+PR #7's detection and PR #8's promptfoo implementation/review fixes. Steps 1–4,
+6, and 7 are merged. PR #5 supplies part of step 8's executor work; step 5's pinned-command
 runner and managed environments remain pending in PR #6. C's step-9 promptfoo
 implementation now supplies the configuration receipt handoff and real adapter
 acceptance with an explicitly injected unmerged runner. Normal execution remains
-blocked until that dependency is fixed/integrated. Integration has not followed
+blocked until that dependency is fixed/integrated. Step 10 recommendations are
+implemented and tested locally on `feat/tool-recommendations`, pending PR review
+and merge. Integration has not followed
 every planned step in order, so use actual behavior and dependencies rather than
 PR numbers to select work; see the progress log for validation and commit counts.
 Review-fix and merge commits are additional history for their work items, not

@@ -1,4 +1,4 @@
-"""Read-only catalog discovery and project inspection commands."""
+"""Tool discovery, project recommendations, and explicit adapter commands."""
 
 import argparse
 import json
@@ -14,6 +14,7 @@ from stackwinnow.adapters.promptfoo import (
     plan_promptfoo,
 )
 from stackwinnow.catalog import (
+    Catalog,
     CatalogEntry,
     CatalogError,
     Category,
@@ -26,6 +27,7 @@ from stackwinnow.catalog import (
 )
 from stackwinnow.configure import ConfigurationError
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
+from stackwinnow.recommend import RecommendationError, RecommendationResult, recommend_tools
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -69,16 +71,23 @@ def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
         parser.exit(2, "error: Cannot read the project or selected plan file.\n")
 
 
+def _read_inspection(
+    args: argparse.Namespace, *, catalog: Catalog | None = None
+) -> InspectionResult:
+    return inspect_project(
+        args.project_root,
+        goals=args.goal,
+        assistant=args.assistant,
+        selected_tools=args.tool,
+        model_preference=args.model_preference,
+        config_path=args.config,
+        catalog=catalog,
+    )
+
+
 def _inspect(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
-        result = inspect_project(
-            args.project_root,
-            goals=args.goal,
-            assistant=args.assistant,
-            selected_tools=args.tool,
-            model_preference=args.model_preference,
-            config_path=args.config,
-        )
+        result = _read_inspection(args)
     except (InspectionError, CatalogError) as exc:
         parser.exit(2, f"error: {exc}\n")
         return 2
@@ -98,6 +107,78 @@ def _inspect(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     else:
         _show_inspection(result)
     return 0 if result.complete else 1
+
+
+def _recommend(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        catalog = load_catalog()
+        result = recommend_tools(
+            _read_inspection(args, catalog=catalog), catalog=catalog, platform=args.platform
+        )
+    except (InspectionError, CatalogError, RecommendationError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    except ValidationError:
+        parser.exit(2, "error: Supply nonempty goals and valid assistant/tool IDs.\n")
+        return 2
+    if args.json:
+        payload = result.model_dump(
+            mode="json",
+            exclude={
+                "inspection": {
+                    "schema_version": True,
+                    "profile": {"schema_version"},
+                    "diagnostics": {"__all__": {"schema_version"}},
+                },
+            },
+        )
+        print(json.dumps({**payload, "complete": result.complete}, indent=2))
+    else:
+        _show_recommendations(result)
+    return 0 if result.complete else 1
+
+
+def _show_recommendations(result: RecommendationResult) -> None:
+    _show_inspection(result.inspection)
+    print(f"Target platform: {result.target_platform or 'unknown'}")
+    print("Recommendations:")
+    for item in result.recommendations:
+        label = (
+            "selected" if item.selected else "declared" if item.already_declared else "goal match"
+        )
+        print(f"  {item.name} ({item.tool_id}) [{label}]: {item.description}")
+        for reason in item.reasons:
+            detail = "; ".join(reason.goals)
+            if reason.fact_key:
+                detail = reason.fact_key + ": " + ", ".join(reason.values)
+            print(f"    Why: {reason.message}" + (f" ({detail})" if detail else ""))
+            if reason.matched_capabilities:
+                print("      Matched capabilities: " + ", ".join(reason.matched_capabilities))
+        print("    Setup: " + ("eligible" if item.eligibility.installable else "unavailable"))
+        for reason in item.eligibility.reasons:
+            print(f"      {reason.message}")
+        if item.alternatives:
+            print("    Alternatives to compare: " + ", ".join(item.alternatives))
+        if item.conflicts_with:
+            print("    Conflicts with: " + ", ".join(item.conflicts_with))
+        for limitation in item.limitations:
+            print(f"    Limitation: {limitation}")
+    for relationship in result.relationships:
+        print(f"  {relationship.kind}: " + " / ".join(relationship.tools))
+    for note in result.notes:
+        print(note)
+    if result.unmatched_goals:
+        print("Unmatched goals: " + "; ".join(result.unmatched_goals))
+
+
+def _add_inspection_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("project_root", help="Existing project directory.")
+    parser.add_argument("--goal", action="append", help="Explicit goal; repeat for multiple goals.")
+    parser.add_argument("--assistant", help="Explicit assistant ID; omitted means unknown.")
+    parser.add_argument("--tool", action="append", help="Catalog tool ID; repeat to select tools.")
+    parser.add_argument("--model-preference", choices=["local", "hosted", "any"])
+    parser.add_argument("--config", help="Project-relative JSON file; read mcpServers names only.")
+    parser.add_argument("--json", action="store_true", help="Emit structured JSON.")
 
 
 def _show_inspection(result: InspectionResult) -> None:
@@ -215,19 +296,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     inspection = commands.add_parser(
         "inspect", help="Read project manifests and record explicit goals.", allow_abbrev=False
     )
-    inspection.add_argument("project_root", help="Existing project directory.")
-    inspection.add_argument(
-        "--goal", action="append", help="Explicit goal; repeat for multiple goals."
+    _add_inspection_arguments(inspection)
+    recommendations = commands.add_parser(
+        "recommend",
+        help="Explain tools matching project declarations and goals.",
+        allow_abbrev=False,
     )
-    inspection.add_argument("--assistant", help="Explicit assistant ID; omitted means unknown.")
-    inspection.add_argument(
-        "--tool", action="append", help="Catalog tool ID; repeat to select tools."
+    _add_inspection_arguments(recommendations)
+    recommendations.add_argument(
+        "--platform",
+        choices=[item.value for item in Platform],
+        help="Declared target OS for eligibility; does not inspect the host.",
     )
-    inspection.add_argument("--model-preference", choices=["local", "hosted", "any"])
-    inspection.add_argument(
-        "--config", help="Project-relative JSON file; read mcpServers names only."
-    )
-    inspection.add_argument("--json", action="store_true", help="Emit structured JSON.")
     catalog_parser = commands.add_parser(
         "catalog", help="Browse the reviewed tool catalog.", allow_abbrev=False
     )
@@ -251,6 +331,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "inspect":
         return _inspect(args, parser)
+    if args.command == "recommend":
+        return _recommend(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
     if args.catalog_command is None:

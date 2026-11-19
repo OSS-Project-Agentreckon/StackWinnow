@@ -118,7 +118,10 @@ print(restored.profile.facts)
 ```
 
 `InspectionError` reports invalid project/configuration scope or tool choice;
-Pydantic `ValidationError` reports invalid typed inputs. Catalog loading errors
+Pydantic `ValidationError` reports invalid typed inputs. An optional `catalog`
+argument supplies a validated catalog for checking selected tools, so callers
+can reuse it across inspection and recommendation. When omitted, inspection
+loads the bundled catalog only if there are explicit selections. Catalog loading errors
 can propagate when checking explicit selections. Ordinary file/read/parse errors
 are returned as diagnostics so callers can display partial findings.
 
