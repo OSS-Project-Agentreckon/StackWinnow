@@ -81,9 +81,11 @@ def _inspect(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
         )
     except (InspectionError, CatalogError) as exc:
         parser.exit(2, f"error: {exc}\n")
+        return 2
     except ValidationError:
         # Validation errors may include input values. Do not echo arbitrary input.
         parser.exit(2, "error: Supply nonempty goals and valid assistant/tool IDs.\n")
+        return 2
     if args.json:
         payload = result.model_dump(
             mode="json",

@@ -97,7 +97,7 @@ automatic overwrite. Use a fresh project when recovery is unclear.
 | `.stackwinnow/promptfoo/` | Private child home, npm configuration/cache, empty dotenv file, logs, temporary files, and working directory |
 | `.stackwinnow/promptfoo/results/<run-id>.json` | Fresh upstream report for one evaluation |
 | `.stackwinnow/receipts.json` | Executor results, configuration intent/ownership, and evidence references |
-| `.stackwinnow/promptfoo.lock` | Exclusive adapter-operation lock, removed on normal completion |
+| `.stackwinnow/promptfoo.lock` | Exclusive adapter-operation lock, released on completion and handled failures |
 
 New state directories use mode `0700`; receipts and controlled files use `0600`.
 The provider is bundled with StackWinnow, and the generated configuration
@@ -108,11 +108,27 @@ contain local paths. This adapter does not edit the target project's gitignore.
 
 Before configuration mutation, the executor persists the complete `ConfigPatch`
 intent. Afterwards it records actual ownership, including publication followed
-by cleanup failure. New no-op receipts do not replace earlier ownership. If
+by cleanup failure. Retrying the same step retains earlier ownership in both
+the retry intent and the final receipt, including no-op outcomes. If
 final receipt persistence fails after a write, the earlier intent remains for
 manual recovery; it is not silently promoted to successful ownership. Partial
 installs and stale locks require inspection. Automatic repair/removal is later
 work. There is no whole-plan rollback.
+
+After acquiring the operation lock, apply re-reads receipts and revalidates the
+plan against the current configuration. An overlapping invocation whose plan
+was already attempted is blocked before executing or rewriting any step.
+Overall success requires a fresh successful evaluation in that invocation;
+skipped steps alone cannot establish a pass. Lock cleanup covers failures
+immediately after creation, including descriptor-close errors. An uncatchable
+process termination can still leave a lock requiring inspection.
+
+Configuration ownership checks read bounded bytes and permission metadata from
+the same descriptor opened with `O_NOFOLLOW`. `O_NONBLOCK` is retained so a FIFO
+substituted between the initial file check and open can be rejected without
+hanging. Invalid evaluation reports retain their specific sanitized diagnostic
+in the failed receipt. A missing catalog entry produces a typed error or blocked
+apply result.
 
 Promptfoo runs from an empty managed working directory, avoiding discovery of
 unrelated project JS/TS configuration. `DOTENV_CONFIG_PATH` is set **before Node

@@ -107,6 +107,16 @@ configured value returns `skipped`; earlier receipts remain instead of losing
 their ownership to that no-op result. Existing receipts without these optional
 fields load with empty lists.
 
+Retries of the same step/tool also retain earlier configuration intent and
+ownership in the receipt persisted **before** the callback, and in its eventual
+outcome. A no-op, missing runner, or interruption therefore cannot discard the
+original values from a previous publication/cleanup failure. New patches append
+to the history without duplicating identical patches. Ownership is ordered from
+oldest to newest; consumers check the latest matching write, while retaining
+earlier patches for restoration. Intent snapshots are detached and revalidated,
+including nested JSON and unchecked model copies, without a JSON encoding round
+trip.
+
 Receipt publication uses a private, randomly named staged file, fsync, and an
 atomic replacement. If final persistence fails after configuration publication,
 the earlier intent remains on disk for recovery; that is not a success receipt.

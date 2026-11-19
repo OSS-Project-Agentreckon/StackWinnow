@@ -7,6 +7,7 @@ import json
 import os
 
 import pytest
+from pydantic import ValidationError
 
 from stackwinnow import installer
 from stackwinnow.configure import apply_json_edits, plan_json_edits
@@ -169,3 +170,142 @@ def test_receipt_staging_never_follows_predictable_tmp_symlink(tmp_path, configu
     assert (state / "receipts.tmp").is_symlink()
     assert (state / "receipts.json").stat().st_mode & 0o777 == 0o600
     assert not list(state.glob(".receipts-*.tmp"))
+
+
+@pytest.fixture
+def published_with_cleanup_failure(tmp_path, configuration, monkeypatch):
+    plan, _ = configuration
+    target = tmp_path / "settings.json"
+    target.write_text('{"enabled":"original"}')
+    patch = plan_json_edits(
+        plan.project_root,
+        target.name,
+        tool_id="promptfoo",
+        edits=[JsonConfigEdit(key_path=("enabled",), value="managed", replace_existing=True)],
+    )
+    unlink = os.unlink
+
+    def fail_cleanup(path, **kwargs):
+        if isinstance(path, str) and path.startswith(".stackwinnow-"):
+            raise PermissionError("simulated configuration cleanup failure")
+        unlink(path, **kwargs)
+
+    def publish(step):
+        with monkeypatch.context() as changes:
+            changes.setattr(os, "unlink", fail_cleanup)
+            outcome = apply_json_edits(patch)
+        assert outcome.result.status == "failed" and outcome.ownership == patch
+        return installer.RunnerOutcome(
+            status=outcome.result.status,
+            message=outcome.result.message,
+            configuration_ownership=[outcome.ownership],
+        )
+
+    installer.execute_plan(
+        plan, step_runner=publish, configuration_intents={plan.steps[0].step_id: [patch]}
+    )
+    assert json.loads(target.read_text())["enabled"] == "managed"
+    return plan, patch
+
+
+@pytest.mark.parametrize("interrupted", [False, True])
+def test_retry_preserves_ownership_in_intent_and_noop_outcome(
+    published_with_cleanup_failure, interrupted
+):
+    plan, original = published_with_cleanup_failure
+    step_id = plan.steps[0].step_id
+    retry_patch = plan_json_edits(
+        plan.project_root,
+        original.relative_path,
+        tool_id="promptfoo",
+        edits=[JsonConfigEdit(key_path=("enabled",), value="managed")],
+    )
+    assert retry_patch.edits == ()
+
+    def retry(step):
+        saved = installer.load_record(plan.project_root).receipt_for(step_id)
+        assert saved.status == "failed"
+        assert saved.configuration_ownership == [original]
+        assert saved.configuration_intents == [original, retry_patch]
+        if interrupted:
+            raise RuntimeError("simulated interruption after retry intent")
+        outcome = apply_json_edits(retry_patch)
+        assert outcome.result.status == "skipped" and outcome.ownership is None
+        return installer.RunnerOutcome(status="skipped", message=outcome.result.message)
+
+    if interrupted:
+        with pytest.raises(RuntimeError, match="simulated interruption"):
+            installer.execute_plan(
+                plan, step_runner=retry, configuration_intents={step_id: [retry_patch]}
+            )
+    else:
+        installer.execute_plan(
+            plan, step_runner=retry, configuration_intents={step_id: [retry_patch]}
+        )
+    saved = installer.load_record(plan.project_root).receipt_for(step_id)
+    assert saved.status == ("failed" if interrupted else "skipped")
+    assert saved.configuration_ownership == [original]
+    assert saved.configuration_ownership[0].edits[0].original.value == "original"
+
+
+def test_retry_without_runner_retains_configuration_history(published_with_cleanup_failure):
+    plan, patch = published_with_cleanup_failure
+    record, results = installer.execute_plan(plan)
+    assert results[0].status == "blocked"
+    assert record.steps[0].configuration_ownership == [patch]
+    assert record.steps[0].configuration_intents == [patch]
+    assert installer.load_record(plan.project_root) == record
+
+
+def test_retry_adds_new_ownership_without_losing_original(published_with_cleanup_failure):
+    plan, original = published_with_cleanup_failure
+    changed = plan_json_edits(
+        plan.project_root,
+        original.relative_path,
+        tool_id="promptfoo",
+        edits=[JsonConfigEdit(key_path=("enabled",), value="new value", replace_existing=True)],
+    )
+
+    def retry(step):
+        outcome = apply_json_edits(changed)
+        return installer.RunnerOutcome(
+            status=outcome.result.status,
+            message=outcome.result.message,
+            configuration_ownership=[outcome.ownership],
+        )
+
+    record, results = installer.execute_plan(
+        plan, step_runner=retry, configuration_intents={plan.steps[0].step_id: [changed]}
+    )
+    assert results[0].status == "succeeded"
+    assert record.steps[0].configuration_ownership == [original, changed]
+    assert record.steps[0].configuration_intents == [original, changed]
+
+
+def test_copied_invalid_intent_is_revalidated_before_writes(tmp_path, configuration):
+    plan, patch = configuration
+    invalid = patch.model_copy(update={"relative_path": "../outside.json"})
+    with pytest.raises(ValidationError):
+        installer.execute_plan(plan, configuration_intents={plan.steps[0].step_id: [invalid]})
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_intent_snapshot_is_detached_from_mutable_json(configuration):
+    plan, _ = configuration
+    patch = plan_json_edits(
+        plan.project_root,
+        "settings.json",
+        tool_id="promptfoo",
+        edits=[JsonConfigEdit(key_path=("options",), value={"items": []})],
+    )
+
+    def mutate_caller(step):
+        patch.edits[0].written["items"].append("changed after intent")
+        return installer.RunnerOutcome(status="blocked", message="No configuration applied.")
+
+    record, _ = installer.execute_plan(
+        plan, step_runner=mutate_caller, configuration_intents={plan.steps[0].step_id: [patch]}
+    )
+    saved = installer.load_record(plan.project_root)
+    assert saved == record
+    assert saved.steps[0].configuration_intents[0].edits[0].written == {"items": []}

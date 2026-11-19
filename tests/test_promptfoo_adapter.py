@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -370,6 +372,16 @@ def test_invalid_report_never_records_success(tmp_path, commands, change):
     result = adapter.apply_promptfoo(adapter.plan_promptfoo(tmp_path), command_runner=commands)
     assert result.status == "failed" and result.evaluation is None
     assert result.record.steps[-1].status == "failed"
+    diagnostic = {
+        "version": "invalid results",
+        "missing-row": "two expected cases",
+        "duplicate-index": "identify the expected test cases",
+        "wrong-output": "unexpected output",
+        "false-totals": "totals disagree",
+        "boolean-total": "invalid totals",
+    }[change]
+    assert diagnostic in result.message
+    assert result.record.steps[-1].message == result.message
 
 
 @pytest.mark.parametrize("failure", ["exit-code", "timeout"])
@@ -561,8 +573,8 @@ def test_new_valid_prefix_during_preflight_is_not_adopted(tmp_path, commands):
     assert result.status == "blocked" and "ownership receipt" in result.message
     assert commands.count("install") == 1  # Only the simulated other installation.
     assert commands.count("eval") == 0
-    receipt = load_record(plan.project_root).steps[0]
-    assert receipt.status == "failed" and receipt.owned_paths == []
+    assert load_record(plan.project_root).steps == []
+    assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
     assert not (tmp_path / plan.configuration.relative_path).exists()
 
 
@@ -586,3 +598,183 @@ def test_preexisting_result_is_never_overwritten_or_accepted(tmp_path, commands)
     result = adapter.apply_promptfoo(plan, command_runner=commands)
     assert result.status == "blocked" and result.evaluation is None
     assert path.read_bytes() == saved and commands.count("eval") == 1
+
+
+def test_overlapping_apply_rechecks_receipts_under_lock(tmp_path, commands):
+    plan = adapter.plan_promptfoo(tmp_path)
+    completed = []
+
+    def delayed_runner(args, **kwargs):
+        if args == ["/declared/node", "--version"]:
+            completed.append(adapter.apply_promptfoo(plan, command_runner=commands))
+        return commands(args, **kwargs)
+
+    delayed = adapter.apply_promptfoo(plan, command_runner=delayed_runner)
+    assert completed[0].status == "succeeded"
+    assert delayed.status == "blocked" and "already attempted" in delayed.message
+    assert delayed.evaluation is None and delayed.results == []
+    assert commands.count("install") == commands.count("eval") == 1
+    assert adapter.load_record(plan.project_root) == completed[0].record
+    assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
+
+
+def test_configuration_changed_during_preflight_blocks_before_receipts(tmp_path, commands):
+    first = adapter.apply_promptfoo(adapter.plan_promptfoo(tmp_path), command_runner=commands)
+    plan = adapter.plan_promptfoo(tmp_path)
+    config = tmp_path / plan.configuration.relative_path
+    receipts = tmp_path / ".stackwinnow/receipts.json"
+    before = receipts.read_bytes()
+
+    def change_configuration(args, **kwargs):
+        if args == ["/declared/node", "--version"]:
+            config.write_text('{"user":"keep changed configuration"}')
+        return commands(args, **kwargs)
+
+    result = adapter.apply_promptfoo(plan, command_runner=change_configuration)
+    assert first.status == "succeeded" and result.status == "blocked"
+    assert receipts.read_bytes() == before
+    assert commands.count("eval") == 1
+    assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
+
+
+def test_success_requires_a_fresh_evaluation(tmp_path, commands, monkeypatch):
+    plan = adapter.plan_promptfoo(tmp_path)
+
+    def skip_steps(installation, **kwargs):
+        return adapter.load_record(installation.project_root), [
+            OperationResult(status="skipped", message="Already completed.", step_id=step.step_id)
+            for step in installation.steps
+        ]
+
+    monkeypatch.setattr(adapter, "execute_plan", skip_steps)
+    result = adapter.apply_promptfoo(plan, command_runner=commands)
+    assert result.status == "blocked" and result.evaluation is None
+    assert "fresh" in result.message
+    assert commands.count("eval") == 0
+    assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
+
+
+def test_lock_close_failure_does_not_orphan_lock(tmp_path, commands, monkeypatch):
+    plan = adapter.plan_promptfoo(tmp_path)
+    lock = tmp_path / ".stackwinnow/promptfoo.lock"
+    real_open, real_close = os.open, os.close
+    lock_descriptor = None
+    failed = False
+
+    def capture_lock(path, *args, **kwargs):
+        nonlocal lock_descriptor
+        descriptor = real_open(path, *args, **kwargs)
+        if path == lock:
+            lock_descriptor = descriptor
+        return descriptor
+
+    def fail_lock_close(descriptor):
+        nonlocal failed
+        real_close(descriptor)
+        if descriptor == lock_descriptor and not failed:
+            failed = True
+            raise OSError("simulated lock close failure")
+
+    with monkeypatch.context() as changes:
+        changes.setattr(os, "open", capture_lock)
+        changes.setattr(os, "close", fail_lock_close)
+        result = adapter.apply_promptfoo(plan, command_runner=commands)
+    assert failed and result.status == "blocked"
+    assert not lock.exists() and commands.count("install") == 0
+    assert adapter.apply_promptfoo(plan, command_runner=commands).status == "succeeded"
+
+
+def test_configuration_read_rejects_symlink_swapped_after_lstat(tmp_path, commands, monkeypatch):
+    first = adapter.apply_promptfoo(adapter.plan_promptfoo(tmp_path), command_runner=commands)
+    config = tmp_path / first.plan.configuration.relative_path
+    outside = tmp_path / "unowned.json"
+    outside.write_bytes(config.read_bytes())
+    outside.chmod(config.stat().st_mode & 0o777)
+    original_check = adapter._regular_file
+
+    def swap_after_check(path, **kwargs):
+        original_check(path, **kwargs)
+        if path == config:
+            path.unlink()
+            path.symlink_to(outside)
+
+    monkeypatch.setattr(adapter, "_regular_file", swap_after_check)
+    with pytest.raises((adapter.PromptfooError, OSError)):
+        adapter._check_existing_configuration(
+            tmp_path, first.record, first.plan.configuration.relative_path
+        )
+    assert config.is_symlink()
+
+
+def test_configuration_ownership_history_checks_the_latest_write(tmp_path, commands):
+    first = adapter.apply_promptfoo(adapter.plan_promptfoo(tmp_path), command_runner=commands)
+    from stackwinnow.contracts import JsonConfigEdit
+
+    patch = adapter.plan_json_edits(
+        tmp_path,
+        first.plan.configuration.relative_path,
+        tool_id="promptfoo",
+        edits=[JsonConfigEdit(key_path=("description",), value="updated", replace_existing=True)],
+    )
+    outcome = adapter.apply_json_edits(patch)
+    assert outcome.result.status == "succeeded"
+    receipt = first.record.receipt_for(first.plan.installation.steps[1].step_id)
+    receipt.configuration_ownership.append(outcome.ownership)
+    adapter._check_existing_configuration(
+        tmp_path, first.record, first.plan.configuration.relative_path
+    )
+
+
+def test_json_reader_cannot_hang_when_regular_file_is_replaced_by_fifo(tmp_path, subprocess_env):
+    script = """
+import os
+import sys
+from pathlib import Path
+from stackwinnow.adapters import promptfoo as adapter
+path = Path(sys.argv[1])
+path.write_text('{}')
+original_check = adapter._regular_file
+def swap_after_check(candidate, **kwargs):
+    original_check(candidate, **kwargs)
+    candidate.unlink()
+    os.mkfifo(candidate)
+adapter._regular_file = swap_after_check
+try:
+    adapter._read_json(path)
+except adapter.PromptfooError:
+    pass
+else:
+    raise AssertionError('A replaced FIFO must be rejected')
+"""
+    result = subprocess.run(
+        [sys.executable, "-c", script, str(tmp_path / "plan.json")],
+        cwd=tmp_path,
+        env={**subprocess_env, "PYTHONPATH": str(Path(adapter.__file__).resolve().parents[2])},
+        capture_output=True,
+        text=True,
+        timeout=5,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
+
+
+@pytest.mark.parametrize("entrypoint", ["plan", "apply", "cli"])
+def test_missing_promptfoo_catalog_entry_is_a_typed_error(
+    tmp_path, commands, monkeypatch, capsys, entrypoint
+):
+    plan = adapter.plan_promptfoo(tmp_path)
+    catalog = adapter.load_catalog()
+    catalog._by_id.pop("promptfoo")
+    monkeypatch.setattr(adapter, "load_catalog", lambda: catalog)
+    if entrypoint == "plan":
+        with pytest.raises(adapter.PromptfooError, match="not in the tool catalog"):
+            adapter.plan_promptfoo(tmp_path)
+    elif entrypoint == "apply":
+        result = adapter.apply_promptfoo(plan, command_runner=commands)
+        assert result.status == "blocked" and "not in the tool catalog" in result.message
+    else:
+        with pytest.raises(SystemExit) as raised:
+            main(["promptfoo", "plan", str(tmp_path), "--json"])
+        assert raised.value.code == 2
+        assert "not in the tool catalog" in capsys.readouterr().err
+    assert commands.calls == [] and list(tmp_path.iterdir()) == []

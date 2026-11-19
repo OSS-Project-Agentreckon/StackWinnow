@@ -194,7 +194,9 @@ def execute_plan(
             raise InstallerError("Configuration intent refers to an unknown plan step.")
         intents[step_id] = []
         for patch in patches:
-            checked = ConfigPatch.model_validate_json(patch.model_dump_json())
+            # Frozen contracts can contain mutable JSON or unchecked model_copy updates.
+            # Revalidate a detached Python snapshot without a JSON encoding round trip.
+            checked = ConfigPatch.model_validate(patch.model_dump(warnings=False))
             if (
                 checked.project_root != plan.project_root
                 or checked.tool_id != steps[step_id].tool_id
@@ -225,6 +227,15 @@ def execute_plan(
             results.append(result)
             continue
 
+        previous = record.receipt_for(step.step_id)
+        if previous is not None and (previous.tool_id != step.tool_id or previous.dry_run):
+            previous = None
+        ownership = list(previous.configuration_ownership) if previous is not None else []
+        step_intents = list(previous.configuration_intents) if previous is not None else []
+        step_intents.extend(
+            patch for patch in intents.get(step.step_id, []) if patch not in step_intents
+        )
+
         if step_runner is not None:
             # Persist intent before invoking the runner so crashes leave a record.
             intent = StepReceipt(
@@ -233,12 +244,18 @@ def execute_plan(
                 status=OperationStatus.FAILED,
                 message="Step execution began but did not complete.",
                 timestamp=_now(),
-                configuration_intents=intents.get(step.step_id, []),
+                configuration_intents=step_intents,
+                configuration_ownership=ownership,
             )
             _record_step(record, intent)
             _persist(record, project_root=plan.project_root)
 
             raw = step_runner(step)  # may raise; intent receipt remains on disk
+            # Retain the original values through retries, including a no-op after
+            # publication/cleanup failure. New writes append restoration history.
+            ownership.extend(
+                patch for patch in raw.configuration_ownership if patch not in ownership
+            )
 
             result = OperationResult(
                 status=raw.status,
@@ -256,8 +273,8 @@ def execute_plan(
                 timestamp=_now(),
                 errors=raw.errors,
                 owned_paths=raw.owned_paths,
-                configuration_intents=intents.get(step.step_id, []),
-                configuration_ownership=raw.configuration_ownership,
+                configuration_intents=step_intents,
+                configuration_ownership=ownership,
                 evidence=raw.evidence,
             )
         else:
@@ -275,6 +292,8 @@ def execute_plan(
                 message=result.message,
                 timestamp=_now(),
                 errors=result.errors,
+                configuration_intents=step_intents,
+                configuration_ownership=ownership,
             )
 
         _record_step(record, receipt)

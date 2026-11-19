@@ -1,6 +1,6 @@
 # StackWinnow implementation progress
 
-Last updated: **18 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **19 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
@@ -8,8 +8,10 @@ Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project
 
 The promptfoo work is on `feat/promptfoo-onboarding`, based on main
 `fa3616e856cd2ecbf918bfb3e6c816c33cca610b` (the merge of PR #7). Step 7 and its
-review fix are now merged. PR #6's step-5 runner remains open at `6057fb5`; its
-reviewed defects must be addressed before normal adapter integration.
+review fix are now merged. PR #6's step-5 runner remains open at `761c5b3`.
+The 19 November re-review reproduced remaining path-confinement and bounded
+timeout problems, plus a secret-name redaction regression. These findings must
+be addressed before normal adapter integration.
 
 This change delivers C's step-9 implementation: the MIT `promptfoo@0.125.1`
 adapter, reviewable plan/apply CLI, bundled deterministic provider, owned
@@ -38,7 +40,7 @@ Local verification on 18 November 2026:
 | Deliberate negative evaluation | Zero successes, two assertion failures, zero errors; upstream exit 100 and manager failure |
 | Repeat evaluation | Two successes with a fresh report; the owned install/configuration were reused |
 | Real hosted model/paid provider | Not executed |
-| Hosted CI for this contribution | Not run; this is a local contribution |
+| Hosted CI for initial commit `5311f82` | Both Python jobs passed in [run 44344883779](https://github.com/OSS-Project-Agentreckon/StackWinnow/actions/runs/44344883779) |
 
 The real manager test uses the unmerged runner as an explicit test dependency,
 not a shipped default. An initial uncached attempt encountered npm
@@ -64,6 +66,46 @@ contributions**. At base `fa3616e`, non-merge counts are A: 7, B: 5, C: 3; after
 this contribution they are A: 7, B: 5, C: 4. The 36/12-each target still needs
 honest reconciliation of future work boundaries; history and authorship are
 preserved.
+
+### PR #8 review follow-up, 19 November 2026
+
+The review fixes preserve configuration ownership and intent through retries of
+the same step, including cleanup failure followed by a no-op or interruption.
+Apply revalidates receipts/configuration under the operation lock and requires
+a fresh successful evaluation. Lock cleanup now starts immediately after
+creation. Ownership checks read through one bounded no-follow descriptor, and
+evaluation/catalog errors retain useful typed diagnostics. The inspection CLI
+also returns an error if a substituted parser exit handler returns normally.
+
+Two review suggestions were handled while retaining necessary safeguards:
+`O_NONBLOCK` prevents a regular-file-to-FIFO race from hanging before `fstat`,
+and configuration intent validation now uses a detached Python snapshot instead
+of JSON serialization. It still rejects unchecked model copies and prevents
+caller mutations of nested JSON from altering persisted intent.
+
+The follow-up adds **18 offline cases** and strengthens existing invalid-report
+assertions. **413 tests passed and 2 integration/provider tests were skipped by
+default on both Python 3.11.14 and 3.14.0**, with warnings treated as errors. Ruff
+lint/format, dependency compatibility, and diff checks passed. Hosted checks for
+the follow-up are reported on [PR #8](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/8).
+The runner integration gate remains in effect.
+
+Real manager acceptance also passed with the **explicitly injected, unmerged**
+PR #6 runner at `761c5b3`: **1 passed, 1 provider test skipped** on macOS arm64
+with Node 24.13.1. The positive and repeat evaluations each passed 2/2 cases;
+the intentional negative evaluation passed 0/2 and reported two assertion
+failures with upstream exit 100. The
+adapter reused its owned installation/configuration and wrote three fresh
+reports with nine receipts. As in the initial acceptance, the private npm cache
+was seeded from the verified artifact probe and the real install/evaluation
+commands were unchanged. No hosted provider was called. This verifies these
+adapter paths against that runner revision; it does not resolve the runner's
+separate confinement, timeout, and redaction findings.
+
+This is a separate review-fix work commit on the existing step-9 branch. It does
+not complete another numbered contribution: branch non-merge counts become
+**A: 7, B: 5, C: 5** across C's three planned contributions. The earlier count of
+four C commits describes the initial `5311f82` implementation.
 
 ## Earlier main snapshot and Person A's step-7 work
 

@@ -272,6 +272,19 @@ def test_inspect_invalid_inputs_fail_without_writes(tmp_path: Path, args: tuple[
     assert list(tmp_path.iterdir()) == []
 
 
+@pytest.mark.parametrize("options", [["--tool", "does-not-exist"], ["--goal", " "]])
+def test_inspect_failure_does_not_render_when_exit_is_replaced(
+    tmp_path, monkeypatch, capsys, options
+):
+    exit_stub = Mock()
+    monkeypatch.setattr(cli.argparse.ArgumentParser, "exit", exit_stub)
+    assert cli.main(["inspect", str(tmp_path), "--json", *options]) == 2
+    exit_stub.assert_called_once()
+    assert exit_stub.call_args.args[0] == 2
+    assert capsys.readouterr().out == ""
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_inspect_explicit_missing_configuration_exits_one(tmp_path: Path) -> None:
     result = run_cli(tmp_path, "inspect", ".", "--config", "missing.json", "--json")
     assert result.returncode == 1

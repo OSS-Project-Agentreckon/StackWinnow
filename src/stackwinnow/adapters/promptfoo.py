@@ -14,6 +14,8 @@ import platform
 import re
 import shutil
 import stat
+from collections.abc import Iterator
+from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
 from typing import Literal, Protocol
@@ -21,7 +23,7 @@ from uuid import uuid4
 
 from pydantic import Field, ValidationError, model_validator
 
-from stackwinnow.catalog import load_catalog
+from stackwinnow.catalog import CatalogError, load_catalog
 from stackwinnow.configure import ConfigurationError, apply_json_edits, plan_json_edits
 from stackwinnow.contracts import (
     ConfigPatch,
@@ -145,18 +147,25 @@ def _regular_file(path: Path, *, limit: int = MAX_JSON_BYTES) -> None:
         raise PromptfooError("A managed file is linked, special, or too large; inspect it first.")
 
 
-def _read_json(path: Path) -> dict:
+def _read_regular_file(path: Path) -> tuple[bytes, os.stat_result]:
     if os.name != "posix":
         raise PromptfooError("Promptfoo onboarding currently requires POSIX file operations.")
     _regular_file(path)
+    # A regular file can be replaced by a FIFO after lstat. NONBLOCK lets fstat
+    # reject that opened object without waiting indefinitely for a FIFO writer.
     descriptor = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(descriptor, "rb") as stream:
         opened = os.fstat(stream.fileno())
         if not stat.S_ISREG(opened.st_mode) or opened.st_nlink != 1:
-            raise PromptfooError("Managed JSON must be a regular file with one link.")
+            raise PromptfooError("Managed files must be regular files with one link.")
         raw = stream.read(MAX_JSON_BYTES + 1)
     if len(raw) > MAX_JSON_BYTES:
-        raise PromptfooError("Managed JSON exceeds the supported size.")
+        raise PromptfooError("Managed file exceeds the supported size.")
+    return raw, opened
+
+
+def _read_json(path: Path) -> dict:
+    raw, _ = _read_regular_file(path)
 
     def unique_keys(pairs: list[tuple[str, object]]) -> dict[str, object]:
         result: dict[str, object] = {}
@@ -262,11 +271,11 @@ def _check_existing_configuration(root: Path, record: ExecutionRecord, relative:
     path = root / relative
     if not path.exists() and not path.is_symlink():
         return
-    _regular_file(path)
-    digest = hashlib.sha256(path.read_bytes()).hexdigest()
-    mode = stat.S_IMODE(path.stat().st_mode)
+    raw, opened = _read_regular_file(path)
+    digest = hashlib.sha256(raw).hexdigest()
+    mode = stat.S_IMODE(opened.st_mode)
     for receipt in reversed(record.steps):
-        for ownership in receipt.configuration_ownership:
+        for ownership in reversed(receipt.configuration_ownership):
             if ownership.tool_id == "promptfoo" and ownership.relative_path == relative:
                 if (
                     ownership.project_root == str(root)
@@ -334,7 +343,12 @@ def _build_plan(
     run_id: str,
 ) -> PromptfooPlan:
     root = _root(project_root)
-    entry = load_catalog().get("promptfoo")
+    try:
+        entry = load_catalog().get("promptfoo")
+    except KeyError as exc:
+        raise PromptfooError("promptfoo is not in the tool catalog.") from exc
+    except CatalogError as exc:
+        raise PromptfooError("The tool catalog is unavailable or invalid.") from exc
     if entry.license != "MIT" or entry.license_review != "reviewed":
         raise PromptfooError("The promptfoo OSS license review is not available.")
     record = _record(root)
@@ -380,6 +394,27 @@ def load_promptfoo_plan(path: str | Path) -> PromptfooPlan:
     return PromptfooPlan.model_validate(_read_json(Path(path)))
 
 
+def _validate_plan(root: Path, plan: PromptfooPlan) -> None:
+    if str(_root(root)) != plan.project_root:
+        raise PromptfooError("The project path now resolves elsewhere; create a new plan.")
+    record = _record(root)
+    if any(record.receipt_for(step.step_id) is not None for step in plan.installation.steps):
+        raise PromptfooError(
+            "This plan was already attempted. Create a new plan for a fresh evaluation."
+        )
+    expected = _build_plan(
+        root,
+        provider=plan.provider,
+        model=plan.model,
+        scenario=plan.scenario,
+        run_id=plan.run_id,
+    )
+    if expected != plan:
+        raise PromptfooError(
+            "The plan or its input configuration changed; create and review a new plan."
+        )
+
+
 def _default_runner() -> CommandRunner | None:
     try:
         from stackwinnow.runner import run_command
@@ -402,6 +437,23 @@ def _mkdir(root: Path, relative: str) -> Path:
                     "A managed directory was replaced; inspect the project before retrying."
                 ) from None
     return current
+
+
+@contextmanager
+def _operation_lock(root: Path) -> Iterator[None]:
+    _mkdir(root, ".stackwinnow")
+    lock_path = root / ".stackwinnow/promptfoo.lock"
+    try:
+        descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
+    except FileExistsError as exc:
+        raise PromptfooError(
+            "Another promptfoo operation may be active. Inspect the lock before retrying."
+        ) from exc
+    try:
+        os.close(descriptor)
+        yield
+    finally:
+        lock_path.unlink(missing_ok=True)
 
 
 def _empty_file(path: Path) -> None:
@@ -523,24 +575,7 @@ def apply_promptfoo(
 
     try:
         root = _root(checked.project_root)
-        if str(root) != checked.project_root:
-            return blocked("The project path now resolves elsewhere; create a new plan.")
-        record = _record(root)
-        if any(record.receipt_for(step.step_id) is not None for step in checked.installation.steps):
-            return blocked(
-                "This plan was already attempted. Create a new plan for a fresh evaluation."
-            )
-        expected = _build_plan(
-            root,
-            provider=checked.provider,
-            model=checked.model,
-            scenario=checked.scenario,
-            run_id=checked.run_id,
-        )
-        if expected != checked:
-            return blocked(
-                "The plan or its input configuration changed; create and review a new plan."
-            )
+        _validate_plan(root, checked)
         if dry_run:
             record, results = execute_plan(checked.installation, dry_run=True)
             return PromptfooResult(
@@ -578,17 +613,6 @@ def apply_promptfoo(
         version = runner([node, "--version"], cwd=root, timeout=15, extra_env=environment)
         if not version.succeeded or not re.fullmatch(r"v24\.\d+\.\d+", version.stdout.strip()):
             return blocked("The initial promptfoo adapter requires a working Node 24 runtime.")
-        _mkdir(root, ".stackwinnow")
-        lock_path = root / ".stackwinnow/promptfoo.lock"
-        try:
-            descriptor = os.open(
-                lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600
-            )
-        except FileExistsError:
-            return blocked(
-                "Another promptfoo operation may be active. Inspect the lock before retrying."
-            )
-        os.close(descriptor)
         evaluation: EvaluationSummary | None = None
 
         def run_step(step: PlanStep) -> RunnerOutcome:
@@ -706,6 +730,12 @@ def apply_promptfoo(
             )
             try:
                 evaluation = _summary(result_path, checked, outcome.returncode)
+            except PromptfooError as exc:
+                return RunnerOutcome(
+                    status=OperationStatus.FAILED,
+                    message=str(exc),
+                    owned_paths=[str(result_path)],
+                )
             except (OSError, ValueError, KeyError, TypeError):
                 return RunnerOutcome(
                     status=OperationStatus.FAILED,
@@ -728,7 +758,10 @@ def apply_promptfoo(
                 evidence=[EvidenceRef(source=str(result_path), detail=message)],
             )
 
-        try:
+        with _operation_lock(root):
+            # Preflight runs without the lock. A competing apply may have finished
+            # while it ran, so re-read receipts and configuration before any step.
+            _validate_plan(root, checked)
             record, results = execute_plan(
                 checked.installation,
                 step_runner=run_step,
@@ -736,19 +769,31 @@ def apply_promptfoo(
                     checked.installation.steps[1].step_id: [checked.configuration]
                 },
             )
-        finally:
-            lock_path.unlink(missing_ok=True)
         failures = [
             result
             for result in results
             if result.status in (OperationStatus.FAILED, OperationStatus.BLOCKED)
         ]
-        status = failures[0].status if failures else OperationStatus.SUCCEEDED
-        message = (
-            failures[0].message
-            if failures
-            else "Promptfoo is installed, configured, and the evaluation passed."
-        )
+        if failures:
+            status, message = failures[0].status, failures[0].message
+        elif (
+            evaluation is None
+            or evaluation.process_returncode != 0
+            or evaluation.successes != 2
+            or evaluation.failures != 0
+            or evaluation.errors != 0
+            or checked.scenario != "pass"
+            or not any(
+                result.step_id == checked.installation.steps[-1].step_id
+                and result.status == OperationStatus.SUCCEEDED
+                for result in results
+            )
+        ):
+            status = OperationStatus.BLOCKED
+            message = "No fresh successful evaluation was recorded. Create a new plan."
+        else:
+            status = OperationStatus.SUCCEEDED
+            message = "Promptfoo is installed, configured, and the evaluation passed."
         return PromptfooResult(
             plan=checked,
             status=status,
