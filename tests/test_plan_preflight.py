@@ -14,7 +14,7 @@ from unittest.mock import patch
 import pytest
 
 from stackwinnow.catalog import EligibilityContext, Platform, load_catalog
-from stackwinnow.contracts import InstallPlan, PlanStep
+from stackwinnow.contracts import InstallPlan, IntegrationAvailability, OperationStatus, PlanStep
 from stackwinnow.installer import _receipts_path
 from stackwinnow.plan import (
     PreflightCheck,
@@ -78,6 +78,37 @@ def _make_managed_python_env(tmp_path: Path, tool_id: str) -> Path:
     env_dir = tmp_path / ".stackwinnow" / "envs" / tool_id / "python"
     env_dir.mkdir(parents=True, exist_ok=True)
     return env_dir
+
+
+def _adapter_ready_catalog(*tool_ids: str) -> object:
+    """Return a catalog with the named tools set to adapter_available, macos, claude-code."""
+    catalog = load_catalog()
+    tools = []
+    for t in catalog.tools:
+        if t.tool_id in tool_ids:
+            tools.append(
+                t.model_copy(
+                    update={
+                        "availability": IntegrationAvailability.ADAPTER_AVAILABLE,
+                        "supported_platforms": [Platform.MACOS],
+                        "supported_assistants": ["claude-code"],
+                    },
+                    deep=True,
+                )
+            )
+        else:
+            tools.append(t)
+    return catalog.model_copy(update={"tools": tuple(tools)}, deep=True)
+
+
+def _ready_context(*tool_ids: str) -> EligibilityContext:
+    """Return a full eligibility context showing readiness for the named tools."""
+    return EligibilityContext(
+        platform=Platform.MACOS,
+        assistant="claude-code",
+        registered_adapters=list(tool_ids),
+        prerequisite_checks={tid: OperationStatus.SUCCEEDED for tid in tool_ids},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -209,6 +240,24 @@ def test_has_managed_env_true_when_node_env_exists(tmp_path: Path) -> None:
     assert _has_managed_env(str(tmp_path), "promptfoo")
 
 
+def test_has_managed_env_false_when_regular_file_at_python_path(tmp_path: Path) -> None:
+    """A regular file at the env path must not be treated as a managed install."""
+    env_path = tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "python"
+    env_path.parent.mkdir(parents=True)
+    env_path.write_text("not a dir", encoding="utf-8")
+    assert not _has_managed_env(str(tmp_path), "promptfoo")
+
+
+def test_has_managed_env_false_when_symlink_at_python_path(tmp_path: Path) -> None:
+    """A symlink pointing at a directory must not be treated as a managed install."""
+    real_dir = tmp_path / "real-env"
+    real_dir.mkdir()
+    env_path = tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "python"
+    env_path.parent.mkdir(parents=True)
+    env_path.symlink_to(real_dir)
+    assert not _has_managed_env(str(tmp_path), "promptfoo")
+
+
 # ---------------------------------------------------------------------------
 # _find_external_executable
 # ---------------------------------------------------------------------------
@@ -234,37 +283,55 @@ def test_find_external_returns_none_when_inside_managed_root(tmp_path: Path) -> 
         assert _find_external_executable(str(tmp_path), "promptfoo") is None
 
 
+def test_find_external_returns_path_for_sibling_managed_root(tmp_path: Path) -> None:
+    """A tool in .stackwinnow-backup (string-prefix sibling) must not be hidden."""
+    sibling_bin = str(
+        tmp_path / ".stackwinnow-backup" / "envs" / "promptfoo" / "node" / ".bin" / "promptfoo"
+    )
+    with patch("shutil.which", return_value=sibling_bin):
+        result = _find_external_executable(str(tmp_path), "promptfoo")
+    assert result == sibling_bin
+
+
 # ---------------------------------------------------------------------------
 # check_plan — READY path
 # ---------------------------------------------------------------------------
 
 
 def test_check_plan_ready_for_uninstalled_eligible_tool(tmp_path: Path) -> None:
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = _ready_context("promptfoo")
     with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
     assert len(report.checks) == 1
     assert report.checks[0].status == PreflightStatus.READY
     assert report.is_ready_to_apply
 
 
 def test_check_plan_reports_project_root(tmp_path: Path) -> None:
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = _ready_context("promptfoo")
     with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
     assert report.project_root == str(tmp_path)
 
 
 def test_check_plan_ready_carries_step_and_tool_ids(tmp_path: Path) -> None:
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = _ready_context("promptfoo")
     with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
     check = report.checks[0]
     assert check.step_id == "install-promptfoo"
     assert check.tool_id == "promptfoo"
 
 
 def test_check_plan_produces_one_check_per_step(tmp_path: Path) -> None:
+    catalog = _adapter_ready_catalog("promptfoo", "headroom")
+    context = _ready_context("promptfoo", "headroom")
     plan = _plan(str(tmp_path), steps=[_PROMPTFOO_STEP, _HEADROOM_STEP])
     with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
+        report = check_plan(plan, catalog=catalog, context=context)
     assert len(report.checks) == 2
 
 
@@ -333,7 +400,50 @@ def test_check_plan_blocked_when_license_unresolved(tmp_path: Path) -> None:
     with patch("shutil.which", return_value=None):
         report = check_plan(_plan(str(tmp_path)), catalog=patched_catalog)
     assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert "license" in report.checks[0].message.lower()
+    assert any("license" in r.lower() for r in report.checks[0].reasons)
+
+
+# ---------------------------------------------------------------------------
+# check_plan — BLOCKED: missing eligibility evidence (P1 regressions)
+# ---------------------------------------------------------------------------
+
+
+def test_check_plan_blocked_when_prerequisites_failed(tmp_path: Path) -> None:
+    """Failed prerequisite check must block even when all other evidence is present."""
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = EligibilityContext(
+        platform=Platform.MACOS,
+        assistant="claude-code",
+        registered_adapters=["promptfoo"],
+        prerequisite_checks={"promptfoo": OperationStatus.FAILED},
+    )
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
+    assert report.checks[0].status == PreflightStatus.BLOCKED
+    assert any("prerequisite" in r.lower() for r in report.checks[0].reasons)
+
+
+def test_check_plan_blocked_when_adapter_unavailable(tmp_path: Path) -> None:
+    """catalog_only availability must block even with a full eligibility context."""
+    # promptfoo is catalog_only in the unpatched catalog
+    context = _ready_context("promptfoo")
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path)), context=context)
+    assert report.checks[0].status == PreflightStatus.BLOCKED
+    assert any("adapter" in r.lower() for r in report.checks[0].reasons)
+
+
+def test_check_plan_blocked_when_platform_unknown(tmp_path: Path) -> None:
+    """No platform in the context must block — absent evidence is not readiness."""
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = EligibilityContext(
+        assistant="claude-code",
+        registered_adapters=["promptfoo"],
+        prerequisite_checks={"promptfoo": OperationStatus.SUCCEEDED},
+    )
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
+    assert report.checks[0].status == PreflightStatus.BLOCKED
 
 
 # ---------------------------------------------------------------------------
@@ -359,27 +469,38 @@ def test_check_plan_blocked_when_platform_unsupported(tmp_path: Path) -> None:
 
 
 def test_check_plan_ready_when_platform_matches(tmp_path: Path) -> None:
+    catalog = _adapter_ready_catalog("promptfoo")  # supported_platforms=[MACOS]
+    context = _ready_context("promptfoo")  # platform=MACOS
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
+    assert report.checks[0].status == PreflightStatus.READY
+
+
+def test_check_plan_blocked_when_platform_unverified(tmp_path: Path) -> None:
+    """An empty supported_platforms list means 'unverified' — conservative gate blocks it."""
     catalog = load_catalog()
+    # Patch promptfoo to be adapter_available but with no documented platforms
     patched = catalog.get("promptfoo").model_copy(
-        update={"supported_platforms": [Platform.MACOS]}, deep=True
+        update={
+            "availability": IntegrationAvailability.ADAPTER_AVAILABLE,
+            "supported_platforms": [],
+            "supported_assistants": ["claude-code"],
+        },
+        deep=True,
     )
     patched_catalog = catalog.model_copy(
         update={"tools": tuple(patched if t.tool_id == "promptfoo" else t for t in catalog.tools)},
         deep=True,
     )
-    context = EligibilityContext(platform=Platform.MACOS)
+    context = EligibilityContext(
+        platform=Platform.LINUX,
+        assistant="claude-code",
+        registered_adapters=["promptfoo"],
+        prerequisite_checks={"promptfoo": OperationStatus.SUCCEEDED},
+    )
     with patch("shutil.which", return_value=None):
         report = check_plan(_plan(str(tmp_path)), catalog=patched_catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.READY
-
-
-def test_check_plan_ready_when_supported_platforms_empty(tmp_path: Path) -> None:
-    """An empty supported_platforms means 'unverified', not 'unsupported'."""
-    context = EligibilityContext(platform=Platform.LINUX)
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), context=context)
-    # promptfoo has supported_platforms=[] — should not be blocked for any platform
-    assert report.checks[0].status == PreflightStatus.READY
+    assert report.checks[0].status == PreflightStatus.BLOCKED
 
 
 # ---------------------------------------------------------------------------
@@ -407,8 +528,10 @@ def test_check_plan_skip_message_names_tool(tmp_path: Path) -> None:
 def test_check_plan_not_skipped_when_receipt_failed(tmp_path: Path) -> None:
     """A FAILED receipt does not cause skip — the step should be retried."""
     _write_receipt(tmp_path, _PROMPTFOO_STEP, status="failed")
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = _ready_context("promptfoo")
     with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
+        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
     assert report.checks[0].status == PreflightStatus.READY
 
 
@@ -423,8 +546,10 @@ def test_check_plan_not_skipped_for_different_tool_same_step_id(tmp_path: Path) 
         description="Install Headroom with the same step id",
     )
     plan = InstallPlan(project_root=str(tmp_path), tool_ids=["headroom"], steps=[headroom_step])
+    catalog = _adapter_ready_catalog("headroom")
+    context = _ready_context("headroom")
     with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
+        report = check_plan(plan, catalog=catalog, context=context)
     # The receipt is for promptfoo, not headroom — headroom must not be skipped
     assert report.checks[0].status == PreflightStatus.READY
 
@@ -448,6 +573,41 @@ def test_check_plan_stale_message_names_tool(tmp_path: Path) -> None:
     with patch("shutil.which", return_value=None):
         report = check_plan(_plan(str(tmp_path)))
     assert "promptfoo" in report.checks[0].message
+
+
+# ---------------------------------------------------------------------------
+# check_plan — SKIP / STALE across run IDs (P2 line 161 regressions)
+# ---------------------------------------------------------------------------
+
+
+def test_check_plan_skip_with_fresh_step_id_when_env_exists(tmp_path: Path) -> None:
+    """A new step_id for the same tool must still produce SKIP when the env is present."""
+    old_step = PlanStep(
+        step_id="install-promptfoo-run1", tool_id="promptfoo", description="Install promptfoo"
+    )
+    _write_receipt(tmp_path, old_step, status="succeeded")
+    _make_managed_python_env(tmp_path, "promptfoo")
+    new_step = PlanStep(
+        step_id="install-promptfoo-run2", tool_id="promptfoo", description="Install promptfoo"
+    )
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path), steps=[new_step]))
+    assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
+
+
+def test_check_plan_stale_with_fresh_step_id_when_env_gone(tmp_path: Path) -> None:
+    """A new step_id for the same tool must surface STALE when the env has been removed."""
+    old_step = PlanStep(
+        step_id="install-promptfoo-run1", tool_id="promptfoo", description="Install promptfoo"
+    )
+    _write_receipt(tmp_path, old_step, status="succeeded")
+    # Intentionally do NOT create the managed env
+    new_step = PlanStep(
+        step_id="install-promptfoo-run2", tool_id="promptfoo", description="Install promptfoo"
+    )
+    with patch("shutil.which", return_value=None):
+        report = check_plan(_plan(str(tmp_path), steps=[new_step]))
+    assert report.checks[0].status == PreflightStatus.STALE_RECEIPT
 
 
 # ---------------------------------------------------------------------------
@@ -520,9 +680,11 @@ def test_check_plan_raises_preflight_error_on_project_root_mismatch(tmp_path: Pa
 def test_check_plan_checks_each_step_independently(tmp_path: Path) -> None:
     _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
     _make_managed_python_env(tmp_path, "promptfoo")
+    catalog = _adapter_ready_catalog("promptfoo", "headroom")
+    context = _ready_context("promptfoo", "headroom")
     plan = _plan(str(tmp_path), steps=[_PROMPTFOO_STEP, _HEADROOM_STEP])
     with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
+        report = check_plan(plan, catalog=catalog, context=context)
     assert len(report.checks) == 2
     assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
     assert report.checks[1].status == PreflightStatus.READY
@@ -530,6 +692,8 @@ def test_check_plan_checks_each_step_independently(tmp_path: Path) -> None:
 
 def test_check_plan_blocked_step_does_not_affect_others(tmp_path: Path) -> None:
     """Other steps are still individually checked even if one step is blocked."""
+    catalog = _adapter_ready_catalog("promptfoo")
+    context = _ready_context("promptfoo")
     plan = InstallPlan(
         project_root=str(tmp_path),
         tool_ids=["no-such-tool", "promptfoo"],
@@ -543,7 +707,7 @@ def test_check_plan_blocked_step_does_not_affect_others(tmp_path: Path) -> None:
         ],
     )
     with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
+        report = check_plan(plan, catalog=catalog, context=context)
     assert report.checks[0].status == PreflightStatus.BLOCKED
     assert report.checks[1].status == PreflightStatus.READY
     assert not report.is_ready_to_apply  # one blocked step stops the whole plan

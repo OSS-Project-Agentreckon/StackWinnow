@@ -23,12 +23,13 @@ from typing import Literal
 
 from pydantic import Field
 
-from stackwinnow.catalog import OPEN_SOURCE_LICENSES, Catalog, EligibilityContext, load_catalog
+from stackwinnow.catalog import Catalog, EligibilityContext, evaluate_eligibility, load_catalog
 from stackwinnow.contracts import (
     Contract,
     Identifier,
     InstallPlan,
     NonEmptyText,
+    OperationStatus,
     PlanStep,
     UntrimmedText,
 )
@@ -93,9 +94,13 @@ class PreflightError(Exception):
 
 
 def _has_managed_env(project_root: str, tool_id: str) -> bool:
-    """True if a managed Python venv or Node prefix directory exists for this tool."""
+    """True if a real (non-symlink) managed Python venv or Node prefix directory exists."""
     root = Path(project_root) / _MANAGED_ROOT / _ENVS_SUBDIR / tool_id
-    return (root / _PYTHON_SUBDIR).exists() or (root / _NODE_SUBDIR).exists()
+    py_path = root / _PYTHON_SUBDIR
+    node_path = root / _NODE_SUBDIR
+    return (py_path.is_dir() and not py_path.is_symlink()) or (
+        node_path.is_dir() and not node_path.is_symlink()
+    )
 
 
 def _find_external_executable(project_root: str, tool_id: str) -> str | None:
@@ -108,10 +113,18 @@ def _find_external_executable(project_root: str, tool_id: str) -> str | None:
     path = shutil.which(tool_id)
     if path is None:
         return None
-    managed_root = str(Path(project_root).resolve() / ".stackwinnow")
-    if str(Path(path).resolve()).startswith(managed_root):
+    managed_root = (Path(project_root) / _MANAGED_ROOT).resolve()
+    if Path(path).resolve().is_relative_to(managed_root):
         return None
     return path
+
+
+def _has_succeeded_tool_receipt(record: ExecutionRecord, tool_id: str) -> bool:
+    """True if any real (non-dry-run) step for tool_id succeeded in a prior run."""
+    return any(
+        r.tool_id == tool_id and r.status == OperationStatus.SUCCEEDED and not r.dry_run
+        for r in record.steps
+    )
 
 
 def _check_step(
@@ -133,55 +146,31 @@ def _check_step(
             reasons=[f"Add '{step.tool_id}' to the catalog before creating a plan for it."],
         )
 
-    # 2. License scope — only tools with a reviewed open-source license may be installed.
-    if entry.license_review != "reviewed" or entry.license not in OPEN_SOURCE_LICENSES:
-        return PreflightCheck(
-            step_id=step.step_id,
-            tool_id=step.tool_id,
-            status=PreflightStatus.BLOCKED,
-            message=f"'{step.tool_id}' has an unresolved or non-OSS license scope.",
-            reasons=["Only tools with a reviewed open-source license may be installed."],
-        )
-
-    # 3. Platform compatibility — only blocked when platforms are explicitly declared
-    #    and the current one is absent; an empty list means "unverified", not "unsupported".
-    if context.platform is not None and entry.supported_platforms:
-        if context.platform not in entry.supported_platforms:
+    # 2. Tool-level stale/skip detection — checked before eligibility so that existing
+    #    managed installations are always surfaced, even if eligibility has changed.
+    if record is not None and _has_succeeded_tool_receipt(record, step.tool_id):
+        if _has_managed_env(plan.project_root, step.tool_id):
             return PreflightCheck(
                 step_id=step.step_id,
                 tool_id=step.tool_id,
-                status=PreflightStatus.BLOCKED,
-                message=f"'{step.tool_id}' is not supported on {context.platform}.",
-                reasons=[
-                    f"Supported platforms: {', '.join(str(p) for p in entry.supported_platforms)}."
-                ],
+                status=PreflightStatus.SKIP_ALREADY_MANAGED,
+                message=f"'{step.tool_id}' is already installed and owned by StackWinnow.",
             )
-
-    # 4. Stale receipt: receipt says succeeded but the managed environment is gone.
-    if record is not None and record.is_succeeded(step.step_id, step.tool_id):
-        if not _has_managed_env(plan.project_root, step.tool_id):
-            return PreflightCheck(
-                step_id=step.step_id,
-                tool_id=step.tool_id,
-                status=PreflightStatus.STALE_RECEIPT,
-                message=(
-                    f"Receipt records '{step.tool_id}' as installed "
-                    "but the managed environment is missing."
-                ),
-                reasons=[
-                    "The installation may have been deleted outside StackWinnow. "
-                    "Re-run apply to reinstall or clear the receipt to start fresh."
-                ],
-            )
-        # Managed env exists and receipt says succeeded — nothing to do for this step.
         return PreflightCheck(
             step_id=step.step_id,
             tool_id=step.tool_id,
-            status=PreflightStatus.SKIP_ALREADY_MANAGED,
-            message=f"'{step.tool_id}' is already installed and owned by StackWinnow.",
+            status=PreflightStatus.STALE_RECEIPT,
+            message=(
+                f"Receipt records '{step.tool_id}' as installed "
+                "but the managed environment is missing."
+            ),
+            reasons=[
+                "The installation may have been deleted outside StackWinnow. "
+                "Re-run apply to reinstall or clear the receipt to start fresh."
+            ],
         )
 
-    # 5. External installation — note it without blocking; StackWinnow will not take
+    # 3. External installation — note it without blocking; StackWinnow will not take
     #    ownership of an installation it did not create.
     external_path = _find_external_executable(plan.project_root, step.tool_id)
     if external_path is not None:
@@ -197,7 +186,20 @@ def _check_step(
             external_path=external_path,
         )
 
-    # 6. All checks passed.
+    # 4. Full eligibility — reuse shared gates (adapter, platform, assistant, prerequisites,
+    #    conflicts). Merge the plan's tool_ids for conflict detection across all selections.
+    check_context = context.model_copy(update={"selected_tools": list(plan.tool_ids)})
+    eligibility = evaluate_eligibility(entry, check_context)
+    if not eligibility.installable:
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' is not eligible for installation.",
+            reasons=[r.message for r in eligibility.reasons],
+        )
+
+    # 5. All checks passed.
     return PreflightCheck(
         step_id=step.step_id,
         tool_id=step.tool_id,
