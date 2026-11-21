@@ -147,6 +147,51 @@ def test_supplied_graph_evidence_is_exact_and_inputs_are_unchanged(graph, expect
     assert graph == before
 
 
+@pytest.mark.parametrize("change", [None, "removed", "wrong-relation", "inferred"])
+def test_recursive_call_requires_an_explicit_extracted_self_edge(tmp_path, change):
+    expected = RelationshipExpectation(
+        caller_file="recursive.py",
+        caller_label="factorial()",
+        callee_file="recursive.py",
+        callee_label="factorial()",
+    )
+    graph = {
+        "nodes": [
+            {"id": "recursive_factorial", "source_file": "recursive.py", "label": "factorial()"}
+        ],
+        "edges": [
+            {
+                "source": "recursive_factorial",
+                "target": "recursive_factorial",
+                "relation": "calls",
+                "confidence": "EXTRACTED",
+            }
+        ],
+    }
+    if change == "removed":
+        graph["edges"] = []
+    elif change == "wrong-relation":
+        graph["edges"][0]["relation"] = "references"
+    elif change == "inferred":
+        graph["edges"][0]["confidence"] = "INFERRED"
+    result = check_relationship(graph, expected)
+    if change is None:
+        assert result.status == "succeeded"
+        assert result.source_node_id == result.target_node_id == "recursive_factorial"
+        query = relationship_query(tmp_path, "/python", result)
+        assert query.argv[4:] == [
+            "explain",
+            "recursive_factorial",
+            "--all",
+            "--graph",
+            str(tmp_path / GRAPH_PATH),
+        ]
+    else:
+        assert result.status == "failed"
+        with pytest.raises(GraphifyError, match="successful relationship"):
+            relationship_query(tmp_path, "/python", result)
+
+
 def test_expected_source_paths_preserve_whitespace(graph, expected):
     spelling = " sample_app/greetings.py "
     exact = RelationshipExpectation.model_validate(

@@ -29,8 +29,9 @@ is the first independently testable portion of step 13, not completed onboarding
   ownership and C's verification interface remain integration dependencies.
 
 See [Graphify integration](integrations/graphify.md) and
-[recorded probe evidence](evidence/graphify-probe.json). Work is local and
-prepared for publication on this feature branch; no Graphify PR has been opened. Research and implementation were
+[recorded probe evidence](evidence/graphify-probe.json). Initial commit `0096d08`
+is published in [PR #12](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/12).
+Research and implementation were
 AI-assisted. Baseline main passed **578 tests, 2 skipped** on Python 3.11.
 After rebuilding/reinstalling the package, the final local default suite passed
 **619 tests, 3 skipped**, with warnings treated as errors. The three default
@@ -38,6 +39,17 @@ skips are opt-in integration/provider cases; the real Graphify integration test
 was run separately and passed (**1 passed**). Ruff lint/format, dependency
 compatibility, and diff checks passed. No hosted CI result is claimed for this
 feature branch, and no Python 3.14 run was performed for this slice.
+
+PR #12 review follow-up: explicit `calls`/`EXTRACTED` self-edges now verify
+recursive functions. Matching a node to itself without the edge still fails.
+Recursive queries use upstream `explain --all` because `path` rejects identical
+endpoints. The new positive regression failed against the initial code; negative
+cases cover removed, incorrect, and inferred self-edges. Rebuilt/reinstalled
+package validation on Python 3.11: **623 passed, 4 opt-in skips** in the default
+suite, plus **2 real Graphify integration cases passed** (cross-file and recursive
+calls, each with repeated indexing and negative controls). Ruff lint/format and
+diff checks passed. This follow-up addresses PR #12's recursive-call finding;
+review acceptance and merge status remain tracked on the PR.
 
 ## Step 10 / Person A: recommendation implementation (merged)
 

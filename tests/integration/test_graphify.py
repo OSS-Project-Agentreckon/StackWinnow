@@ -20,7 +20,10 @@ from stackwinnow.runner import run_command
 pytestmark = pytest.mark.integration
 
 
-def test_real_graphify_index_query_negative_control_and_repeat(fixture_project, subprocess_env):
+@pytest.mark.parametrize("recursive", [False, True], ids=["cross-file-call", "recursive-call"])
+def test_real_graphify_index_query_negative_control_and_repeat(
+    fixture_project, subprocess_env, recursive
+):
     selected = os.environ.get("STACKWINNOW_GRAPHIFY_PYTHON")
     if not selected:
         pytest.skip(
@@ -31,6 +34,10 @@ def test_real_graphify_index_query_negative_control_and_repeat(fixture_project, 
     python = Path(selected).absolute()
     assert python.is_file(), "The selected Graphify interpreter is missing."
     root = fixture_project.root.resolve()
+    if recursive:
+        (root / "recursive.py").write_text(
+            "def factorial(n):\n    if n <= 1:\n        return 1\n    return n * factorial(n - 1)\n"
+        )
     before = {p.relative_to(root): p.read_bytes() for p in root.rglob("*") if p.is_file()}
     command = index_command(root, python)
     environment = {**subprocess_env, **command.environment}
@@ -46,6 +53,13 @@ def test_real_graphify_index_query_negative_control_and_repeat(fixture_project, 
     expected = RelationshipExpectation.model_validate_json(
         (Path(__file__).parents[1] / "fixtures/graphify-relationship.json").read_text()
     )
+    if recursive:
+        expected = RelationshipExpectation(
+            caller_file="recursive.py",
+            caller_label="factorial()",
+            callee_file="recursive.py",
+            callee_label="factorial()",
+        )
     for attempt in range(2):
         indexed = run_command(
             command.argv, cwd=command.cwd, timeout=command.timeout_seconds, extra_env=environment
@@ -60,9 +74,14 @@ def test_real_graphify_index_query_negative_control_and_repeat(fixture_project, 
             query.argv, cwd=query.cwd, timeout=query.timeout_seconds, extra_env=environment
         )
         assert result.succeeded, result.stderr
-        assert "greet() --calls [EXTRACTED]--> normalize_name()" in result.stdout
+        if recursive:
+            assert evidence.source_node_id == evidence.target_node_id
+            assert "Node: factorial()" in result.stdout
+            assert "--> factorial() [calls] [EXTRACTED]" in result.stdout
+        else:
+            assert "greet() --calls [EXTRACTED]--> normalize_name()" in result.stdout
         wrong = query.argv.copy()
-        wrong[6] = "stackwinnow_missing_fixture_symbol"
+        wrong[5 if recursive else 6] = "stackwinnow_missing_fixture_symbol"
         negative = run_command(
             wrong, cwd=query.cwd, timeout=query.timeout_seconds, extra_env=environment
         )

@@ -169,5 +169,18 @@
     "codex_connectivity": "not tested",
     "managed_installation": "not implemented"
   },
+  "recursive_review_followup": {
+    "pull_request": 12,
+    "reviewed_commit": "0096d080dbf6762876150b21b6588273ca47709d",
+    "integration_result": "2 passed",
+    "cases": ["cross-file-call", "recursive-call"],
+    "index_runs_per_case": 2,
+    "recursive_query": "explain recursive_factorial --all --graph <graph.json>",
+    "recursive_output_contains": "--> factorial() [calls] [EXTRACTED]",
+    "removed_self_edge_result": "failed",
+    "missing_target_exit_code": 4,
+    "model_input_tokens": 0,
+    "model_output_tokens": 0
+  },
   "ai_assisted": true
 }

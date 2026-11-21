@@ -78,14 +78,20 @@ They are a test fixture, not an assumed relationship in every user's project.
 `check_relationship(graph, expected)` requires unique endpoint IDs, exact source
 files and labels, and a directed `calls` edge tagged `EXTRACTED`. It rejects
 missing/ambiguous endpoints, reversed calls, imports in place of calls, inferred
-edges, duplicate IDs, and dangling edges. It checks supplied graph data only:
+edges, duplicate IDs, and dangling edges. Recursive calls are accepted only
+when an explicit matching `calls`/`EXTRACTED` self-edge exists; matching a node
+to itself without that edge cannot pass. It checks supplied graph data only:
 loading limits, freshness, source provenance, and client connectivity remain the
 responsibility of the future verification integration. Its `OperationResult`
 evidence explicitly identifies the supplied graph rather than claiming a file
 was read or a client was contacted.
 
 `relationship_query` uses the exact IDs found by that check for upstream's
-`graphify path ... --graph ... --directed` command. The integration test indexes
+`graphify path ... --graph ... --directed` command for distinct endpoints.
+For recursive calls it uses `graphify explain ID --all --graph ...` to display
+the self-edge, because upstream's path command rejects identical endpoints.
+The integration test covers both a cross-file call and a recursive `factorial()`.
+It indexes
 a copied fixture, validates the graph, executes that query, tests an absent
 target, removes the calls edge as a negative control, and repeats indexing.
 Neither process exit 0 nor package presence alone counts as relationship proof.

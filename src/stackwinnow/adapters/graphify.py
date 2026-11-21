@@ -313,7 +313,7 @@ def check_relationship(graph: object, expected: RelationshipExpectation) -> Rela
             return failure("Expected function is missing or ambiguous in its source file.")
         endpoints.append(matches[0])
     source, target = endpoints
-    if source == target or not any(
+    if not any(
         edge["source"] == source
         and edge["target"] == target
         and edge.get("relation") == "calls"
@@ -348,19 +348,22 @@ def relationship_query(
     ):
         raise GraphifyError("A successful relationship evidence check is required before querying.")
     root = _root(project_root)
-    return CommandPreview(
-        argv=[
-            str(python),
-            "-I",
-            "-m",
-            "graphify",
+    # Upstream path refuses identical endpoints. Explain lists explicit self-edges;
+    # the evidence check above must still establish the recursive call itself.
+    query = (
+        ["explain", check.source_node_id, "--all", "--graph", str(root / GRAPH_PATH)]
+        if check.source_node_id == check.target_node_id
+        else [
             "path",
             check.source_node_id,
             check.target_node_id,
             "--graph",
             str(root / GRAPH_PATH),
             "--directed",
-        ],
+        ]
+    )
+    return CommandPreview(
+        argv=[str(python), "-I", "-m", "graphify", *query],
         cwd=str(root),
         environment=_environment(root),
         timeout_seconds=30,
