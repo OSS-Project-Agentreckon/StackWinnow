@@ -1,5 +1,6 @@
 """Locked planning detects unsafe, changed, or forged inputs without effects."""
 
+import errno
 import os
 
 import pytest
@@ -31,6 +32,51 @@ def project(tmp_path):
 
 def snapshot(root):
     return {str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()}
+
+
+@pytest.mark.parametrize("outcome", ["success", "fdopen-error", "directory", "oversized"])
+def test_reader_closes_all_descriptors_on_success_and_failure(tmp_path, monkeypatch, outcome):
+    parent = tmp_path / "nested"
+    parent.mkdir()
+    source = parent / "source.py"
+    if outcome == "directory":
+        source.mkdir()
+    else:
+        source.write_bytes(b"source")
+    opened = []
+    open_file = os.open
+
+    def track_open(*args, **kwargs):
+        descriptor = open_file(*args, **kwargs)
+        opened.append(descriptor)
+        return descriptor
+
+    def fail_fdopen(*args, **kwargs):
+        raise OSError(errno.EIO, "simulated stream creation failure")
+
+    monkeypatch.setattr(adapter.os, "open", track_open)
+    if outcome == "fdopen-error":
+        monkeypatch.setattr(adapter.os, "fdopen", fail_fdopen)
+    try:
+        if outcome == "success":
+            assert adapter._read_at(tmp_path, "nested/source.py") == b"source"
+        else:
+            with pytest.raises((OSError, GraphifyError)):
+                adapter._read_at(
+                    tmp_path, "nested/source.py", limit=1 if outcome == "oversized" else 100
+                )
+        assert len(opened) == 3  # Root, nested directory, and file.
+        for descriptor in opened:
+            with pytest.raises(OSError) as error:
+                os.fstat(descriptor)
+            assert error.value.errno == errno.EBADF
+    finally:
+        # Keep the regression's failing baseline from leaking into later tests.
+        for descriptor in opened:
+            try:
+                os.close(descriptor)
+            except OSError:
+                pass
 
 
 def test_plan_roundtrip_revalidation_is_offline_and_read_only(

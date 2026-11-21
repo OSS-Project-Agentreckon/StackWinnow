@@ -191,7 +191,9 @@ def _read_at(root: Path, relative: str, *, limit: int = MAX_INPUT_BYTES) -> byte
                 )
             )
         fd = os.open(path.name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptors[-1])
-        with os.fdopen(fd, "rb") as stream:
+        # Keep descriptor ownership here even if constructing the stream fails.
+        descriptors.append(fd)
+        with os.fdopen(fd, "rb", closefd=False) as stream:
             before = os.fstat(stream.fileno())
             if not stat.S_ISREG(before.st_mode) or before.st_size > limit:
                 raise GraphifyError("Plan inputs must be bounded regular files.")

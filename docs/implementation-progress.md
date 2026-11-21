@@ -41,6 +41,15 @@ Ruff lint/format, dependency compatibility and diff checks passed. The existing
 real indexing/client integration cases were not rerun for this planning-only
 behavior. The separate dependency download/metadata check above was executed.
 
+PR #15 review follow-up: the bounded reader now tracks the final file descriptor
+in its cleanup list and uses a non-owning stream. Stream-construction failures
+therefore close both file and directory descriptors without double-closing.
+Regression cases cover successful reads, simulated fdopen failure, a real
+directory input and oversized files; the two construction-failure cases failed
+against the original code. Rebuilt-package validation: **768 passed, 5 opt-in
+skips** on Python 3.11.14 with warnings treated as errors; Ruff lint/format and
+diff checks passed. This is a resource-cleanup fix within step 13.
+
 ## Step 13 / Person A: Graphify preview and relationship evidence
 
 On 21 November, work started on `feat/graphify-onboarding` from main `ef300a5`.
