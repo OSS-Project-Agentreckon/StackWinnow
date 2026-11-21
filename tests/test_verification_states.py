@@ -71,6 +71,43 @@ def snapshot(root):
     }
 
 
+INVALID_RECEIPTS = (
+    "dry-run-installation",
+    "dry-run-runtime-state",
+    "dry-run-configuration",
+    "duplicate-step",
+)
+
+
+def invalidate_receipts(root, problem):
+    path = root / ".stackwinnow/receipts.json"
+    data = json.loads(path.read_text())
+    if problem == "duplicate-step":
+        data["steps"].append(data["steps"][0])
+    elif problem == "dry-run-configuration":
+        for step in data["steps"]:
+            if step["configuration_ownership"]:
+                step["dry_run"] = True
+    else:
+        relative = (
+            adapter.NODE_PREFIX if problem == "dry-run-installation" else adapter.STATE_PREFIX
+        )
+        owned_path = str(root / relative)
+        step = next(step for step in data["steps"] if owned_path in step["owned_paths"])
+        # Leave the other resource owned by a real receipt so each gate is tested.
+        step["owned_paths"].remove(owned_path)
+        data["steps"].append(
+            {
+                **step,
+                "step_id": step["step_id"] + "-dry-run",
+                "dry_run": True,
+                "owned_paths": [owned_path],
+            }
+        )
+    path.write_text(json.dumps(data))
+    return path.read_bytes()
+
+
 def test_missing_setup_reports_independent_states_without_installing(tmp_path, commands):
     result = check(tmp_path, commands, run_functional=True)
     states = dimensions(result)
@@ -185,6 +222,49 @@ def test_dry_run_receipts_never_supply_ownership(onboard, commands):
     assert dimensions(result)["installed"].code == "installation-unowned"
     assert dimensions(result)["configured"].code == "configuration-unowned"
     assert commands.count("eval") == 1
+
+
+def test_dry_run_history_preserves_real_ownership_and_receipts(onboard, commands):
+    root = onboard()
+    path = root / ".stackwinnow/receipts.json"
+    data = json.loads(path.read_text())
+    preview = {
+        **data["steps"][0],
+        "step_id": data["steps"][0]["step_id"] + "-preview",
+        "dry_run": True,
+    }
+    data["steps"].append(preview)
+    path.write_text(json.dumps(data))
+    before = load_record(str(root)).steps
+
+    result = check(root, commands, run_functional=True)
+
+    assert result.ready
+    assert commands.count("install") == 1 and commands.count("eval") == 2
+    assert load_record(str(root)).steps[:-1] == before
+
+
+@pytest.mark.parametrize("provider", ["deterministic", "openai"])
+@pytest.mark.parametrize("problem", INVALID_RECEIPTS)
+def test_direct_evaluation_rejects_invalid_ownership_before_commands(
+    onboard, commands, provider, problem
+):
+    root = onboard(provider)
+    plan = adapter.plan_promptfoo(
+        root, provider=provider, model="explicit-test-model" if provider == "openai" else None
+    )
+    invalidate_receipts(root, problem)
+    before, calls = snapshot(root), list(commands.calls)
+    evaluations = commands.count("eval")
+
+    result = adapter.evaluate_existing_promptfoo(
+        plan, allow_provider_usage=True, command_runner=commands
+    )
+
+    assert commands.count("eval") == evaluations
+    assert commands.calls == calls
+    assert result.status == "blocked" and result.evaluation is None
+    assert snapshot(root) == before
 
 
 @pytest.mark.parametrize(
@@ -396,9 +476,7 @@ def test_change_before_plan_creation_updates_the_report(onboard, commands, monke
     assert commands.count("eval") == 1
 
 
-def test_receipt_or_configuration_change_while_acquiring_lock_is_rechecked(
-    onboard, commands, monkeypatch
-):
+def test_configuration_change_while_acquiring_lock_is_rechecked(onboard, commands, monkeypatch):
     root = onboard()
     original = adapter._operation_lock
 
@@ -411,6 +489,70 @@ def test_receipt_or_configuration_change_while_acquiring_lock_is_rechecked(
     monkeypatch.setattr(adapter, "_operation_lock", changing_lock)
     result = check(root, commands, run_functional=True)
     assert not result.ready and commands.count("eval") == 1
+    assert not (root / ".stackwinnow/promptfoo.lock").exists()
+
+
+@pytest.mark.parametrize("provider", ["deterministic", "openai"])
+@pytest.mark.parametrize("problem", INVALID_RECEIPTS)
+def test_invalid_receipts_acquired_under_lock_block_before_tool_commands(
+    onboard, commands, monkeypatch, provider, problem
+):
+    root = onboard(provider)
+    original = adapter._operation_lock
+    changed = []
+    calls = len(commands.calls)
+    evaluations = commands.count("eval")
+    reports = set((root / adapter.STATE_PREFIX / "results").iterdir())
+
+    @contextmanager
+    def changing_lock(project):
+        with original(project):
+            changed.append(invalidate_receipts(root, problem))
+            yield
+
+    monkeypatch.setattr(adapter, "_operation_lock", changing_lock)
+    result = check(
+        root, commands, provider=provider, run_functional=True, allow_provider_usage=True
+    )
+
+    assert commands.count("eval") == evaluations
+    assert [args for args, _, _ in commands.calls[calls:]] == [["/declared/node", "--version"]]
+    assert not result.ready and dimensions(result)["functional"].status == "blocked"
+    if provider == "openai":
+        assert dimensions(result)["connected"].status == "blocked"
+    assert changed == [(root / ".stackwinnow/receipts.json").read_bytes()]
+    assert set((root / adapter.STATE_PREFIX / "results").iterdir()) == reports
+    assert not (root / ".stackwinnow/promptfoo.lock").exists()
+
+
+@pytest.mark.parametrize("provider", ["deterministic", "openai"])
+@pytest.mark.parametrize("problem", INVALID_RECEIPTS)
+def test_receipt_change_during_cli_probe_blocks_before_evaluation(
+    onboard, commands, provider, problem
+):
+    root = onboard(provider)
+    evaluations = commands.count("eval")
+    reports = set((root / adapter.STATE_PREFIX / "results").iterdir())
+    changed = []
+
+    def changing_runner(args, **kwargs):
+        result = commands(args, **kwargs)
+        if len(args) == 3 and args[-1] == "--version":
+            changed.append(invalidate_receipts(root, problem))
+        return result
+
+    result = check(
+        root,
+        changing_runner,
+        provider=provider,
+        run_functional=True,
+        allow_provider_usage=True,
+    )
+
+    assert commands.count("eval") == evaluations
+    assert not result.ready and dimensions(result)["functional"].status == "blocked"
+    assert changed == [(root / ".stackwinnow/receipts.json").read_bytes()]
+    assert set((root / adapter.STATE_PREFIX / "results").iterdir()) == reports
     assert not (root / ".stackwinnow/promptfoo.lock").exists()
 
 

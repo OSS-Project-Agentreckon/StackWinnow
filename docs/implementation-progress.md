@@ -45,7 +45,7 @@ without setup. The shared offline command double avoids duplicating the
 adapter fixture. Source, tests, and documentation were AI-assisted; the
 contributor should review and understand their behavior and evidence.
 
-Local validation on 21 November:
+Initial validation of `8f21b01` on 21 November:
 
 | Check | Result |
 | --- | --- |
@@ -66,7 +66,8 @@ evaluation commands to that runner. The run used the already-installed
 Node 24 runtime through a command-local PATH selection. It did not alter the
 user's default Node, call a paid provider, or modify personal assistant settings.
 All six result files record zero model tokens and no shared report URL.
-These are local results; hosted CI for this new contribution is not claimed.
+The original commit also passed both hosted Python jobs in
+[CI run 44867594904](https://github.com/OSS-Project-Agentreckon/StackWinnow/actions/runs/44867594904).
 
 **Outstanding runner findings:** PR #6 merged at the unchanged revision
 previously reviewed in [review 5970066660](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/6#pullrequestreview-5970066660).
@@ -77,12 +78,45 @@ not redacted. The promptfoo adapter performs its own checked-path and credential
 routing validation, but successful happy-path acceptance does not fix these
 shared-runner defects. This contribution does not alter that teammate's runner.
 
-Commit accounting: base-main non-merge counts are **A: 9, B: 9, C: 5**. This is
-**one** new C work commit, making **A: 9, B: 9, C: 6**. C's four numbered
+Initial commit accounting: base-main non-merge counts are **A: 9, B: 9, C: 5**.
+The first step-12 work commit made **A: 9, B: 9, C: 6**. C's four numbered
 contributions are steps **3, 6, 9, 12**; the two existing review-fix commits are
 additional work within steps 6 and 9. The 36/12-each target needs reconciliation
 of future meaningful boundaries; no artificial commits or history rewrites are
 used to equalize the current totals.
+
+### PR #13 review follow-up, 21 November 2026
+
+The [review finding](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/13#discussion_r4650615178)
+showed that inspection rejected invalid receipts while the execution reader
+still accepted them. Direct evaluation and receipt changes observed after lock
+acquisition could therefore run an evaluation before reporting a blocked state.
+
+Planning, inspection, and execution now share the bounded, no-follow receipt
+reader. It checks the project root, rejects duplicate step IDs, and excludes
+dry-run ownership. Existing-setup validation checks installation, runtime-state,
+and configuration ownership against that validated record. The check is repeated
+under the lock, at the evaluation step, and after the CLI version probe before
+evaluation. Failed/interrupted real receipts retain valid ownership; the reader
+does not rewrite history or reject the executor's in-progress evaluation intent.
+
+All **24** new negative cases reproduced an extra evaluation before the fix.
+They now require zero new evaluation calls for direct requests, lock acquisition,
+and changes during the CLI version probe, covering each ownership resource and
+duplicate IDs with local and synthetic OpenAI profiles. One additional positive
+case preserves dry-run history alongside real ownership. The existing cleanup
+failure test now proves a fresh check can use the actual configuration ownership
+retained by that failed write.
+
+Validation: **655 passed, 2 opt-in skips** on both Python **3.11.14 and 3.14.0**,
+with warnings treated as errors; **205** focused adapter/verification/CLI tests
+passed. Ruff lint/format and both dependency checks passed. No real provider was
+called; the earlier real npm/Node acceptance above was not repeated for this fix.
+
+This is one follow-up work commit on the existing `feat/verification-states`
+branch, within planned step 12. The branch now has **A: 9, B: 9, C: 7** non-merge
+work commits; C still has four numbered contributions. No extra numbered step,
+new branch, or published-history rewrite is introduced.
 
 ## Step 10 / Person A: local recommendation implementation
 

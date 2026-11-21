@@ -101,6 +101,15 @@ Synthetic hosted cases cover missing opt-in/credentials and distinguish provider
 responses from correct assertions. `tests/promptfoo_fakes.py` supplies the shared
 offline command double; none of its results are real provider evidence.
 
+Receipt regressions exercise direct evaluation, changes while acquiring the
+operation lock, and changes during the CLI version probe. For both local and
+synthetic hosted profiles, they assert zero additional evaluation calls when
+installation, runtime-state, or configuration ownership is dry-run-only, or
+when step IDs are duplicated. Direct invalid requests run no commands; invalid
+state acquired under the lock permits only the earlier Node preflight probe.
+Positive coverage preserves real ownership after configuration cleanup fails
+and keeps dry-run history alongside valid ownership receipts.
+
 Installed CLI tests run `check` outside the checkout and exercise structured
 results, human output, and exit codes. See [verification](verification.md) for
 the public contract and [implementation progress](implementation-progress.md) for

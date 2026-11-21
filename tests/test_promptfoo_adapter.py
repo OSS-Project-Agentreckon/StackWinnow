@@ -393,7 +393,12 @@ def test_configuration_cleanup_failure_keeps_ownership_and_stops_evaluation(
     assert result.status == "failed" and commands.count("eval") == 0
     assert result.record.steps[-1].configuration_ownership == [result.plan.configuration]
     assert (tmp_path / result.plan.configuration.relative_path).exists()
-    assert not adapter.plan_promptfoo(tmp_path).configuration.edits
+    plan = adapter.plan_promptfoo(tmp_path)
+    assert not plan.configuration.edits
+    verification = adapter.evaluate_existing_promptfoo(plan, command_runner=commands)
+    assert verification.status == "succeeded"
+    assert commands.count("install") == commands.count("eval") == 1
+    assert verification.record.steps[-2] == result.record.steps[-1]
 
 
 @pytest.mark.parametrize(
@@ -526,7 +531,7 @@ def test_overlapping_apply_rechecks_receipts_under_lock(tmp_path, commands):
     assert delayed.status == "blocked" and "already attempted" in delayed.message
     assert delayed.evaluation is None and delayed.results == []
     assert commands.count("install") == commands.count("eval") == 1
-    assert adapter.load_record(plan.project_root) == completed[0].record
+    assert load_record(plan.project_root) == completed[0].record
     assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
 
 
@@ -553,7 +558,7 @@ def test_success_requires_a_fresh_evaluation(tmp_path, commands, monkeypatch):
     plan = adapter.plan_promptfoo(tmp_path)
 
     def skip_steps(installation, **kwargs):
-        return adapter.load_record(installation.project_root), [
+        return load_record(installation.project_root), [
             OperationResult(status="skipped", message="Already completed.", step_id=step.step_id)
             for step in installation.steps
         ]

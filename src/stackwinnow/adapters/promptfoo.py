@@ -41,7 +41,6 @@ from stackwinnow.installer import (
     InstallerError,
     RunnerOutcome,
     execute_plan,
-    load_record,
 )
 
 VERSION = "0.125.1"
@@ -229,13 +228,24 @@ def _guard_directories(root: Path) -> None:
 
 
 def _record(root: Path) -> ExecutionRecord:
+    """Read validated ownership for planning, inspection, and execution."""
     _guard_directories(root)
+    path = root / ".stackwinnow/receipts.json"
+    if not path.exists() and not path.is_symlink():
+        return ExecutionRecord(project_root=str(root))
     try:
-        return load_record(str(root))
-    except InstallerError as exc:
+        record = ExecutionRecord.model_validate(_read_json(path))
+    except (OSError, ValueError) as exc:
         raise PromptfooError(
             "Existing receipts need recovery; inspect .stackwinnow/receipts.json."
         ) from exc
+    if record.project_root != str(root):
+        raise PromptfooError("Receipts belong to another project; review them first.")
+    if len({step.step_id for step in record.steps}) != len(record.steps):
+        raise PromptfooError("Receipts contain duplicate step IDs; review them first.")
+    # Real failed/interrupted writes can retain ownership; dry runs cannot.
+    record.steps = [step for step in record.steps if not step.dry_run]
+    return record
 
 
 def _filename(provider: Provider) -> str:
@@ -571,10 +581,15 @@ def _require_existing_setup(root: Path, plan: PromptfooPlan) -> None:
     state = root / STATE_PREFIX
     if not state.is_dir() or not _has_path_ownership(record, state):
         raise PromptfooError("The owned promptfoo runtime state is missing; review setup first.")
-    if not plan.configuration.expected_file.exists or plan.configuration.edits:
+    if (
+        not plan.configuration.expected_file.exists
+        or plan.configuration.edits
+        or not (root / plan.configuration.relative_path).exists()
+    ):
         raise PromptfooError(
             "A functional check requires the existing owned configuration unchanged."
         )
+    _check_existing_configuration(root, record, plan.configuration.relative_path)
 
 
 def _execute_promptfoo(
@@ -647,8 +662,10 @@ def _execute_promptfoo(
             prefix = root / NODE_PREFIX
             work = root / STATE_PREFIX / "work"
             entrypoint = prefix / "node_modules/promptfoo/dist/src/entrypoint.js"
+            if verification_only:
+                _require_existing_setup(root, checked)
             if step.step_id.endswith("-install"):
-                already_installed = _check_installation(root, load_record(str(root)))
+                already_installed = _check_installation(root, _record(root))
                 _prepare_private_files(root)
                 owned_paths = [str(prefix), str(root / STATE_PREFIX)]
                 if not already_installed:
@@ -723,9 +740,7 @@ def _execute_promptfoo(
                     if outcome.ownership is not None
                     else [],
                 )
-            _check_existing_configuration(
-                root, load_record(str(root)), checked.configuration.relative_path
-            )
+            _check_existing_configuration(root, _record(root), checked.configuration.relative_path)
             if verification_only:
                 version_check = runner(
                     [node, str(entrypoint), "--version"],
@@ -739,6 +754,7 @@ def _execute_promptfoo(
                         message="Installed promptfoo could not confirm its pinned CLI version.",
                     )
                 _validate_inputs(root, checked)
+                _require_existing_setup(root, checked)
             result_path = root / STATE_PREFIX / "results" / f"{checked.run_id}.json"
             descriptor = os.open(
                 result_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600
@@ -769,6 +785,7 @@ def _execute_promptfoo(
             )
             if verification_only:
                 _validate_inputs(root, checked)
+                _require_existing_setup(root, checked)
             try:
                 evaluation = _summary(result_path, checked, outcome.returncode)
             except PromptfooError as exc:

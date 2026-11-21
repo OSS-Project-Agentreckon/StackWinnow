@@ -11,7 +11,6 @@ from pydantic import ValidationError
 from stackwinnow.adapters import promptfoo as adapter
 from stackwinnow.configure import ConfigurationError
 from stackwinnow.contracts import EvidenceRef
-from stackwinnow.installer import ExecutionRecord
 from stackwinnow.verify.models import (
     CheckKind,
     CheckStatus,
@@ -62,20 +61,6 @@ def _initial(options: VerificationOptions) -> dict[CheckKind, VerificationCheck]
     return checks
 
 
-def _read_record(root: Path) -> ExecutionRecord:
-    path = root / ".stackwinnow/receipts.json"
-    if not path.exists() and not path.is_symlink():
-        return ExecutionRecord(project_root=str(root))
-    record = ExecutionRecord.model_validate(adapter._read_json(path))
-    if record.project_root != str(root):
-        raise adapter.PromptfooError("Receipts belong to another project; review them first.")
-    if len({step.step_id for step in record.steps}) != len(record.steps):
-        raise adapter.PromptfooError("Receipts contain duplicate step IDs; review them first.")
-    # A dry-run receipt must never supply installation or configuration ownership.
-    record.steps = [step for step in record.steps if not step.dry_run]
-    return record
-
-
 def _model_from_config(config: dict, options: VerificationOptions) -> str | None:
     if options.provider == "deterministic":
         return None
@@ -95,8 +80,7 @@ def _inspect(root: Path, options: VerificationOptions):
     try:
         if adapter._root(root) != root:
             raise adapter.PromptfooError("The selected project now resolves elsewhere.")
-        adapter._guard_directories(root)
-        record = _read_record(root)
+        record = adapter._record(root)
     except (adapter.PromptfooError, OSError, ValueError) as exc:
         message = (
             str(exc)

@@ -42,6 +42,15 @@ private state may be written during execution. Failed version probes also
 receive a failed evaluation-step receipt. npm is needed for onboarding, but
 not for checking an existing setup.
 
+Inspection, planning, and direct evaluation share the same bounded receipt
+validation. Duplicate step IDs are rejected, and dry-run receipts cannot supply
+installation, runtime-state, or configuration ownership. A functional check
+revalidates all three resources after acquiring the operation lock, before the
+tool CLI runs, and after its version probe before evaluation. Invalid ownership
+observed at these boundaries blocks further execution, including hosted-provider
+calls. Real ownership retained after a failed write remains usable; filtering
+dry-run ownership does not delete receipt history.
+
 The deliberate negative case changes a runtime variable, preserving config
 bytes. Both assertions must fail, with upstream process exit **100** and
 StackWinnow exit **1**. A subsequent normal check must generate new passing
