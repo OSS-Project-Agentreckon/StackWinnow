@@ -1,0 +1,6 @@
+{
+  "caller_file": "sample_app/greetings.py",
+  "caller_label": "greet()",
+  "callee_file": "sample_app/names.py",
+  "callee_label": "normalize_name()"
+}

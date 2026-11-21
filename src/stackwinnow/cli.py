@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from pydantic import ValidationError
 
 from stackwinnow import __version__
+from stackwinnow.adapters.graphify import GraphifyError, plan_graphify
 from stackwinnow.adapters.promptfoo import (
     PromptfooError,
     apply_promptfoo,
@@ -27,7 +28,44 @@ from stackwinnow.catalog import (
 )
 from stackwinnow.configure import ConfigurationError
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
+from stackwinnow.plan import PreflightError
 from stackwinnow.recommend import RecommendationError, RecommendationResult, recommend_tools
+
+
+def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        plan = plan_graphify(args.project_root, platform=args.platform, assistant=args.assistant)
+    except GraphifyError as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    except (ValidationError, PreflightError, CatalogError, OSError):
+        parser.exit(2, "error: Cannot preview Graphify; check the catalog and project state.\n")
+        return 2
+    if args.json:
+        print(
+            plan.model_dump_json(
+                indent=2,
+                exclude={
+                    "installation": {"schema_version"},
+                    "preflight": {"schema_version"},
+                },
+            )
+        )
+    else:
+        print(f"Project: {plan.project_root}")
+        print(f"Graphify preview: {plan.artifact.distribution}=={plan.artifact.version}")
+        print(f"Target: {plan.target_platform} / {plan.assistant}")
+        print(f"Graph output: {plan.graph_path}")
+        print("Apply: unavailable (preview only)")
+        for blocker in plan.blockers:
+            print(f"  {blocker}")
+        print("Preflight:")
+        for check in plan.preflight.checks:
+            print(f"  [{check.status}] {check.message}")
+        for note in plan.notes:
+            print(note)
+        print("Use --json to inspect command arguments. No project files were changed.")
+    return 0
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -259,7 +297,7 @@ def _show(tool: CatalogEntry, context: EligibilityContext) -> None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    """Discover tools, inspect projects, and explicitly plan/apply promptfoo setup."""
+    """Discover tools, preview Graphify, and explicitly plan/apply promptfoo setup."""
     parser = argparse.ArgumentParser(
         prog="stackwinnow",
         description="Choose suitable open-source AI tools for your project.",
@@ -268,6 +306,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    graphify = commands.add_parser(
+        "graphify",
+        help="Preview the pinned Graphify recipe (apply is not available).",
+        allow_abbrev=False,
+    )
+    graphify_commands = graphify.add_subparsers(dest="graphify_command", required=True)
+    graphify_plan = graphify_commands.add_parser("plan", allow_abbrev=False)
+    graphify_plan.add_argument("project_root", help="Existing project directory.")
+    graphify_plan.add_argument("--platform", required=True, choices=["macos"])
+    graphify_plan.add_argument("--assistant", required=True, choices=["codex"])
+    graphify_plan.add_argument(
+        "--json", action="store_true", help="Emit a read-only recipe preview."
+    )
     promptfoo = commands.add_parser(
         "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
     )
@@ -339,6 +390,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _recommend(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
+    if args.command == "graphify":
+        return _graphify(args, parser)
     if args.catalog_command is None:
         catalog_parser.print_help()
         return 0
