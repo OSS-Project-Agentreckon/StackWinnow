@@ -1,0 +1,244 @@
+{
+  "recorded_on": "2026-11-21",
+  "environment": {
+    "os": "macOS arm64",
+    "node": "24.13.1",
+    "codex": "0.169.0",
+    "python": "3.11.14",
+    "package": "installed wheel"
+  },
+  "wheel_sha256": "ed44f71676fddc01eb52a67872131668759f9ba7d2b1af3873286287d282f429",
+  "test": "tests/integration/test_playwright_mcp.py::test_real_codex_browser_onboarding_repeat_and_negative",
+  "test_result": "passed",
+  "assertions": [
+    "Exactly one npm install and one browser install across initial and repeat apply",
+    "Unrelated project settings, package.json, .npmrc and Codex configuration bytes preserved",
+    "Read-only check issues no commands and does not report readiness",
+    "Negative fixture stays connected but fails functional verification",
+    "Private client disables plugin refresh, host skill discovery, shell snapshots and daemon autostart"
+  ],
+  "runs": [
+    {
+      "client": "codex",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "pass",
+      "connected": true,
+      "functional": true,
+      "returncode": 0,
+      "timed_out": false,
+      "fixture_requests": 1,
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_navigate",
+          "arguments": {
+            "url": "http://127.0.0.1:55424/fixture/345402e444ae4abcaef9e20b9940d2b1"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.goto('http://127.0.0.1:55424/fixture/345402e444ae4abcaef9e20b9940d2b1');\n```\n### Page\n- Page URL: http://127.0.0.1:55424/fixture/345402e444ae4abcaef9e20b9940d2b1\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-10-855Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_3",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_click",
+          "arguments": {
+            "element": "Complete check",
+            "target": "#complete-check"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.locator('#complete-check').click();\n```\n### Page\n- Page URL: http://127.0.0.1:55424/fixture/345402e444ae4abcaef9e20b9940d2b1\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-11-548Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_4",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_evaluate",
+          "arguments": {
+            "function": "() => ({url: location.href, result: document.querySelector(\"#result\").textContent})"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Result\n{\n  \"url\": \"http://127.0.0.1:55424/fixture/345402e444ae4abcaef9e20b9940d2b1\",\n  \"result\": \"StackWinnow fixture passed 345402e444ae4abcaef9e20b9940d2b1\"\n}\n### Ran Playwright code\n```js\nawait page.evaluate('() => ({url: location.href, result: document.querySelector(\"#result\").textContent})');\n```"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "client": "codex",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "fail",
+      "connected": true,
+      "functional": false,
+      "returncode": 0,
+      "timed_out": false,
+      "fixture_requests": 1,
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_navigate",
+          "arguments": {
+            "url": "http://127.0.0.1:55432/fixture/2288c2107d4e4075a59fe02947a80b4f"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.goto('http://127.0.0.1:55432/fixture/2288c2107d4e4075a59fe02947a80b4f');\n```\n### Page\n- Page URL: http://127.0.0.1:55432/fixture/2288c2107d4e4075a59fe02947a80b4f\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-13-130Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_3",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_click",
+          "arguments": {
+            "element": "Complete check",
+            "target": "#complete-check"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.locator('#complete-check').click();\n```\n### Page\n- Page URL: http://127.0.0.1:55432/fixture/2288c2107d4e4075a59fe02947a80b4f\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-13-683Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_4",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_evaluate",
+          "arguments": {
+            "function": "() => ({url: location.href, result: document.querySelector(\"#result\").textContent})"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Result\n{\n  \"url\": \"http://127.0.0.1:55432/fixture/2288c2107d4e4075a59fe02947a80b4f\",\n  \"result\": \"Negative control: button did not complete the check\"\n}\n### Ran Playwright code\n```js\nawait page.evaluate('() => ({url: location.href, result: document.querySelector(\"#result\").textContent})');\n```"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ]
+    },
+    {
+      "client": "codex",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "pass",
+      "connected": true,
+      "functional": true,
+      "returncode": 0,
+      "timed_out": false,
+      "fixture_requests": 1,
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_navigate",
+          "arguments": {
+            "url": "http://127.0.0.1:55439/fixture/11e5ac38f6e54ab1adb9002d09692089"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.goto('http://127.0.0.1:55439/fixture/11e5ac38f6e54ab1adb9002d09692089');\n```\n### Page\n- Page URL: http://127.0.0.1:55439/fixture/11e5ac38f6e54ab1adb9002d09692089\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-15-258Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_3",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_click",
+          "arguments": {
+            "element": "Complete check",
+            "target": "#complete-check"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Ran Playwright code\n```js\nawait page.locator('#complete-check').click();\n```\n### Page\n- Page URL: http://127.0.0.1:55439/fixture/11e5ac38f6e54ab1adb9002d09692089\n- Page Title: StackWinnow browser fixture\n### Snapshot\n- [Snapshot](../output/page-2026-11-21T06-36-15-810Z.yml)"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        },
+        {
+          "id": "item_4",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_playwright",
+          "tool": "browser_evaluate",
+          "arguments": {
+            "function": "() => ({url: location.href, result: document.querySelector(\"#result\").textContent})"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "### Result\n{\n  \"url\": \"http://127.0.0.1:55439/fixture/11e5ac38f6e54ab1adb9002d09692089\",\n  \"result\": \"StackWinnow fixture passed 11e5ac38f6e54ab1adb9002d09692089\"\n}\n### Ran Playwright code\n```js\nawait page.evaluate('() => ({url: location.href, result: document.querySelector(\"#result\").textContent})');\n```"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ]
+    }
+  ]
+}

@@ -96,6 +96,45 @@ def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     return 0
 
 
+def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.playwright_mcp import (
+        apply_playwright,
+        load_playwright_plan,
+        plan_playwright,
+    )
+
+    try:
+        if args.playwright_command == "plan":
+            plan = plan_playwright(args.project_root, assistant=args.assistant)
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(
+                    f"Project: {plan.project_root}; client: Codex; Playwright MCP: {plan.version}"
+                )
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print("Save --json output, then use 'playwright-mcp apply PLAN.json'.")
+            return 0
+        result = apply_playwright(load_playwright_plan(args.plan_file), dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except (OSError, ValueError, ConfigurationError) as exc:
+        from stackwinnow.adapters._managed import ManagedStateError
+
+        message = (
+            str(exc)
+            if isinstance(exc, (ManagedStateError, ConfigurationError))
+            else "Invalid Playwright plan or project state."
+        )
+        parser.exit(2, f"error: {message}\n")
+
+
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
         if args.promptfoo_command == "plan":
@@ -381,6 +420,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     checking.add_argument(
         "--json", action="store_true", help="Emit observations and derived readiness."
     )
+    playwright = commands.add_parser(
+        "playwright-mcp",
+        help="Plan/apply project-scoped Playwright MCP for Codex.",
+        allow_abbrev=False,
+    )
+    playwright_commands = playwright.add_subparsers(dest="playwright_command", required=True)
+    playwright_plan = playwright_commands.add_parser("plan", allow_abbrev=False)
+    playwright_plan.add_argument("project_root")
+    playwright_plan.add_argument("--assistant", required=True, choices=["codex"])
+    playwright_plan.add_argument("--json", action="store_true")
+    playwright_apply = playwright_commands.add_parser("apply", allow_abbrev=False)
+    playwright_apply.add_argument("plan_file")
+    playwright_apply.add_argument("--dry-run", action="store_true")
+    playwright_apply.add_argument("--json", action="store_true")
     promptfoo = commands.add_parser(
         "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
     )
@@ -450,6 +503,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _inspect(args, parser)
     if args.command == "recommend":
         return _recommend(args, parser)
+    if args.command == "playwright-mcp":
+        return _playwright(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
     if args.command == "graphify":

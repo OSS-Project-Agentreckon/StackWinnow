@@ -4,6 +4,59 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 15 / Person C's fifth planned contribution
+
+This contribution starts from merged main f8b826a, after PRs #12 and #13.
+It implements the pinned Playwright MCP recipe on macOS arm64 / Node 24 /
+Codex CLI 0.169.0, including npm and Chromium headless-shell installation,
+owned project Codex configuration, CLI plan/apply, and four-dimension verification.
+
+- The narrow TOML writer appends only the absent Playwright server table,
+  preserving unrelated bytes/comments and modes. It shares atomic publication
+  and retained-ownership handling with the JSON writer.
+- Installation checks all three pinned npm package versions and integrity
+  records before running the browser installer. It keeps downloads, private
+  runtime state, browser outputs and reports in the selected project.
+- The real Codex CLI loads the selected registration in an isolated client
+  project and invokes navigation, click and DOM evaluation against a fresh
+  local fixture. Model decisions come from a scripted loopback endpoint;
+  no provider key, paid model call or model-quality claim is involved. Ordinary
+  project trust/reload remains a separate Codex user action.
+- Missing/changed/unowned setup, dry-run ownership, duplicate receipts, failed
+  tool calls and unexpected DOM results cannot produce readiness. Repeat apply
+  reuses installation and preserves the owned configuration. Read-only checks
+  never recycle old functional success.
+- Package/browser license and notice evidence is recorded. Browser/FFmpeg
+  downloads retain their separate notices and are not redistributed in this
+  repository. Generic catalog availability remains unchanged.
+
+Validation: **768 passed, 6 opt-in skips** on Python **3.11.14 and 3.14.0**, with
+warnings treated as errors. This adds **46 default tests** and one opt-in real
+integration case. The real Codex/browser integration test passed on Python 3.14,
+covering installation, actual client tool results, a deliberate functional
+failure, repeat execution without reinstalling, and preservation checks.
+Ruff lint/format and both dependency checks passed. The same real integration
+case also passed from the installed wheel on Python 3.11.14; packaging includes
+the launcher and HTML fixture. See the [recorded client evidence](evidence/playwright-acceptance.json). See [the integration guide](integrations/playwright-mcp.md)
+and [artifact evidence](evidence/playwright-artifacts.json).
+
+A preliminary browser click timed out and correctly reported failure; a fresh
+check passed. An early long-path probe also exposed Playwright's Unix socket
+length limit, handled by the private short-path launcher. An installed-wheel
+check exposed a background Codex plugin-refresh/temporary-directory cleanup
+race; the isolated fixture client now disables plugin refresh, unrelated app
+discovery, shell snapshots and daemon autostart, with regression coverage. The final acceptance
+uses the packaged fixture and managed headless shell, not an installed personal
+Chrome profile. No hosted CI is claimed for this branch-only contribution.
+
+This is **one substantive work commit**, C's fifth numbered contribution and
+8th actual non-merge commit including prior review fixes. Base main has A: 12,
+B: 12, C: 7. Remaining roadmap work needs count/scope reconciliation to preserve
+the 12-each target without padding commits or rewriting published history.
+Research and implementation were AI-assisted; the contributor should understand
+and be able to demonstrate the client/ownership checks. Workspace CONTEXT.md,
+raw research and acceptance logs remain local outside this repository.
+
 ## Step 13 / Person A: Graphify preview and relationship evidence
 
 On 21 November, work started on `feat/graphify-onboarding` from main `ef300a5`.

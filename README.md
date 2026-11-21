@@ -10,10 +10,11 @@ functional verification, and removal that preserves the user's settings.
 Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
 project inspection with explicit goals/preferences, explainable recommendations,
 runtime inspection, a command runner, setup preflight, execution receipts, owned
-JSON configuration edits, and a pinned promptfoo adapter with plan/apply commands.
+JSON configuration edits, and pinned promptfoo and Playwright MCP adapters with
+plan/apply commands. Playwright adds an owned Codex project TOML registration.
 Graphify provides a recipe preview and local relationship-evidence checks.
 `check` reports installation, configuration, connection, and fresh functionality
-for selected tools; promptfoo is the first verifier. The `inspect` command reads
+for selected tools; promptfoo and Playwright MCP have verification adapters. The `inspect` command reads
 project declarations; host runtime inspection and setup preflight remain Python
 APIs. Graphify managed apply, the unified guided journey, and removal remain planned.
 
@@ -25,7 +26,10 @@ integration is advertised as supported. The initial promptfoo execution scope
 is macOS arm64 with Node 24. The runner is integrated; its remaining reviewed
 limitations are recorded in [implementation progress](docs/implementation-progress.md).
 Graphify's local indexing/query probe was verified on macOS arm64; actual Codex
-connectivity remains pending.
+connectivity remains pending. Playwright MCP is validated with Codex CLI 0.169.0
+on macOS arm64 / Node 24 using an isolated client and scripted local provider.
+See the [Playwright guide](docs/integrations/playwright-mcp.md) for setup, real
+client evidence and its limits.
 
 ## Install and run
 

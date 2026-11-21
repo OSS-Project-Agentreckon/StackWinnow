@@ -186,3 +186,14 @@ round trips, missing/null values, no-op behavior, malformed input, stale plans,
 IO failures, publication races, symlinks/special files, and cleanup failures.
 All tool command values are inert fixture data. See [testing](testing.md) and
 [implementation progress](implementation-progress.md) for recorded checks.
+
+## Narrow Codex TOML registration
+
+Step 15 extends ConfigPatch.format with toml. The dedicated
+configure.codex.plan_codex_server / apply_codex_server functions only append
+the absent Playwright MCP server table in .codex/config.toml; this is not a
+general TOML editor. They share the atomic writer and retained-ownership rules
+above, preserve unrelated bytes/comments, and refuse conflicting or unsupported
+TOML. The JSON writer rejects TOML patches and vice versa. Preview permits an
+absent .codex parent without creating it; the adapter explicitly creates and
+records that directory before apply. TOML reads are bounded to 4 MiB.

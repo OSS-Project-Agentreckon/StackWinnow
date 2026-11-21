@@ -139,7 +139,9 @@ def _stamp(info: os.stat_result) -> tuple[int, ...]:
     )
 
 
-def _read(parent: int, name: str) -> tuple[bytes | None, ConfigFileState]:
+def _read(
+    parent: int, name: str, *, limit: int | None = None
+) -> tuple[bytes | None, ConfigFileState]:
     try:
         descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=parent)
     except FileNotFoundError:
@@ -155,7 +157,9 @@ def _read(parent: int, name: str) -> tuple[bytes | None, ConfigFileState]:
                 "Configuration must be a regular file with a single hard link."
             )
         with os.fdopen(descriptor, "rb", closefd=False) as source:
-            raw = source.read()
+            raw = source.read() if limit is None else source.read(limit + 1)
+        if limit is not None and len(raw) > limit:
+            raise ConfigurationConflict("Configuration exceeds the supported size.")
         if _stamp(before) != _stamp(os.fstat(descriptor)):
             raise ConfigurationConflict("Configuration changed while it was being read.")
         return raw, ConfigFileState(
@@ -274,7 +278,7 @@ def _check_current(patch: ConfigPatch, parent: int, name: str) -> bytes | None:
         held = os.fstat(parent)
         if (current.st_dev, current.st_ino) != (held.st_dev, held.st_ino):
             raise ConfigurationConflict("The configuration's parent directory changed.")
-    raw, state = _read(parent, name)
+    raw, state = _read(parent, name, limit=4 * 1024 * 1024 if patch.format == "toml" else None)
     if state != patch.expected_file:
         raise ConfigurationConflict(
             "Configuration content, existence, or permissions changed since preview; preview again."
@@ -282,7 +286,7 @@ def _check_current(patch: ConfigPatch, parent: int, name: str) -> bytes | None:
     return raw
 
 
-def apply_json_edits(patch: ConfigPatch) -> ConfigApplyResult:
+def _apply_edits(patch: ConfigPatch, *, prepare=_prepare, format="json") -> ConfigApplyResult:
     """Apply the previewed changes, returning actual ownership separately from intent.
 
     Failures before publication return no ownership. Unchanged existing values
@@ -296,13 +300,15 @@ def apply_json_edits(patch: ConfigPatch) -> ConfigApplyResult:
         # Frozen models can still contain mutable JSON children or be copied
         # without validation. Revalidate and detach the complete input.
         checked = ConfigPatch.model_validate(patch.model_dump(warnings=False))
+        if checked.format != format:
+            raise ConfigurationConflict("Configuration format does not match the selected writer.")
         with _parent(checked.project_root, checked.relative_path) as (parent, name):
             raw = _check_current(checked, parent, name)
             requests = tuple(
                 JsonConfigEdit(key_path=edit.key_path, value=edit.written, replace_existing=True)
                 for edit in checked.edits
             )
-            rebuilt, rendered = _prepare(
+            rebuilt, rendered = prepare(
                 checked.project_root,
                 checked.relative_path,
                 checked.tool_id,
@@ -383,3 +389,8 @@ def apply_json_edits(patch: ConfigPatch) -> ConfigApplyResult:
         ),
         ownership=checked if published else None,
     )
+
+
+def apply_json_edits(patch: ConfigPatch) -> ConfigApplyResult:
+    """Apply a JSON preview with atomic publication and retained ownership."""
+    return _apply_edits(patch)
