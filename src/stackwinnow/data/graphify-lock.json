@@ -1,0 +1,462 @@
+{
+  "schema_version": 1,
+  "target": "cpython311-macos14-arm64",
+  "packages": [
+    {
+      "name": "graphifyy",
+      "version": "0.9.114",
+      "url": "https://files.pythonhosted.org/packages/ef/4f/44f9f4271c4de7c9b65777a01f3ce28dc6a1ca04360f812fa942371a4827/graphifyy-0.9.114-py3-none-any.whl",
+      "sha256": "cf3cb57e87840a0c6ef7399578a95ad7ff6a83539dc71dcef0465b1b7f3a3453",
+      "requires_python": "<3.15,>=3.11.5",
+      "requires_dist": [
+        "networkx>=3.4",
+        "numpy>=1.21",
+        "rapidfuzz>=3.0",
+        "pyyaml>=6.0",
+        "tomli>=2.0.1; python_version < \"3.11\"",
+        "tree-sitter<0.26,>=0.25",
+        "tree-sitter-python<0.26,>=0.23",
+        "tree-sitter-javascript<0.26,>=0.23",
+        "tree-sitter-typescript<0.25,>=0.23",
+        "tree-sitter-go<0.26,>=0.23",
+        "tree-sitter-rust<0.25,>=0.23",
+        "tree-sitter-java<0.25,>=0.23",
+        "tree-sitter-groovy<0.3,>=0.1",
+        "tree-sitter-c<0.25,>=0.23",
+        "tree-sitter-cpp<0.25,>=0.23",
+        "tree-sitter-ruby<0.25,>=0.23",
+        "tree-sitter-c-sharp<0.25,>=0.23",
+        "tree-sitter-kotlin<2.0,>=1.0",
+        "tree-sitter-scala<0.27,>=0.23",
+        "tree-sitter-php<0.25,>=0.23",
+        "tree-sitter-swift<0.9,>=0.7",
+        "tree-sitter-lua<0.6,>=0.2",
+        "tree-sitter-zig<2.0,>=1.0",
+        "tree-sitter-powershell<0.28,>=0.26",
+        "tree-sitter-elixir<0.5,>=0.3",
+        "tree-sitter-objc<4.0,>=3.0",
+        "tree-sitter-julia<0.25,>=0.23",
+        "tree-sitter-verilog<2.0,>=1.0",
+        "tree-sitter-fortran<0.8,>=0.6",
+        "tree-sitter-bash<0.27,>=0.23",
+        "tree-sitter-json<0.26,>=0.23",
+        "mcp<3,>=1; extra == \"mcp\"",
+        "starlette<2,>=1.3.1; extra == \"mcp\"",
+        "anyio>=4.14.2; extra == \"mcp\"",
+        "neo4j; extra == \"neo4j\"",
+        "falkordb; extra == \"falkordb\"",
+        "pypdf>=6.21.4; extra == \"pdf\"",
+        "markdownify; extra == \"pdf\"",
+        "watchdog; extra == \"watch\"",
+        "matplotlib; extra == \"svg\"",
+        "pillow>=13.0.0; extra == \"svg\"",
+        "numpy>=2.0; python_version >= \"3.13\" and extra == \"svg\"",
+        "graspologic; python_version < \"3.13\" and extra == \"leiden\"",
+        "graspologic-native<2,>=1.3.1; python_version >= \"3.13\" and extra == \"leiden\"",
+        "python-docx; extra == \"office\"",
+        "openpyxl; extra == \"office\"",
+        "openpyxl; extra == \"google\"",
+        "psycopg[binary]; extra == \"postgres\"",
+        "tree-sitter-sql; extra == \"postgres\"",
+        "faster-whisper; python_version >= \"3.11\" and extra == \"video\"",
+        "av<19,>=11; python_version >= \"3.11\" and extra == \"video\"",
+        "yt-dlp>=2026.7.4; extra == \"video\"",
+        "openai; extra == \"kimi\"",
+        "tiktoken; extra == \"kimi\"",
+        "openai; extra == \"ollama\"",
+        "boto3; extra == \"bedrock\"",
+        "anthropic; extra == \"anthropic\"",
+        "openai; extra == \"gemini\"",
+        "tiktoken; extra == \"gemini\"",
+        "openai; extra == \"openai\"",
+        "tiktoken; extra == \"openai\"",
+        "jieba; python_version < \"3.12\" and extra == \"chinese\"",
+        "jieba-py<1,>=0.46.12; python_version >= \"3.12\" and extra == \"chinese\"",
+        "tree-sitter-sql; extra == \"sql\"",
+        "tree-sitter-pascal; extra == \"pascal\"",
+        "tree-sitter-dm<0.26,>=0.25; extra == \"dm\"",
+        "tree-sitter-hcl; extra == \"terraform\"",
+        "tree-sitter-ocaml; extra == \"ocaml\"",
+        "tree-sitter-commonlisp; extra == \"commonlisp\"",
+        "robotframework>=4.0; extra == \"robot\"",
+        "tree-sitter-vb-dotnet==0.3.0; extra == \"vbnet\"",
+        "tree-sitter-language-pack==0.11.0; extra == \"r\"",
+        "tree-sitter-language-pack==0.11.0; extra == \"erlang\"",
+        "tree-sitter-solidity==1.2.13; extra == \"solidity\"",
+        "mcp<3,>=1; extra == \"all\"",
+        "starlette<2,>=1.3.1; extra == \"all\"",
+        "anyio>=4.14.2; extra == \"all\"",
+        "neo4j; extra == \"all\"",
+        "falkordb; extra == \"all\"",
+        "pypdf>=6.21.4; extra == \"all\"",
+        "markdownify; extra == \"all\"",
+        "watchdog; extra == \"all\"",
+        "graspologic; python_version < \"3.13\" and extra == \"all\"",
+        "graspologic-native<2,>=1.3.1; python_version >= \"3.13\" and extra == \"all\"",
+        "python-docx; extra == \"all\"",
+        "openpyxl; extra == \"all\"",
+        "psycopg[binary]; extra == \"all\"",
+        "faster-whisper; python_version >= \"3.11\" and extra == \"all\"",
+        "av<19,>=11; python_version >= \"3.11\" and extra == \"all\"",
+        "yt-dlp>=2026.7.4; extra == \"all\"",
+        "matplotlib; extra == \"all\"",
+        "pillow>=13.0.0; extra == \"all\"",
+        "numpy>=2.0; python_version >= \"3.13\" and extra == \"all\"",
+        "openai; extra == \"all\"",
+        "tiktoken; extra == \"all\"",
+        "boto3; extra == \"all\"",
+        "anthropic; extra == \"all\"",
+        "tree-sitter-sql; extra == \"all\"",
+        "jieba; python_version < \"3.12\" and extra == \"all\"",
+        "jieba-py<1,>=0.46.12; python_version >= \"3.12\" and extra == \"all\"",
+        "tree-sitter-dm<0.26,>=0.25; extra == \"all\"",
+        "tree-sitter-hcl; extra == \"all\"",
+        "tree-sitter-pascal; extra == \"all\"",
+        "tree-sitter-ocaml; extra == \"all\"",
+        "tree-sitter-commonlisp; extra == \"all\"",
+        "robotframework>=4.0; extra == \"all\"",
+        "tree-sitter-vb-dotnet==0.3.0; extra == \"all\"",
+        "tree-sitter-language-pack==0.11.0; extra == \"all\"",
+        "tree-sitter-solidity==1.2.13; extra == \"all\""
+      ]
+    },
+    {
+      "name": "networkx",
+      "version": "3.6.1",
+      "url": "https://files.pythonhosted.org/packages/9e/c9/b2622292ea83fbb4ec318f5b9ab867d0a28ab43c5717bb85b0a5f6b3b0a4/networkx-3.6.1-py3-none-any.whl",
+      "sha256": "d47fbf302e7d9cbbb9e2555a0d267983d2aa476bac30e90dfbe5669bd57f3762",
+      "requires_python": "!=3.14.1,>=3.11",
+      "requires_dist": [
+        "asv; extra == \"benchmarking\"",
+        "virtualenv; extra == \"benchmarking\"",
+        "numpy>=1.25; extra == \"default\"",
+        "scipy>=1.11.2; extra == \"default\"",
+        "matplotlib>=3.8; extra == \"default\"",
+        "pandas>=2.0; extra == \"default\"",
+        "pre-commit>=4.1; extra == \"developer\"",
+        "mypy>=1.15; extra == \"developer\"",
+        "sphinx>=8.0; extra == \"doc\"",
+        "pydata-sphinx-theme>=0.16; extra == \"doc\"",
+        "sphinx-gallery>=0.18; extra == \"doc\"",
+        "numpydoc>=1.8.0; extra == \"doc\"",
+        "pillow>=10; extra == \"doc\"",
+        "texext>=0.6.7; extra == \"doc\"",
+        "myst-nb>=1.1; extra == \"doc\"",
+        "intersphinx-registry; extra == \"doc\"",
+        "osmnx>=2.0.0; extra == \"example\"",
+        "momepy>=0.7.2; extra == \"example\"",
+        "contextily>=1.6; extra == \"example\"",
+        "seaborn>=0.13; extra == \"example\"",
+        "cairocffi>=1.7; extra == \"example\"",
+        "igraph>=0.11; extra == \"example\"",
+        "scikit-learn>=1.5; extra == \"example\"",
+        "iplotx>=0.9.0; extra == \"example\"",
+        "lxml>=4.6; extra == \"extra\"",
+        "pygraphviz>=1.14; extra == \"extra\"",
+        "pydot>=3.0.1; extra == \"extra\"",
+        "sympy>=1.10; extra == \"extra\"",
+        "build>=0.10; extra == \"release\"",
+        "twine>=4.0; extra == \"release\"",
+        "wheel>=0.40; extra == \"release\"",
+        "changelist==0.5; extra == \"release\"",
+        "pytest>=7.2; extra == \"test\"",
+        "pytest-cov>=4.0; extra == \"test\"",
+        "pytest-xdist>=3.0; extra == \"test\"",
+        "pytest-mpl; extra == \"test-extras\"",
+        "pytest-randomly; extra == \"test-extras\""
+      ]
+    },
+    {
+      "name": "numpy",
+      "version": "2.4.6",
+      "url": "https://files.pythonhosted.org/packages/ad/40/40a40ee0ddf7ceb782c49af278894b686e586d65d8c1889c8b5da01a3d7d/numpy-2.4.6-cp311-cp311-macosx_14_0_arm64.whl",
+      "sha256": "4cfe66903cc32a9921a6733d96b19bb6abf310397581bbad89c228f5abaf0ee8",
+      "requires_python": ">=3.11",
+      "requires_dist": []
+    },
+    {
+      "name": "pyyaml",
+      "version": "6.0.4",
+      "url": "https://files.pythonhosted.org/packages/16/da/1b8397614250ec63bb7ef1cbb0aa5878367ff729ef35a4abf2accbf48a18/pyyaml-6.0.4-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "730788375056c43d3ac15bd894c9cd2fb7a931a38b302f408620c64b3ef176ed",
+      "requires_python": ">=3.10",
+      "requires_dist": []
+    },
+    {
+      "name": "rapidfuzz",
+      "version": "3.14.6",
+      "url": "https://files.pythonhosted.org/packages/b9/8f/17985248f0f651a518b543f802fa706b7810cbe96a434a5a9dc24f99b7d2/rapidfuzz-3.14.6-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "0c61cade182f130c9903231946bd1074539121721693a918e7b70382ae802bd8",
+      "requires_python": ">=3.11",
+      "requires_dist": [
+        "numpy; extra == \"all\""
+      ]
+    },
+    {
+      "name": "tree-sitter",
+      "version": "0.25.2",
+      "url": "https://files.pythonhosted.org/packages/57/1c/22cc14f3910017b7a76d7358df5cd315a84fe0c7f6f7b443b49db2e2790d/tree_sitter-0.25.2-cp311-cp311-macosx_11_0_arm64.whl",
+      "sha256": "cc0351cfe5022cec5a77645f647f92a936b38850346ed3f6d6babfbeeeca4d26",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "sphinx~=8.1; extra == \"docs\"",
+        "sphinx-book-theme; extra == \"docs\"",
+        "tree-sitter-html>=0.23.2; extra == \"tests\"",
+        "tree-sitter-javascript>=0.23.1; extra == \"tests\"",
+        "tree-sitter-json>=0.24.8; extra == \"tests\"",
+        "tree-sitter-python>=0.23.6; extra == \"tests\"",
+        "tree-sitter-rust>=0.23.2; extra == \"tests\""
+      ]
+    },
+    {
+      "name": "tree-sitter-bash",
+      "version": "0.25.1",
+      "url": "https://files.pythonhosted.org/packages/23/bb/2d2cfbb1f89aaeb1ec892624f069d92d058d06bb66f16b9ec9fb5873ab60/tree_sitter_bash-0.25.1-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "f4a34a6504c7c5b2a9b8c5c4065531dea19ca2c35026e706cf2eeeebe2c92512",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-c",
+      "version": "0.24.2",
+      "url": "https://files.pythonhosted.org/packages/c1/1c/1140db75e7e375cda3c68792a33826c4fd40b5b98c3259d93c75f6c8368f/tree_sitter_c-0.24.2-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "97bc80a224d48215d4e6e6376bf30d114f4c317b8145ff1b02afe785d4ba7bdd",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-c-sharp",
+      "version": "0.24.0",
+      "url": "https://files.pythonhosted.org/packages/b1/26/a095974945588c190e2499a2d136189bd12952443a819ee237eb38d2e4aa/tree_sitter_c_sharp-0.24.0-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "a3acd20d848f7fb2f142b0bfd594746105b273644faf294d10c9b77febdc5812",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.25; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-cpp",
+      "version": "0.23.4",
+      "url": "https://files.pythonhosted.org/packages/12/1c/0337c016bdc00a77a3326d12f10ee836401dd28f27db6fd5b7734bfb21ed/tree_sitter_cpp-0.23.4-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "bc3c404d9f0cbd87951213a85440afbf4c31e718f8d907fa9ee12bea4b8d276f",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-elixir",
+      "version": "0.3.5",
+      "url": "https://files.pythonhosted.org/packages/7e/d7/f0ad3de0b359a8a1f694268855bb34134c88774fa2276cb33413163c0403/tree_sitter_elixir-0.3.5-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "015f537731af690cfa238b0fb76a8af4f0d1a2c54a38563f159926d2967ce650",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.23; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-fortran",
+      "version": "0.6.0",
+      "url": "https://files.pythonhosted.org/packages/b2/83/c93d2959030ff858f97a5cebedd1281341c6d69d240bb616c6fa7fb86538/tree_sitter_fortran-0.6.0-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "a0fe5929fd91d245aba5a3b414399a296fb9924942a549190cee226e5b1ec96c",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.21; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-go",
+      "version": "0.25.0",
+      "url": "https://files.pythonhosted.org/packages/32/16/dd4cb124b35e99239ab3624225da07d4cb8da4d8564ed81d03fcb3a6ba9f/tree_sitter_go-0.25.0-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "503b81a2b4c31e302869a1de3a352ad0912ccab3df9ac9950197b0a9ceeabd8f",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-groovy",
+      "version": "0.1.2",
+      "url": "https://files.pythonhosted.org/packages/26/17/a1fbf1fb2b13a3bdb1bc5d57cde77aaaa64f005eb25cacff50bf21148719/tree_sitter_groovy-0.1.2-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "db35a5bdceb826382c7f52d33db0b2075217473f698daf77eb8d4e557a161d51",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-java",
+      "version": "0.23.5",
+      "url": "https://files.pythonhosted.org/packages/57/ef/6406b444e2a93bc72a04e802f4107e9ecf04b8de4a5528830726d210599c/tree_sitter_java-0.23.5-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "24acd59c4720dedad80d548fe4237e43ef2b7a4e94c8549b0ca6e4c4d7bf6e69",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-javascript",
+      "version": "0.25.0",
+      "url": "https://files.pythonhosted.org/packages/b1/8f/6b4b2bc90d8ab3955856ce852cc9d1e82c81d7ab9646385f0e75ffd5b5d3/tree_sitter_javascript-0.25.0-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "8264a996b8845cfce06965152a013b5d9cbb7d199bc3503e12b5682e62bb1de1",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-json",
+      "version": "0.24.8",
+      "url": "https://files.pythonhosted.org/packages/5c/31/102c15948d97b135611d6a995c97a3933c0e9745f25737723977f58e142c/tree_sitter_json-0.24.8-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "62b4c45b561db31436a81a3f037f71ec29049f4fc9bf5269b6ec3ebaaa35a1cd",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-julia",
+      "version": "0.23.1",
+      "url": "https://files.pythonhosted.org/packages/ef/d6/7049e567a9d3be58449717e7af22424ee22afa43667e8e309ec0a3603fea/tree_sitter_julia-0.23.1-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "8197c8d9b0cb51421aa2832f3fb539504d7b514cbb1fc79130bb1445c0b4a457",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-kotlin",
+      "version": "1.1.0",
+      "url": "https://files.pythonhosted.org/packages/7d/20/66105b6e94d062440955d374e64d030c3173cf4f592f6a6a3c426b3c94d0/tree_sitter_kotlin-1.1.0-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "910b41a580dae00d319e555075f3886a41386d1067931b14c7de504eeae3ae2a",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-lua",
+      "version": "0.5.0",
+      "url": "https://files.pythonhosted.org/packages/de/0c/6bc3228d01419e8b5af664bf328d174b02a64736ffa23a335c778c8cda68/tree_sitter_lua-0.5.0-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "c14714ad395c4166566f3e4dd0cc0979411684cbcd23702e3c631c3e6eae84fd",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-objc",
+      "version": "3.0.2",
+      "url": "https://files.pythonhosted.org/packages/32/11/051f22252ee02ac3d0ca00ebcd99476da586b5d916390dc2f251e610ca7c/tree_sitter_objc-3.0.2-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "9fa8b1221d2651a51cf42e1551c0804e9f48707da70f41f3195910c599b5522b",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-php",
+      "version": "0.24.1",
+      "url": "https://files.pythonhosted.org/packages/ab/5e/b52f2599acb29f6899470f7137d3d491c752b88df3950fb7408aea57ddca/tree_sitter_php-0.24.1-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "29759c67d4c27a68c227ed82c0b7e4699617b1bd23757d50c081f81a12b4f80d",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-powershell",
+      "version": "0.26.4",
+      "url": "https://files.pythonhosted.org/packages/7f/53/486a2495d336d4f67031d759590223e4121fcc7da79afe989f29a1157c2f/tree_sitter_powershell-0.26.4-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "b5dde429c9de55b75906e240d6db1cf85417e2fc0a56d7b321810c2cd4cf3f98",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-python",
+      "version": "0.25.0",
+      "url": "https://files.pythonhosted.org/packages/e6/1d/60d8c2a0cc63d6ec4ba4e99ce61b802d2e39ef9db799bdf2a8f932a6cd4b/tree_sitter_python-0.25.0-cp310-abi3-macosx_11_0_arm64.whl",
+      "sha256": "480c21dbd995b7fe44813e741d71fed10ba695e7caab627fb034e3828469d762",
+      "requires_python": ">=3.10",
+      "requires_dist": [
+        "tree-sitter~=0.24; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-ruby",
+      "version": "0.23.1",
+      "url": "https://files.pythonhosted.org/packages/e7/38/c41ecf7692b8ecccd26861d3293a88150a4a52fc081abe60f837030d7315/tree_sitter_ruby-0.23.1-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "aa4ee7433bd42fac22e2dad4a3c0f332292ecf482e610316828c711a0bb7f794",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-rust",
+      "version": "0.24.2",
+      "url": "https://files.pythonhosted.org/packages/78/2a/cf39f881a545360b5a86bb1accba1f4acc713daab01fb9edd35b6e84f473/tree_sitter_rust-0.24.2-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "01a46622735498493f29f3e628a90de95c96a07bfbeb88996243eb986b1cee36",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-scala",
+      "version": "0.26.13",
+      "url": "https://files.pythonhosted.org/packages/5f/02/5c89d87ebcf7faf45c294590d7d95d7cd64e0a9fc81939bce136054a8dd2/tree_sitter_scala-0.26.13-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "789d6dc51818834620f368f6689877b10c3d2e2bf947935afe1fc88810ddd7c2",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-swift",
+      "version": "0.7.4",
+      "url": "https://files.pythonhosted.org/packages/3d/94/ae2a4abb3f240b613635507e83893ad192bbc58074f811eeec65dba38ab6/tree_sitter_swift-0.7.4-cp38-abi3-macosx_11_0_arm64.whl",
+      "sha256": "62ce592607fa532687a2d4656a90db2f04cbc197e34077038bca2e47073b6db7",
+      "requires_python": ">=3.8",
+      "requires_dist": [
+        "tree-sitter~=0.23; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-typescript",
+      "version": "0.23.2",
+      "url": "https://files.pythonhosted.org/packages/8f/2f/1f36fda564518d84593f2740d5905ac127d590baf5c5753cef2a88a89c15/tree_sitter_typescript-0.23.2-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "c7cc1b0ff5d91bac863b0e38b1578d5505e718156c9db577c8baea2557f66de8",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.23; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-verilog",
+      "version": "1.0.3",
+      "url": "https://files.pythonhosted.org/packages/b5/bb/865ef41dafc4e94513f0f186360a840104d0ec6fde3d60d9b432a36dfb02/tree_sitter_verilog-1.0.3-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "5b9d70d86cf6913abc08766b6180e285d72848c7491a3f3f8e7bb8d8c440049d",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    },
+    {
+      "name": "tree-sitter-zig",
+      "version": "1.1.2",
+      "url": "https://files.pythonhosted.org/packages/5a/78/93d32fea98b3b031bc0fbec44e27f2b8cc1a1a8ff5a99dfb1a8f85b11d43/tree_sitter_zig-1.1.2-cp39-abi3-macosx_11_0_arm64.whl",
+      "sha256": "daa2cdd7c1a2d278f2a917c85993adb6e84d37778bfc350ee9e342872e7f8be2",
+      "requires_python": ">=3.9",
+      "requires_dist": [
+        "tree-sitter~=0.22; extra == \"core\""
+      ]
+    }
+  ]
+}

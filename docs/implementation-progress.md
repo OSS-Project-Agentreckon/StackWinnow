@@ -4,73 +4,51 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
-## Step 15 / Person C's fifth planned contribution
+## Step 13 continuation: locked execution preparation
 
-PR #16 review follow-up, 21 November: install exceptions now return failed
-outcomes retaining ownership of the state directory actually created by the
-attempt. Creation is exclusive, so an intervening directory is not adopted.
-Apply and check both revalidate owned installation and the selected registration
-after client execution, while holding the operation lock. Changed setup blocks
-readiness; unrelated configuration comments remain preserved and allowed.
+On 21 November, PR #12 is merged as main `f8b826a`; its final repair passed
+both hosted Python jobs. Branch `feat/graphify-managed-execution` implements
+the first follow-up boundary: validated, read-only execution preparation.
 
-Fifteen new cases cover filesystem/runner exceptions, competing creation, and
-configuration/browser/ownership changes during both execution paths. Thirteen
-negative cases failed against the original revision; all now pass. Rebuilt
-package validation on Python 3.11.14: **783 passed, 6 opt-in skips**, warnings
-treated as errors. Ruff lint/format and diff checks passed. Real client/browser
-integration was not rerun for this fix; the original evidence below remains
-separate. The review fixes and regression work were AI-assisted.
+- Adds `graphify execution-plan PROJECT --expectation FILE --json` and
+  `graphify validate-plan FILE`. The original recipe preview is preserved.
+- Locks 31 wheel artifacts for CPython 3.11/macOS 14+ arm64. The bundled lock
+  is digest-checked and validates dependency closure, distribution identity and
+  target wheel compatibility. Downloads and hashes for all 31 artifacts were
+  verified, and their actual wheel METADATA matched the recorded requirements.
+  See [lock evidence](evidence/graphify-lock.json). Dependency-license acceptance
+  and a real managed installation are not established by this download check.
+- Binds plans to explicit relationship source hashes, the receipt digest,
+  runtime identity and fixed recipe fields. Bounded/no-follow reads reject
+  unsafe inputs; changed inputs and modified recipes require a new plan.
+  Existing Graphify paths/real receipts require the pending reconciliation work.
+- No execution, ownership, installation or Codex connection is claimed.
+  `ready_to_apply` remains false. Shared verification is available through
+  merged PR #13; registering Graphify there remains a subsequent change.
 
-This contribution starts from merged main f8b826a, after PRs #12 and #13.
-It implements the pinned Playwright MCP recipe on macOS arm64 / Node 24 /
-Codex CLI 0.169.0, including npm and Chromium headless-shell installation,
-owned project Codex configuration, CLI plan/apply, and four-dimension verification.
+The scope follows the first meaningful commit in the local continuation plan.
+PR #14's state/resume implementation is still open at inspection time. Current
+main skips prior successful executor steps without reconciling their live state,
+and the runner still has an unbounded post-timeout pipe drain. Managed apply
+awaits reviewed locking/reconciliation and bounded runner support; this change
+does not duplicate B's state engine or alter C's configuration ownership models.
 
-- The narrow TOML writer appends only the absent Playwright server table,
-  preserving unrelated bytes/comments and modes. It shares atomic publication
-  and retained-ownership handling with the JSON writer.
-- Installation checks all three pinned npm package versions and integrity
-  records before running the browser installer. It keeps downloads, private
-  runtime state, browser outputs and reports in the selected project.
-- The real Codex CLI loads the selected registration in an isolated client
-  project and invokes navigation, click and DOM evaluation against a fresh
-  local fixture. Model decisions come from a scripted loopback endpoint;
-  no provider key, paid model call or model-quality claim is involved. Ordinary
-  project trust/reload remains a separate Codex user action.
-- Missing/changed/unowned setup, dry-run ownership, duplicate receipts, failed
-  tool calls and unexpected DOM results cannot produce readiness. Repeat apply
-  reuses installation and preserves the owned configuration. Read-only checks
-  never recycle old functional success.
-- Package/browser license and notice evidence is recorded. Browser/FFmpeg
-  downloads retain their separate notices and are not redistributed in this
-  repository. Generic catalog availability remains unchanged.
+Baseline: **722 passed, 5 opt-in skips** on Python 3.11.14. Implementation,
+research and documentation were AI-assisted. No hosted result is claimed for
+this continuation. Final rebuilt-package validation:
+**764 passed, 5 opt-in skips** on Python 3.11.14 with warnings treated as errors;
+Ruff lint/format, dependency compatibility and diff checks passed. The existing
+real indexing/client integration cases were not rerun for this planning-only
+behavior. The separate dependency download/metadata check above was executed.
 
-Validation: **768 passed, 6 opt-in skips** on Python **3.11.14 and 3.14.0**, with
-warnings treated as errors. This adds **46 default tests** and one opt-in real
-integration case. The real Codex/browser integration test passed on Python 3.14,
-covering installation, actual client tool results, a deliberate functional
-failure, repeat execution without reinstalling, and preservation checks.
-Ruff lint/format and both dependency checks passed. The same real integration
-case also passed from the installed wheel on Python 3.11.14; packaging includes
-the launcher and HTML fixture. See the [recorded client evidence](evidence/playwright-acceptance.json). See [the integration guide](integrations/playwright-mcp.md)
-and [artifact evidence](evidence/playwright-artifacts.json).
-
-A preliminary browser click timed out and correctly reported failure; a fresh
-check passed. An early long-path probe also exposed Playwright's Unix socket
-length limit, handled by the private short-path launcher. An installed-wheel
-check exposed a background Codex plugin-refresh/temporary-directory cleanup
-race; the isolated fixture client now disables plugin refresh, unrelated app
-discovery, shell snapshots and daemon autostart, with regression coverage. The final acceptance
-uses the packaged fixture and managed headless shell, not an installed personal
-Chrome profile. No hosted CI is claimed for this branch-only contribution.
-
-This is **one substantive work commit**, C's fifth numbered contribution and
-8th actual non-merge commit including prior review fixes. Base main has A: 12,
-B: 12, C: 7. Remaining roadmap work needs count/scope reconciliation to preserve
-the 12-each target without padding commits or rewriting published history.
-Research and implementation were AI-assisted; the contributor should understand
-and be able to demonstrate the client/ownership checks. Workspace CONTEXT.md,
-raw research and acceptance logs remain local outside this repository.
+PR #15 review follow-up: the bounded reader now tracks the final file descriptor
+in its cleanup list and uses a non-owning stream. Stream-construction failures
+therefore close both file and directory descriptors without double-closing.
+Regression cases cover successful reads, simulated fdopen failure, a real
+directory input and oversized files; the two construction-failure cases failed
+against the original code. Rebuilt-package validation: **768 passed, 5 opt-in
+skips** on Python 3.11.14 with warnings treated as errors; Ruff lint/format and
+diff checks passed. This is a resource-cleanup fix within step 13.
 
 ## Step 13 / Person A: Graphify preview and relationship evidence
 

@@ -8,6 +8,11 @@ from pydantic import ValidationError
 
 from stackwinnow import __version__
 from stackwinnow.adapters.graphify import GraphifyError, plan_graphify
+from stackwinnow.adapters.graphify_plan import (
+    load_graphify_execution_plan,
+    load_relationship_expectation,
+    plan_graphify_execution,
+)
 from stackwinnow.adapters.promptfoo import (
     PromptfooError,
     apply_promptfoo,
@@ -61,6 +66,8 @@ def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
 
 def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.graphify_command in ("execution-plan", "validate-plan"):
+        return _graphify_execution_plan(args, parser)
     try:
         plan = plan_graphify(args.project_root, platform=args.platform, assistant=args.assistant)
     except GraphifyError as exc:
@@ -96,43 +103,34 @@ def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     return 0
 
 
-def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
-    from stackwinnow.adapters.playwright_mcp import (
-        apply_playwright,
-        load_playwright_plan,
-        plan_playwright,
-    )
-
+def _graphify_execution_plan(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
-        if args.playwright_command == "plan":
-            plan = plan_playwright(args.project_root, assistant=args.assistant)
-            if args.json:
-                print(plan.model_dump_json(indent=2))
-            else:
-                print(
-                    f"Project: {plan.project_root}; client: Codex; Playwright MCP: {plan.version}"
-                )
-                for step in plan.installation.steps:
-                    print(f"  {step.description}")
-                print("Save --json output, then use 'playwright-mcp apply PLAN.json'.")
-            return 0
-        result = apply_playwright(load_playwright_plan(args.plan_file), dry_run=args.dry_run)
-        if args.json:
-            print(result.model_dump_json(indent=2))
+        if args.graphify_command == "validate-plan":
+            plan = load_graphify_execution_plan(args.plan_file)
         else:
-            print(f"{result.status}: {result.message}")
-            for operation in result.results:
-                print(f"  [{operation.status}] {operation.message}")
-        return 0 if result.status in ("succeeded", "skipped") else 1
-    except (OSError, ValueError, ConfigurationError) as exc:
-        from stackwinnow.adapters._managed import ManagedStateError
-
-        message = (
-            str(exc)
-            if isinstance(exc, (ManagedStateError, ConfigurationError))
-            else "Invalid Playwright plan or project state."
-        )
-        parser.exit(2, f"error: {message}\n")
+            plan = plan_graphify_execution(
+                args.project_root, expectation=load_relationship_expectation(args.expectation)
+            )
+    except GraphifyError as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    if args.json:
+        print(plan.model_dump_json(indent=2))
+    else:
+        print(f"Project: {plan.project_root}")
+        print(f"Execution preparation: {plan.target}; {len(plan.packages)} locked wheels")
+        print("Scope: local install/index; intended assistant: Codex (not configured)")
+        print("Apply: unavailable; plan validation does not authorize execution")
+        print(f"Planned environment: {plan.environment_path}")
+        print(f"Planned graph: {plan.graph_path}")
+        for operation in plan.operations:
+            print(f"  Operation: {operation}")
+        for source in plan.sources:
+            print(f"  Relationship source: {source.path} (SHA-256 {source.sha256})")
+        for blocker in plan.blockers:
+            print(f"  Blocked: {blocker}")
+        print("No commands, downloads, or project writes were performed.")
+    return 0
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -386,6 +384,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     graphify_plan.add_argument(
         "--json", action="store_true", help="Emit a read-only recipe preview."
     )
+    execution_plan = graphify_commands.add_parser(
+        "execution-plan",
+        allow_abbrev=False,
+        help="Prepare a locked macOS arm64/Python 3.11 plan; execution is unavailable.",
+    )
+    execution_plan.add_argument("project_root", help="Existing project directory.")
+    execution_plan.add_argument(
+        "--expectation",
+        required=True,
+        help="JSON file identifying an expected source relationship.",
+    )
+    execution_plan.add_argument("--json", action="store_true", help="Emit the reviewable plan.")
+    validate_plan = graphify_commands.add_parser(
+        "validate-plan", allow_abbrev=False, help="Recheck a saved plan without executing it."
+    )
+    validate_plan.add_argument("plan_file", help="Saved execution-plan JSON file.")
+    validate_plan.add_argument("--json", action="store_true", help="Emit the revalidated plan.")
     checking = commands.add_parser(
         "check",
         help="Verify selected tools without installing or changing their configuration.",

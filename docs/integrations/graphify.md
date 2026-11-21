@@ -129,6 +129,77 @@ Implementation, research, and validation were AI-assisted.
 
 ## Remaining work for complete step 13
 
+### Managed execution preparation
+
+The original `graphify plan` preview remains unchanged. A separate, read-only
+contract prepares the first managed install/index slice:
+
+```sh
+stackwinnow graphify execution-plan ./my-project --expectation ./expected.json --json > plan.json
+stackwinnow graphify validate-plan plan.json --json
+```
+
+The expectation file explicitly identifies a relationship in that project:
+
+```json
+{
+  "caller_file": "sample_app/greetings.py",
+  "caller_label": "greet()",
+  "callee_file": "sample_app/names.py",
+  "callee_label": "normalize_name()"
+}
+```
+
+These are fixture names, not defaults for arbitrary projects. Recursive calls
+can specify the same file/label for both endpoints. Planning hashes the exact
+referenced source files; it does not establish that the call exists or snapshot
+the entire project. The future executor must establish fresh index provenance.
+Redirection writes the output file through the user's shell; the command itself
+does not write anything. Keep saved plans outside managed output directories.
+
+The preparation includes 31 exact wheel URLs, versions and SHA-256 hashes from
+the bundled `data/graphify-lock.json`. It targets **CPython 3.11.5–3.11.x,
+macOS 14+, arm64**. This narrower target reflects the selected dependency wheels
+(including NumPy's macOS 14 wheel); it does not broaden the original support
+claim. Dependency closure and wheel tags are validated independently of the host.
+Other POSIX hosts can inspect a plan but receive explicit runtime blockers;
+systems without no-follow file operations receive an unsupported-input error. The exact
+dependency resolution and download evidence was collected on Python 3.11.14.
+
+The lock binds Graphify's dependencies, not the interpreter, pip/ensurepip, or
+operating system. It contains no optional extras. Artifact downloads and hashes
+were validated; complete dependency-license acceptance and real managed
+installation remain pending. Wheels are not redistributed with StackWinnow.
+
+Plans record the current runtime identity, receipt-file digest, and hashes of
+the selected relationship sources. `validate-plan` rebuilds the reviewed recipe
+and compares these inputs; changed hashes, operations, artifacts, paths, runtime,
+catalog identity/license or receipts require a new plan. Input JSON is bounded;
+duplicate keys, unsafe source paths and symlink inputs are rejected. Sources and
+receipts are limited to 4 MiB each, expectation JSON to 64 KiB, saved plans to
+1 MiB. Existing Graphify paths or real receipts block this fresh-install slice
+until shared reconciliation is integrated; no ownership is inferred or adopted.
+
+**Neither command executes a plan.** Both return 0 for successfully prepared or
+revalidated output, including its blockers, and 2 for invalid/stale input. The
+phase is `execution-preparation` and `ready_to_apply` is always false. Validation
+is not a signature, permission record, functional check or Codex connection.
+No new `apply` command is exposed. Reviewed shared locking/reconciliation,
+bounded execution and owned client configuration remain prerequisites.
+
+To reproduce the lock download check on the declared target (network required):
+
+```sh
+python -c 'from stackwinnow.adapters.graphify_plan import graphify_requirements; print(graphify_requirements(), end="")' > /tmp/graphify-locked.txt
+python -m pip --isolated download --require-hashes --only-binary=:all: \
+  --dest /tmp/graphify-locked-wheels -r /tmp/graphify-locked.txt
+```
+
+This downloads wheels only. It neither installs Graphify nor configures a client.
+See [lock evidence](../evidence/graphify-lock.json) for the recorded result.
+
+### Execution and client integration still pending
+
 1. Integrate with C's step 12 verification framework and distinguish package,
    configuration, client connectivity, and known-result functionality.
 2. Add owned, recoverable client configuration. Upstream Codex installation can
