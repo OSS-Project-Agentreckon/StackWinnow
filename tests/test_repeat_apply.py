@@ -10,12 +10,22 @@ Also covers the shared project lock that serialises concurrent operations.
 
 from __future__ import annotations
 
+import hashlib
+import stat as stat_module
+import threading
 from pathlib import Path
 
 import pytest
 
-from stackwinnow.contracts import InstallPlan, OperationStatus, PlanStep
+from stackwinnow.contracts import (
+    ConfigFileState,
+    ConfigPatch,
+    InstallPlan,
+    OperationStatus,
+    PlanStep,
+)
 from stackwinnow.installer import (
+    InstallerError,
     RunnerOutcome,
     execute_plan,
 )
@@ -300,3 +310,147 @@ def test_reconcile_plan_all_skippable_only_when_all_skip(tmp_path):
     _write_succeeded_receipt(tmp_path, _STEP, owned_paths=[str(owned)])
     report = reconcile_plan(_plan(tmp_path, steps=[_STEP, _STEP_B]))
     assert not report.all_skippable
+
+
+# ---------------------------------------------------------------------------
+# 6. Partial uninstall — any→all guard
+# ---------------------------------------------------------------------------
+
+
+def test_partial_installation_is_not_skipped(tmp_path):
+    """When only some owned paths are missing, the step re-runs (partial uninstall)."""
+    present = tmp_path / ".stackwinnow" / "envs" / "tool-a" / "python"
+    present.mkdir(parents=True)
+    vanished = str(tmp_path / ".stackwinnow" / "envs" / "tool-a" / "lib")
+    _write_succeeded_receipt(tmp_path, _STEP, owned_paths=[str(present), vanished])
+
+    calls: list[str] = []
+
+    def counting_runner(step: PlanStep) -> RunnerOutcome:
+        calls.append(step.step_id)
+        return RunnerOutcome(status=OperationStatus.SUCCEEDED, message="ok")
+
+    execute_plan(_plan(tmp_path), step_runner=counting_runner)
+    assert len(calls) == 1, "Partial uninstall should trigger a re-run."
+
+
+# ---------------------------------------------------------------------------
+# 7. Config ownership — sha256 drift detection
+# ---------------------------------------------------------------------------
+
+
+def test_changed_config_ownership_is_not_skipped(tmp_path):
+    """A step re-runs when a file it wrote has been modified since the receipt was saved."""
+    config_file = tmp_path / "config.json"
+    original_content = b'{"key": "value"}'
+    config_file.write_bytes(original_content)
+    config_file.chmod(0o600)
+    sha = hashlib.sha256(original_content).hexdigest()
+    mode = stat_module.S_IMODE(config_file.stat().st_mode)
+
+    patch = ConfigPatch(
+        project_root=str(tmp_path),
+        relative_path="config.json",
+        tool_id="tool-a",
+        expected_file=ConfigFileState(exists=False),
+        written_file=ConfigFileState(exists=True, sha256=sha, mode=mode),
+    )
+
+    execute_plan(
+        _plan(tmp_path),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="seeded",
+            configuration_ownership=[patch],
+        ),
+    )
+
+    config_file.write_bytes(b'{"key": "modified"}')
+
+    calls: list[str] = []
+
+    def counting_runner(step: PlanStep) -> RunnerOutcome:
+        calls.append(step.step_id)
+        return RunnerOutcome(status=OperationStatus.SUCCEEDED, message="ok")
+
+    execute_plan(_plan(tmp_path), step_runner=counting_runner)
+    assert len(calls) == 1, "Modified config file should trigger a re-run."
+
+    # reconcile_plan also surfaces this as RETRY
+    reconcile_report = reconcile_plan(_plan(tmp_path))
+    # After the second execute_plan the step succeeded again, so the receipt is fresh.
+    # Revert to the modified state to verify reconcile detects the drift.
+    config_file.write_bytes(b'{"key": "drifted again"}')
+    reconcile_report = reconcile_plan(_plan(tmp_path))
+    assert reconcile_report.steps[0].action == ReconcileAction.RETRY
+
+
+# ---------------------------------------------------------------------------
+# 8. Concurrent serialisation — execute_plan acquires lock
+# ---------------------------------------------------------------------------
+
+
+def test_execute_plan_serialises_concurrent_executions(tmp_path):
+    """Concurrent execute_plan calls on the same root: the second raises ProjectLockError."""
+    inside_runner = threading.Event()
+    allow_finish = threading.Event()
+
+    def blocking_runner(step: PlanStep) -> RunnerOutcome:
+        inside_runner.set()
+        allow_finish.wait(timeout=5)
+        return RunnerOutcome(status=OperationStatus.SUCCEEDED, message="ok")
+
+    plan = _plan(tmp_path)
+    t1_errors: list[BaseException] = []
+    t2_errors: list[BaseException] = []
+
+    def run_t1() -> None:
+        try:
+            execute_plan(plan, step_runner=blocking_runner)
+        except BaseException as exc:
+            t1_errors.append(exc)
+
+    def run_t2() -> None:
+        try:
+            execute_plan(
+                plan,
+                step_runner=lambda s: RunnerOutcome(status=OperationStatus.SUCCEEDED, message="ok"),
+            )
+        except BaseException as exc:
+            t2_errors.append(exc)
+
+    t1 = threading.Thread(target=run_t1)
+    t1.start()
+    inside_runner.wait(timeout=5)
+
+    t2 = threading.Thread(target=run_t2)
+    t2.start()
+    t2.join(timeout=5)
+
+    assert len(t2_errors) == 1, "Concurrent call should raise InstallerError."
+    assert isinstance(t2_errors[0], InstallerError)
+
+    allow_finish.set()
+    t1.join(timeout=5)
+    assert not t1_errors, f"First thread should succeed: {t1_errors}"
+
+
+# ---------------------------------------------------------------------------
+# 9. Symlinked .stackwinnow directory — rejected before lock creation
+# ---------------------------------------------------------------------------
+
+
+def test_project_lock_rejects_symlinked_managed_directory(tmp_path):
+    """When .stackwinnow is a symlink, project_lock raises ProjectLockError immediately."""
+    external = tmp_path / "external_dir"
+    external.mkdir()
+    managed = tmp_path / ".stackwinnow"
+    managed.symlink_to(external)
+
+    with pytest.raises(ProjectLockError, match="symlink"):
+        with project_lock(tmp_path):
+            pass
+
+    assert not (external / "operation.lock").exists(), (
+        "Lock file must not be created inside the symlink target."
+    )

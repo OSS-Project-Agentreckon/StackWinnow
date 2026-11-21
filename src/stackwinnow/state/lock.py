@@ -30,7 +30,23 @@ def project_lock(project_root: Path | str) -> Iterator[None]:
     receives :exc:`ProjectLockError` immediately — it never waits.
     """
     managed = Path(project_root) / _STATE_DIR
+    if managed.is_symlink():
+        raise ProjectLockError(
+            f"Managed directory '{managed}' is a symlink; refusing to acquire the lock. "
+            "Remove the symlink before retrying."
+        )
+    # Track whether we created the directory so we can remove it on the way out if
+    # nothing was written — otherwise a failed or dry run would leave an empty
+    # .stackwinnow/ behind that wasn't there before.
+    dir_created_here = not managed.exists()
     managed.mkdir(mode=0o700, exist_ok=True)
+    # Second check closes the TOCTOU window between the first is_symlink() and mkdir():
+    # a racing attacker could replace the path with a symlink in that gap.
+    if managed.is_symlink():
+        raise ProjectLockError(
+            f"Managed directory '{managed}' is a symlink; refusing to acquire the lock. "
+            "Remove the symlink before retrying."
+        )
     lock_path = managed / _LOCK_FILE
     if lock_path.is_symlink():
         raise ProjectLockError(
@@ -44,6 +60,8 @@ def project_lock(project_root: Path | str) -> Iterator[None]:
             0o600,
         )
     except OSError as exc:
+        # O_NOFOLLOW raises ELOOP on Linux when the path is a symlink; handle
+        # it the same way as the explicit is_symlink() check above.
         if exc.errno == errno.ELOOP:
             raise ProjectLockError(
                 f"Lock path '{lock_path}' is a symlink; refusing to acquire. "
@@ -59,3 +77,10 @@ def project_lock(project_root: Path | str) -> Iterator[None]:
         yield
     finally:
         lock_path.unlink(missing_ok=True)
+        if dir_created_here:
+            try:
+                # rmdir() fails silently if the directory is non-empty, so this is
+                # safe: it only removes the directory when nothing was persisted there.
+                managed.rmdir()
+            except OSError:
+                pass

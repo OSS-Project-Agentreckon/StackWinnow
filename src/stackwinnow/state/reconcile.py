@@ -15,6 +15,7 @@ never modifies the record, removes receipts, or touches the filesystem.
 
 from __future__ import annotations
 
+import hashlib
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -22,6 +23,7 @@ from typing import TYPE_CHECKING, Literal
 from pydantic import Field
 
 from stackwinnow.contracts import (
+    ConfigPatch,
     Contract,
     Identifier,
     InstallPlan,
@@ -39,6 +41,22 @@ def _owned_path_exists(p: str, project_root: str) -> bool:
     if not path.is_absolute():
         path = Path(project_root) / path
     return path.exists()
+
+
+def _config_still_matches(patch: ConfigPatch, project_root: str) -> bool:
+    file_path = Path(project_root) / patch.relative_path
+    if patch.written_file.exists:
+        if not file_path.is_file():
+            return False
+        if patch.written_file.sha256 is not None:
+            try:
+                return (
+                    hashlib.sha256(file_path.read_bytes()).hexdigest() == patch.written_file.sha256
+                )
+            except OSError:
+                return False
+        return True
+    return not file_path.exists()
 
 
 class ReconcileAction(StrEnum):
@@ -112,9 +130,9 @@ def reconcile_step(
         )
 
     if receipt.status == OperationStatus.SUCCEEDED:
-        # Verify that at least one owned path still exists on disk.  A step that
-        # wrote no owned paths (e.g. a config-only step) is trusted by receipt alone.
-        if receipt.owned_paths and not any(
+        # all() not any(): a partial uninstall (some paths removed) must also trigger
+        # a retry — any() would skip the step as long as one owned path survived.
+        if receipt.owned_paths and not all(
             _owned_path_exists(p, project_root) for p in receipt.owned_paths
         ):
             return StepReconciliation(
@@ -123,9 +141,19 @@ def reconcile_step(
                 action=ReconcileAction.RETRY,
                 stale=True,
                 message=(
-                    f"Receipt records '{step.tool_id}' as installed but all owned paths "
-                    "are missing; reinstalling to restore consistent state."
+                    f"Receipt records '{step.tool_id}' as installed but not all owned paths "
+                    "exist; reinstalling to restore consistent state."
                 ),
+            )
+        # Stale when any recorded config value has been modified since it was written.
+        if receipt.configuration_ownership and not all(
+            _config_still_matches(patch, project_root) for patch in receipt.configuration_ownership
+        ):
+            return StepReconciliation(
+                step_id=step.step_id,
+                tool_id=step.tool_id,
+                action=ReconcileAction.RETRY,
+                message=f"Configuration written by '{step.tool_id}' has been modified; re-applying.",
             )
         return StepReconciliation(
             step_id=step.step_id,

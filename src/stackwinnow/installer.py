@@ -6,6 +6,7 @@ in an understandable state. Dry runs never touch the filesystem.
 
 from __future__ import annotations
 
+import hashlib
 import os
 import tempfile
 from collections.abc import Callable, Mapping
@@ -27,6 +28,7 @@ from stackwinnow.contracts import (
     PlanStep,
     UntrimmedText,
 )
+from stackwinnow.state.lock import ProjectLockError, project_lock
 
 _STATE_DIR = ".stackwinnow"
 _RECEIPTS_FILE = "receipts.json"
@@ -162,6 +164,22 @@ def _now() -> str:
     return datetime.now(UTC).isoformat()
 
 
+def _config_still_matches(patch: ConfigPatch, project_root: str) -> bool:
+    file_path = Path(project_root) / patch.relative_path
+    if patch.written_file.exists:
+        if not file_path.is_file():
+            return False
+        if patch.written_file.sha256 is not None:
+            try:
+                return (
+                    hashlib.sha256(file_path.read_bytes()).hexdigest() == patch.written_file.sha256
+                )
+            except OSError:
+                return False
+        return True
+    return not file_path.exists()
+
+
 def _record_step(record: ExecutionRecord, receipt: StepReceipt) -> None:
     """Replace any previous receipt for this step, then append the new one."""
     record.steps = [s for s in record.steps if s.step_id != receipt.step_id]
@@ -203,6 +221,27 @@ def execute_plan(
             ):
                 raise InstallerError("Configuration intent does not match the step's project/tool.")
             intents[step_id].append(checked)
+    if dry_run:
+        # Dry runs never touch disk, so there is nothing to serialise; skip the
+        # lock to avoid creating an empty .stackwinnow/ directory as a side-effect.
+        return _run_locked(plan, intents, dry_run=True, step_runner=step_runner)
+    try:
+        with project_lock(plan.project_root):
+            return _run_locked(plan, intents, dry_run=False, step_runner=step_runner)
+    except ProjectLockError as exc:
+        # Re-raise as InstallerError so callers only need to handle one error type
+        # from this function; ProjectLockError remains the public type for direct
+        # project_lock() usage.
+        raise InstallerError(str(exc)) from exc
+
+
+def _run_locked(
+    plan: InstallPlan,
+    intents: dict[str, list[ConfigPatch]],
+    *,
+    dry_run: bool,
+    step_runner: StepRunner | None,
+) -> tuple[ExecutionRecord, list[OperationResult]]:
     record = load_record(plan.project_root)
     results: list[OperationResult] = []
 
@@ -213,17 +252,22 @@ def execute_plan(
         # the discrepancy and re-run the step instead of silently skipping it.
         if record.is_succeeded(step.step_id, step.tool_id):
             succeeded_receipt = record.receipt_for(step.step_id)
-            if (
-                succeeded_receipt is not None
-                and succeeded_receipt.owned_paths
-                and not any(
+            stale = False
+            if succeeded_receipt is not None:
+                # Use all() so a partial uninstall (some but not all owned paths
+                # removed) is still caught — any() would silently skip the step
+                # as long as one path survived.
+                if succeeded_receipt.owned_paths and not all(
                     (Path(p) if Path(p).is_absolute() else Path(plan.project_root) / p).exists()
                     for p in succeeded_receipt.owned_paths
-                )
-            ):
-                # Stale: fall through so the step is re-executed below.
-                pass
-            else:
+                ):
+                    stale = True
+                elif succeeded_receipt.configuration_ownership and not all(
+                    _config_still_matches(patch, plan.project_root)
+                    for patch in succeeded_receipt.configuration_ownership
+                ):
+                    stale = True
+            if not stale:
                 result = OperationResult(
                     status=OperationStatus.SKIPPED,
                     message=f"Step '{step.step_id}' already completed in a previous run.",
@@ -232,6 +276,7 @@ def execute_plan(
                 )
                 results.append(result)
                 continue
+            # Stale: fall through so the step is re-executed below.
         # -----------------------------------------------------------------
 
         if dry_run:
