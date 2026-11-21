@@ -27,8 +27,8 @@ The StackWinnow adapter uses the Python library mode:
 from headroom import compress
 
 result = compress(messages, model="gpt-4o")
-print(result.messages)       # compressed message list
-print(result.tokens_saved)   # integer (may be 0 for short inputs)
+print(result.messages)  # compressed message list
+print(result.tokens_saved)  # integer (may be 0 for short inputs)
 ```
 
 The adapter installs `headroom-ai` in an isolated Python virtualenv under
