@@ -4,6 +4,52 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 13 continuation: locked execution preparation
+
+On 21 November, PR #12 is merged as main `f8b826a`; its final repair passed
+both hosted Python jobs. Branch `feat/graphify-managed-execution` implements
+the first follow-up boundary: validated, read-only execution preparation.
+
+- Adds `graphify execution-plan PROJECT --expectation FILE --json` and
+  `graphify validate-plan FILE`. The original recipe preview is preserved.
+- Locks 31 wheel artifacts for CPython 3.11/macOS 14+ arm64. The bundled lock
+  is digest-checked and validates dependency closure, distribution identity and
+  target wheel compatibility. Downloads and hashes for all 31 artifacts were
+  verified, and their actual wheel METADATA matched the recorded requirements.
+  See [lock evidence](evidence/graphify-lock.json). Dependency-license acceptance
+  and a real managed installation are not established by this download check.
+- Binds plans to explicit relationship source hashes, the receipt digest,
+  runtime identity and fixed recipe fields. Bounded/no-follow reads reject
+  unsafe inputs; changed inputs and modified recipes require a new plan.
+  Existing Graphify paths/real receipts require the pending reconciliation work.
+- No execution, ownership, installation or Codex connection is claimed.
+  `ready_to_apply` remains false. Shared verification is available through
+  merged PR #13; registering Graphify there remains a subsequent change.
+
+The scope follows the first meaningful commit in the local continuation plan.
+PR #14's state/resume implementation is still open at inspection time. Current
+main skips prior successful executor steps without reconciling their live state,
+and the runner still has an unbounded post-timeout pipe drain. Managed apply
+awaits reviewed locking/reconciliation and bounded runner support; this change
+does not duplicate B's state engine or alter C's configuration ownership models.
+
+Baseline: **722 passed, 5 opt-in skips** on Python 3.11.14. Implementation,
+research and documentation were AI-assisted. No hosted result is claimed for
+this continuation. Final rebuilt-package validation:
+**764 passed, 5 opt-in skips** on Python 3.11.14 with warnings treated as errors;
+Ruff lint/format, dependency compatibility and diff checks passed. The existing
+real indexing/client integration cases were not rerun for this planning-only
+behavior. The separate dependency download/metadata check above was executed.
+
+PR #15 review follow-up: the bounded reader now tracks the final file descriptor
+in its cleanup list and uses a non-owning stream. Stream-construction failures
+therefore close both file and directory descriptors without double-closing.
+Regression cases cover successful reads, simulated fdopen failure, a real
+directory input and oversized files; the two construction-failure cases failed
+against the original code. Rebuilt-package validation: **768 passed, 5 opt-in
+skips** on Python 3.11.14 with warnings treated as errors; Ruff lint/format and
+diff checks passed. This is a resource-cleanup fix within step 13.
+
 ## Step 13 / Person A: Graphify preview and relationship evidence
 
 On 21 November, work started on `feat/graphify-onboarding` from main `ef300a5`.
