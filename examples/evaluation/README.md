@@ -1,9 +1,9 @@
 # Project evaluation example
 
 Use a disposable project directory with the installed `stackwinnow` command.
-Read the [promptfoo integration gate and prerequisites](../../docs/integrations/promptfoo.md)
-first: this branch requires the reviewed shared runner before normal apply can
-execute. Planning and dry-run work without it.
+Read the [promptfoo prerequisites and limits](../../docs/integrations/promptfoo.md)
+first. The integrated runner supports this initial adapter on macOS arm64 with
+Node 24 and npm. Planning and dry-run execute no commands.
 
 ```sh
 mkdir "evaluation demo"
@@ -32,6 +32,18 @@ Expect CLI exit **1**, `status: failed`, and two assertion failures with upstrea
 process exit **100**. This verifies that the manager detects bad results. For a
 fresh successful evaluation, create another default plan; the same owned install
 and configuration are reused. Replaying an attempted plan is blocked.
+
+To verify that existing setup without installation or configuration changes:
+
+```sh
+stackwinnow check "evaluation demo" --tool promptfoo --json
+stackwinnow check "evaluation demo" --tool promptfoo --run-functional --json
+```
+
+The read-only command reports `functional: not_run` and exits **1**. The second
+command checks both known results afresh and exits **0** when ready. Both
+report `connected: not_applicable` for the standalone provider. Details are in
+[verification](../../docs/verification.md).
 
 The configuration references the provider bundled with your installed
 StackWinnow package. Keep generated machine-specific plans and `.stackwinnow/`

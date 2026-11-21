@@ -6,10 +6,10 @@ import json
 import os
 import subprocess
 import sys
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
+from promptfoo_fakes import FakeCommands
 from pydantic import ValidationError
 
 from stackwinnow.adapters import promptfoo as adapter
@@ -18,94 +18,6 @@ from stackwinnow.contracts import ConfigApplyResult, OperationResult
 from stackwinnow.installer import load_record
 
 pytestmark = pytest.mark.skipif(os.name != "posix", reason="POSIX configuration writer")
-
-
-@dataclass
-class CommandResult:
-    returncode: int = 0
-    stdout: str = ""
-    stderr: str = ""
-    timed_out: bool = False
-
-    @property
-    def succeeded(self) -> bool:
-        return self.returncode == 0 and not self.timed_out
-
-
-class FakeCommands:
-    def __init__(self) -> None:
-        self.calls: list[tuple[list[str], Path, dict[str, str]]] = []
-        self.install_exit = 0
-        self.node_version = "v24.13.1\n"
-        self.tool_version = adapter.VERSION
-        self.report_change = lambda report: report
-        self.eval_exit: int | None = None
-        self.timed_out = False
-
-    def __call__(self, args, *, cwd, timeout, extra_env=None):
-        assert isinstance(args, list) and timeout > 0
-        self.calls.append((args, Path(cwd), dict(extra_env or {})))
-        if args == ["/declared/node", "--version"]:
-            return CommandResult(stdout=self.node_version)
-        if args[1] == "install":
-            assert args[-1] == "promptfoo@0.125.1"
-            assert {"--save-exact", "--ignore-scripts", "--no-audit", "--no-fund"} <= set(args)
-            if self.install_exit:
-                return CommandResult(self.install_exit, stderr="synthetic install failure")
-            prefix = Path(args[args.index("--prefix") + 1])
-            package = prefix / "node_modules/promptfoo"
-            (package / "dist/src").mkdir(parents=True)
-            (package / "dist/src/entrypoint.js").write_text("// offline test double\n")
-            (package / "package.json").write_text(
-                json.dumps({"name": "promptfoo", "version": adapter.VERSION, "license": "MIT"})
-            )
-            (prefix / "node_modules/.package-lock.json").write_text(
-                json.dumps(
-                    {
-                        "packages": {
-                            "node_modules/promptfoo": {
-                                "version": adapter.VERSION,
-                                "integrity": adapter.INTEGRITY,
-                            }
-                        }
-                    }
-                )
-            )
-            return CommandResult()
-        assert args[1].endswith("/promptfoo/dist/src/entrypoint.js")
-        if args[-1] == "--version":
-            return CommandResult(stdout=self.tool_version + "\n")
-        assert args[2] == "eval"
-        config = json.loads(Path(args[args.index("--config") + 1]).read_text())
-        assert [case["vars"]["input"] for case in config["tests"]] == ["hello", "world"]
-        failed = "stackwinnowFail=true" in args
-        report = {
-            "results": {
-                "version": 3,
-                "stats": {
-                    "successes": 0 if failed else 2,
-                    "failures": 2 if failed else 0,
-                    "errors": 0,
-                },
-                "results": [
-                    {
-                        "testIdx": index,
-                        "success": not failed,
-                        "response": {
-                            "output": "INTENTIONAL MISMATCH" if failed else output,
-                        },
-                    }
-                    for index, output in enumerate(["HELLO", "WORLD"])
-                ],
-            }
-        }
-        output = Path(args[args.index("--output") + 1])
-        output.write_text(json.dumps(self.report_change(report)))
-        code = self.eval_exit if self.eval_exit is not None else (100 if failed else 0)
-        return CommandResult(code, timed_out=self.timed_out)
-
-    def count(self, operation: str) -> int:
-        return sum(operation in args for args, _, _ in self.calls)
 
 
 @pytest.fixture
@@ -481,7 +393,12 @@ def test_configuration_cleanup_failure_keeps_ownership_and_stops_evaluation(
     assert result.status == "failed" and commands.count("eval") == 0
     assert result.record.steps[-1].configuration_ownership == [result.plan.configuration]
     assert (tmp_path / result.plan.configuration.relative_path).exists()
-    assert not adapter.plan_promptfoo(tmp_path).configuration.edits
+    plan = adapter.plan_promptfoo(tmp_path)
+    assert not plan.configuration.edits
+    verification = adapter.evaluate_existing_promptfoo(plan, command_runner=commands)
+    assert verification.status == "succeeded"
+    assert commands.count("install") == commands.count("eval") == 1
+    assert verification.record.steps[-2] == result.record.steps[-1]
 
 
 @pytest.mark.parametrize(
@@ -614,7 +531,7 @@ def test_overlapping_apply_rechecks_receipts_under_lock(tmp_path, commands):
     assert delayed.status == "blocked" and "already attempted" in delayed.message
     assert delayed.evaluation is None and delayed.results == []
     assert commands.count("install") == commands.count("eval") == 1
-    assert adapter.load_record(plan.project_root) == completed[0].record
+    assert load_record(plan.project_root) == completed[0].record
     assert not (tmp_path / ".stackwinnow/promptfoo.lock").exists()
 
 
@@ -641,7 +558,7 @@ def test_success_requires_a_fresh_evaluation(tmp_path, commands, monkeypatch):
     plan = adapter.plan_promptfoo(tmp_path)
 
     def skip_steps(installation, **kwargs):
-        return adapter.load_record(installation.project_root), [
+        return load_record(installation.project_root), [
             OperationResult(status="skipped", message="Already completed.", step_id=step.step_id)
             for step in installation.steps
         ]

@@ -44,6 +44,7 @@ def test_help_is_available_without_a_project(tmp_path: Path, args: tuple[str, ..
     assert "inspect" in result.stdout
     assert "recommend" in result.stdout
     assert "promptfoo" in result.stdout
+    assert "check" in result.stdout
     assert "Promptfoo execution requires the shared runner" in " ".join(result.stdout.split())
     assert result.stderr == ""
     assert list(tmp_path.iterdir()) == []
@@ -56,6 +57,21 @@ def test_version_matches_installed_distribution(tmp_path: Path) -> None:
     assert result.stdout.strip() == f"stackwinnow {version('stackwinnow')}"
     assert result.stderr == ""
     assert list(tmp_path.iterdir()) == []
+
+
+def test_check_installed_cli_reports_missing_setup_outside_checkout(tmp_path: Path) -> None:
+    project = tmp_path / "selected project "
+    project.mkdir()
+    result = run_cli(tmp_path, "check", str(project), "--tool", "promptfoo", "--json")
+    assert result.returncode == 1 and result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["project_root"] == str(project.resolve())
+    assert payload["ready"] is False and payload["status"] == "failed"
+    checks = {item["kind"]: item for item in payload["tools"][0]["checks"]}
+    assert checks["installed"]["code"] == "installation-missing"
+    assert checks["connected"]["status"] == "not_applicable"
+    assert checks["functional"]["status"] == "blocked"
+    assert list(project.iterdir()) == []
 
 
 @pytest.mark.parametrize("args", [("install", "headroom"), ("--unknown-option",)])

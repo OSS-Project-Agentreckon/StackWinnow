@@ -18,6 +18,7 @@ from stackwinnow.adapters.promptfoo import (
     plan_promptfoo,
 )
 from stackwinnow.installer import load_record
+from stackwinnow.verify import check_project
 
 pytestmark = pytest.mark.integration
 
@@ -38,7 +39,7 @@ def real_runner(tmp_path, subprocess_env):
     return runner
 
 
-def test_real_install_evaluate_failure_and_repeat(fixture_project, real_runner):
+def test_real_onboarding_and_verification_pass_failure_repeat(fixture_project, real_runner):
     root = fixture_project.root.resolve()
     (root / "package.json").write_text('{"private":true,"name":"preserved-project"}\n')
     (root / ".npmrc").write_text("registry=http://127.0.0.1:9/do-not-read\n")
@@ -56,9 +57,10 @@ def test_real_install_evaluate_failure_and_repeat(fixture_project, real_runner):
             fixture_project.settings,
         )
     }
-    install_commands = []
+    install_commands, commands = [], []
 
     def observe(args, **kwargs):
+        commands.append(args)
         if "install" in args:
             install_commands.append(args)
         assert "OPENAI_API_KEY" not in (kwargs.get("extra_env") or {})
@@ -87,6 +89,53 @@ def test_real_install_evaluate_failure_and_repeat(fixture_project, real_runner):
         data = json.loads(Path(result.evaluation.result_path).read_text())
         assert data.get("shareableUrl") is None
         assert data["results"]["stats"]["tokenUsage"]["total"] == 0
+
+    # Stored onboarding evidence never substitutes for a fresh functional check.
+    receipt_path = root / ".stackwinnow/receipts.json"
+    configuration_path = root / positive.plan.configuration.relative_path
+    stable_paths = [
+        configuration_path,
+        root / NODE_PREFIX / "node_modules/promptfoo/package.json",
+        root / NODE_PREFIX / "node_modules/.package-lock.json",
+    ]
+    stable = {path: (path.read_bytes(), path.stat().st_mtime_ns) for path in stable_paths}
+    receipt_before, calls_before = receipt_path.read_bytes(), list(commands)
+    read_only = check_project(root, tool_ids=["promptfoo"], command_runner=observe)
+    assert not read_only.ready and read_only.status == "not_run"
+    assert receipt_path.read_bytes() == receipt_before and commands == calls_before
+    checks = []
+    for scenario in ("pass", "fail", "pass"):
+        report = check_project(
+            root,
+            tool_ids=["promptfoo"],
+            run_functional=True,
+            scenario=scenario,
+            command_runner=observe,
+        )
+        assert report.ready == (scenario == "pass"), report.model_dump_json(indent=2)
+        states = {item.kind: item for item in report.tools[0].checks}
+        assert states["installed"].status == states["configured"].status == "succeeded"
+        assert states["connected"].status == "not_applicable"
+        evidence = Path(states["functional"].evidence[0].source)
+        data = json.loads(evidence.read_text())
+        assert data["results"]["stats"]["successes"] == (2 if scenario == "pass" else 0)
+        assert data["results"]["stats"]["failures"] == (0 if scenario == "pass" else 2)
+        assert data["results"]["stats"]["errors"] == 0
+        assert data["results"]["stats"]["tokenUsage"]["total"] == 0
+        assert data.get("shareableUrl") is None
+        checks.append(evidence)
+    record = load_record(str(root))
+    assert len(install_commands) == 1 and sum("eval" in args for args in commands) == 6
+    assert len(record.steps) == 12
+    assert all(step.step_id.endswith("-evaluate") for step in record.steps[-3:])
+    assert [step.status for step in record.steps[-3:]] == ["succeeded", "failed", "succeeded"]
+    assert record.steps[:9] == repeat.record.steps
+    prior_reports = {Path(result.evaluation.result_path) for result in (positive, negative, repeat)}
+    assert len(set(checks)) == 3 and set(checks).isdisjoint(prior_reports)
+    assert all(
+        (path.read_bytes(), path.stat().st_mtime_ns) == state for path, state in stable.items()
+    )
+    assert all(path.read_bytes() == original for path, original in preserved.items())
 
 
 @pytest.mark.requires_provider
