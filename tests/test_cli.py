@@ -352,6 +352,60 @@ def test_graphify_cli_does_not_echo_corrupt_receipt_values(tmp_path: Path):
     assert "Traceback" not in result.stderr
 
 
+def test_graphify_execution_plan_installed_roundtrip_and_stale_source(tmp_path: Path):
+    project = tmp_path / "source project"
+    project.mkdir()
+    source = project / "recursive.py"
+    source.write_text("def recurse(): return recurse()\n")
+    expectation = tmp_path / "expectation.json"
+    expectation.write_text(
+        json.dumps(
+            {
+                "caller_file": "recursive.py",
+                "callee_file": "recursive.py",
+                "caller_label": "recurse()",
+                "callee_label": "recurse()",
+            }
+        )
+    )
+    args = ("graphify", "execution-plan", str(project), "--expectation", str(expectation))
+    result = run_cli(tmp_path, *args, "--json")
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["phase"] == "execution-preparation"
+    assert payload["ready_to_apply"] is False
+    assert payload["target"] == "cpython311-macos14-arm64"
+    assert len(payload["sources"]) == 1
+    assert result.stdout.count('"schema_version"') == 1
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(result.stdout)
+    validated = run_cli(tmp_path, "graphify", "validate-plan", str(plan_file), "--json")
+    assert validated.returncode == 0, validated.stderr
+    assert json.loads(validated.stdout) == payload
+    human = run_cli(tmp_path, *args)
+    assert human.returncode == 0 and "Apply: unavailable" in human.stdout
+    assert "No commands, downloads, or project writes" in human.stdout
+    assert list(project.iterdir()) == [source]
+    source.write_text("def recurse(): return None\n")
+    stale = run_cli(tmp_path, "graphify", "validate-plan", str(plan_file))
+    assert stale.returncode == 2 and "stale" in stale.stderr
+    assert "Traceback" not in stale.stderr
+    assert list(project.iterdir()) == [source]
+
+
+@pytest.mark.parametrize("command", ["execution-plan", "validate-plan"])
+def test_graphify_plan_cli_sanitizes_invalid_json(tmp_path: Path, command):
+    path = tmp_path / "private.json"
+    path.write_text('{"private":"synthetic-secret"}')
+    args = (
+        (str(tmp_path), "--expectation", str(path)) if command == "execution-plan" else (str(path),)
+    )
+    result = run_cli(tmp_path, "graphify", command, *args, "--json")
+    assert result.returncode == 2
+    assert "synthetic-secret" not in result.stdout + result.stderr
+    assert "Traceback" not in result.stderr
+
+
 def test_recommend_installed_cli_explains_selection_and_project_evidence(tmp_path: Path) -> None:
     manifest = tmp_path / "package.json"
     manifest.write_text('{"devDependencies":{"promptfoo":"0.125.1"}}')

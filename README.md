@@ -105,6 +105,14 @@ install or configure tools; `ready_to_apply` remains false. The
 [Graphify guide](docs/integrations/graphify.md) documents the real known-relationship
 probe and the pending configuration/verification integration.
 
+For the next managed-execution slice, `graphify execution-plan PROJECT
+--expectation expected.json --json` prepares a separate plan with hash-pinned
+dependency wheels and explicit relationship source hashes. `graphify validate-plan
+plan.json` rechecks saved inputs without execution. Both remain read-only;
+managed apply and Codex connectivity are pending. The locked dependency target is
+macOS 14+ arm64 with CPython 3.11. See the guide for the expectation format and
+the distinction between plan validation and working integration.
+
 ## Browse the catalog
 
 `catalog list` sorts entries by tool ID. Use `--category` to filter by context,
