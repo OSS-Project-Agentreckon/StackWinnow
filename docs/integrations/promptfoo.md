@@ -6,14 +6,14 @@ The default provider is a small StackWinnow JavaScript fixture that converts tex
 to uppercase. It makes no model calls and requires no API key. Passing these
 cases demonstrates installation and evaluation mechanics, not LLM quality.
 
-**Integration gate:** this branch starts from main `fa3616e`, which has the
-executor and configuration API but lacks the shared command runner.
-[PR #6](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/6) supplies that
-dependency and has outstanding review findings. Planning and dry runs work now;
-normal apply returns `blocked` before writing if the runner is absent.
-The adapter accepts an injected runner for testing. Acceptance with an unmerged
-runner is recorded separately from readiness of the default CLI. The catalog
-continues to report promptfoo as `catalog_only` until integration is complete.
+**Current integration:** [PR #6](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/6)
+merged on 21 November at `761c5b3`, so normal apply can use the shared runner on
+the declared environment. The earlier injected-runner results remain historical
+evidence. Its reproduced timeout, generic managed-environment confinement, and
+plural-secret-name redaction findings were not fixed by that merge; see
+[implementation progress](../implementation-progress.md). The adapter retains
+its own path and credential gates. Successful fixture acceptance does not
+resolve those runner findings. The catalog remains `catalog_only`.
 
 ## Release and environment
 
@@ -86,6 +86,21 @@ does not rehash the entire installed dependency tree. Existing unowned
 configurations/prefixes are blocked. Changes to
 owned configuration bytes or permissions require inspection rather than an
 automatic overwrite. Use a fresh project when recovery is unclear.
+
+For an existing owned setup, `check` performs verification without repeating the
+install/configure steps:
+
+```sh
+stackwinnow check ./my-project --tool promptfoo --json
+stackwinnow check ./my-project --tool promptfoo --run-functional --json
+stackwinnow check ./my-project --tool promptfoo --run-functional --scenario fail
+```
+
+The first command is read-only and leaves functionality `not_run` (exit 1).
+Each functional check records one new evaluation receipt and requires a fresh
+result; it never rewrites the owned configuration or invokes npm. See
+[verification](../verification.md) for separate states, evidence, exit statuses,
+and optional hosted-provider checks.
 
 ## Managed files and receipts
 
@@ -190,4 +205,5 @@ See [testing](../testing.md) for default versus opt-in checks and
 [implementation progress](../implementation-progress.md) for dated results.
 The real test installs into a copied fixture with spaces in its path, preserves
 unrelated settings/manifests/default tool configuration, and runs positive,
-negative, and repeat evaluations. Skips are reported as skips, not passes.
+negative, and repeat evaluations, followed by fresh verification of the existing
+setup. Skips are reported as skips, not passes.

@@ -28,6 +28,34 @@ from stackwinnow.catalog import (
 from stackwinnow.configure import ConfigurationError
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
 from stackwinnow.recommend import RecommendationError, RecommendationResult, recommend_tools
+from stackwinnow.verify import VerificationError, check_project
+
+
+def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        report = check_project(
+            args.project_root,
+            tool_ids=args.tool,
+            run_functional=args.run_functional,
+            provider=args.provider,
+            scenario=args.scenario,
+            allow_provider_usage=args.allow_provider_usage,
+        )
+    except (VerificationError, CatalogError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    if args.json:
+        print(json.dumps(report.as_payload(), indent=2))
+    else:
+        print(f"Project: {report.project_root}")
+        print(f"Verification: {report.status}; ready: {'yes' if report.ready else 'no'}")
+        for tool in report.tools:
+            print(f"{tool.tool_id} (connection scope: {tool.connection_scope})")
+            for check in tool.checks:
+                print(f"  [{check.status}] {check.kind}: {check.message}")
+                for evidence in check.evidence:
+                    print(f"    Evidence: {evidence.source}")
+    return 0 if report.ready else 1
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -268,6 +296,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    checking = commands.add_parser(
+        "check",
+        help="Verify selected tools without installing or changing their configuration.",
+        allow_abbrev=False,
+    )
+    checking.add_argument("project_root", help="Existing project directory.")
+    checking.add_argument(
+        "--tool",
+        action="append",
+        required=True,
+        help="Catalog tool ID to check; repeat for multiple tools.",
+    )
+    checking.add_argument(
+        "--run-functional",
+        action="store_true",
+        help="Execute a fresh check and record results; never install or configure.",
+    )
+    checking.add_argument(
+        "--provider", choices=["deterministic", "openai"], default="deterministic"
+    )
+    checking.add_argument(
+        "--scenario",
+        choices=["pass", "fail"],
+        default="pass",
+        help="Optional deliberate failure for the local functional check.",
+    )
+    checking.add_argument(
+        "--allow-provider-usage",
+        action="store_true",
+        help="Permit the configured hosted provider calls and possible charges.",
+    )
+    checking.add_argument(
+        "--json", action="store_true", help="Emit observations and derived readiness."
+    )
     promptfoo = commands.add_parser(
         "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
     )
@@ -339,6 +401,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _recommend(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
+    if args.command == "check":
+        return _check_project(args, parser)
     if args.catalog_command is None:
         catalog_parser.print_help()
         return 0

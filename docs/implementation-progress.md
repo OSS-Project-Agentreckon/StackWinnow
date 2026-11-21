@@ -4,6 +4,86 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 12 / person C's fourth planned contribution
+
+Current base is fetched main **`ef300a5`** on 21 November. PRs #1–10 are now
+merged. The runner (#6 at `761c5b3`), promptfoo (#8 at `eccc351`), recommendations
+(#9 at `dd401e7`), and preflight (#10 at `0193be4`) are in this branch. Step 12's
+direct dependencies (1, 3, 8, 9, 11) are therefore available. Older entries below
+describe their original branches and validation dates, not current PR status.
+
+`feat/verification-states` implements
+`feat(verify): report installed connected and functional states`:
+
+- Adds `stackwinnow.verify.check_project()` and `stackwinnow check PROJECT
+  --tool TOOL`, with human/JSON output and separate installed, configured,
+  connected, and functional observations. Status/readiness are derived from
+  every selected tool's results. Unknown IDs are input errors; known tools
+  without a verifier return blocked.
+- Default checks read owned metadata/configuration without commands, network,
+  or writes. Prior successful reports cannot establish current functionality.
+  `--run-functional` checks the existing promptfoo installation and configuration,
+  runs a fresh evaluation, and records one evaluation receipt. It neither
+  reinstalls packages nor rewrites the evaluation configuration.
+- Reuses pinned artifact checks, ownership validation, lock/revalidation,
+  isolated runtime, executor, and report parser. Missing/changed/unowned setup,
+  unsafe paths, corrupt/dry-run/duplicate receipts, unavailable execution,
+  and stale/missing/invalid reports cannot become a ready result.
+- The local provider has `connection_scope: standalone` and connection
+  `not_applicable`. OpenAI checks use the already-owned explicit model, need
+  separate provider opt-in plus a credential, and distinguish actual provider
+  responses from correct assertions. No coding-assistant connectivity is claimed.
+- Exercises the merged preflight API independently of functional verification:
+  a managed-installation verdict cannot override changed configuration or a
+  failed evaluation. The unified discovery/plan/apply/check journey is still
+  planned in step 16. Catalog entries remain `catalog_only`.
+
+Usage, state semantics, evidence, effects, and exit codes are documented in
+[verification](verification.md). The public adapter keeps its existing
+plan/apply interface and adds `evaluate_existing_promptfoo()` for evaluation
+without setup. The shared offline command double avoids duplicating the
+adapter fixture. Source, tests, and documentation were AI-assisted; the
+contributor should review and understand their behavior and evidence.
+
+Local validation on 21 November:
+
+| Check | Result |
+| --- | --- |
+| Full default suite, Python 3.11.14 | **630 passed, 2 explicitly skipped**, warnings treated as errors |
+| Full default suite, Python 3.14.0 | **630 passed, 2 explicitly skipped**, warnings treated as errors |
+| Focused adapter/verification/CLI suite | **180 passed** |
+| Ruff lint/format and both dependency checks | Passed |
+| Built wheel in an isolated Python 3.11 installation | Passed: seven CLI invocations outside the checkout, model round trip, bundled provider, and unchanged target project |
+| Real onboarding and verification, merged runner | **1 passed, 1 provider test skipped** on macOS arm64 / Node 24.13.1 |
+| Fresh verification sequence | **2/2 passed → 0/2 passed (intentional failure) → 2/2 passed** |
+| Onboarding plus verification effects | One npm installation, twelve receipts, six distinct reports; configuration and unrelated files preserved |
+| Hosted provider calls | Not executed; offline coverage uses synthetic credentials/responses |
+
+The real acceptance used the integrated runner from this checkout. A local
+observing wrapper seeded its private npm cache with registry bytes from the
+previous verified artifact probe, then delegated unchanged install/version/
+evaluation commands to that runner. The run used the already-installed
+Node 24 runtime through a command-local PATH selection. It did not alter the
+user's default Node, call a paid provider, or modify personal assistant settings.
+All six result files record zero model tokens and no shared report URL.
+These are local results; hosted CI for this new contribution is not claimed.
+
+**Outstanding runner findings:** PR #6 merged at the unchanged revision
+previously reviewed in [review 5970066660](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/6#pullrequestreview-5970066660).
+An unbounded post-kill pipe drain can exceed the configured timeout; generic
+environment paths can escape through a tool-directory symlink or absolute tool
+ID; plural secret names such as `SERVICE_CREDENTIALS` and `CLIENT_SECRETS` are
+not redacted. The promptfoo adapter performs its own checked-path and credential
+routing validation, but successful happy-path acceptance does not fix these
+shared-runner defects. This contribution does not alter that teammate's runner.
+
+Commit accounting: base-main non-merge counts are **A: 9, B: 9, C: 5**. This is
+**one** new C work commit, making **A: 9, B: 9, C: 6**. C's four numbered
+contributions are steps **3, 6, 9, 12**; the two existing review-fix commits are
+additional work within steps 6 and 9. The 36/12-each target needs reconciliation
+of future meaningful boundaries; no artificial commits or history rewrites are
+used to equalize the current totals.
+
 ## Step 10 / Person A: local recommendation implementation
 
 Based on fetched main `9c245d4` (PR #8 merged), step 10 is implemented on

@@ -402,6 +402,12 @@ def _validate_plan(root: Path, plan: PromptfooPlan) -> None:
         raise PromptfooError(
             "This plan was already attempted. Create a new plan for a fresh evaluation."
         )
+    _validate_inputs(root, plan)
+
+
+def _validate_inputs(root: Path, plan: PromptfooPlan) -> None:
+    if str(_root(root)) != plan.project_root:
+        raise PromptfooError("The project path now resolves elsewhere; create a new plan.")
     expected = _build_plan(
         root,
         provider=plan.provider,
@@ -558,12 +564,26 @@ def _summary(path: Path, plan: PromptfooPlan, returncode: int) -> EvaluationSumm
     )
 
 
-def apply_promptfoo(
+def _require_existing_setup(root: Path, plan: PromptfooPlan) -> None:
+    record = _record(root)
+    if not _check_installation(root, record):
+        raise PromptfooError("Install promptfoo before requesting a functional check.")
+    state = root / STATE_PREFIX
+    if not state.is_dir() or not _has_path_ownership(record, state):
+        raise PromptfooError("The owned promptfoo runtime state is missing; review setup first.")
+    if not plan.configuration.expected_file.exists or plan.configuration.edits:
+        raise PromptfooError(
+            "A functional check requires the existing owned configuration unchanged."
+        )
+
+
+def _execute_promptfoo(
     plan: PromptfooPlan,
     *,
     dry_run: bool = False,
     allow_provider_usage: bool = False,
     command_runner: CommandRunner | None = None,
+    verification_only: bool = False,
 ) -> PromptfooResult:
     """Apply a reviewed plan. Paid provider execution needs an explicit separate opt-in."""
     checked = PromptfooPlan.model_validate_json(plan.model_dump_json())
@@ -576,6 +596,8 @@ def apply_promptfoo(
     try:
         root = _root(checked.project_root)
         _validate_plan(root, checked)
+        if verification_only:
+            _require_existing_setup(root, checked)
         if dry_run:
             record, results = execute_plan(checked.installation, dry_run=True)
             return PromptfooResult(
@@ -606,8 +628,12 @@ def apply_promptfoo(
                 return blocked("Set OPENAI_API_KEY explicitly for the requested provider run.")
         node = shutil.which("node")
         npm = shutil.which("npm")
-        if node is None or npm is None:
-            return blocked("Install Node 24 and npm before applying the promptfoo plan.")
+        if node is None or (npm is None and not verification_only):
+            return blocked(
+                "Install Node 24 before running the promptfoo check."
+                if verification_only
+                else "Install Node 24 and npm before applying the promptfoo plan."
+            )
         node = str(Path(node).resolve())
         environment = _environment(root, node)
         version = runner([node, "--version"], cwd=root, timeout=15, extra_env=environment)
@@ -700,6 +726,19 @@ def apply_promptfoo(
             _check_existing_configuration(
                 root, load_record(str(root)), checked.configuration.relative_path
             )
+            if verification_only:
+                version_check = runner(
+                    [node, str(entrypoint), "--version"],
+                    cwd=work,
+                    timeout=30,
+                    extra_env=environment,
+                )
+                if not version_check.succeeded or version_check.stdout.strip() != VERSION:
+                    return RunnerOutcome(
+                        status=OperationStatus.FAILED,
+                        message="Installed promptfoo could not confirm its pinned CLI version.",
+                    )
+                _validate_inputs(root, checked)
             result_path = root / STATE_PREFIX / "results" / f"{checked.run_id}.json"
             descriptor = os.open(
                 result_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600
@@ -728,6 +767,8 @@ def apply_promptfoo(
             outcome = runner(
                 command, cwd=work, timeout=120, extra_env=_environment(root, node, api_key=api_key)
             )
+            if verification_only:
+                _validate_inputs(root, checked)
             try:
                 evaluation = _summary(result_path, checked, outcome.returncode)
             except PromptfooError as exc:
@@ -762,12 +803,23 @@ def apply_promptfoo(
             # Preflight runs without the lock. A competing apply may have finished
             # while it ran, so re-read receipts and configuration before any step.
             _validate_plan(root, checked)
+            if verification_only:
+                _require_existing_setup(root, checked)
+            execution_plan = (
+                InstallPlan(
+                    project_root=checked.project_root,
+                    tool_ids=["promptfoo"],
+                    steps=[checked.installation.steps[-1]],
+                )
+                if verification_only
+                else checked.installation
+            )
             record, results = execute_plan(
-                checked.installation,
+                execution_plan,
                 step_runner=run_step,
-                configuration_intents={
-                    checked.installation.steps[1].step_id: [checked.configuration]
-                },
+                configuration_intents={}
+                if verification_only
+                else {checked.installation.steps[1].step_id: [checked.configuration]},
             )
         failures = [
             result
@@ -809,3 +861,34 @@ def apply_promptfoo(
             else "Project state or configuration changed; inspect the managed receipts and create a new plan."
         )
         return blocked(message)
+
+
+def apply_promptfoo(
+    plan: PromptfooPlan,
+    *,
+    dry_run: bool = False,
+    allow_provider_usage: bool = False,
+    command_runner: CommandRunner | None = None,
+) -> PromptfooResult:
+    """Apply a reviewed install/configure/evaluate plan."""
+    return _execute_promptfoo(
+        plan,
+        dry_run=dry_run,
+        allow_provider_usage=allow_provider_usage,
+        command_runner=command_runner,
+    )
+
+
+def evaluate_existing_promptfoo(
+    plan: PromptfooPlan,
+    *,
+    allow_provider_usage: bool = False,
+    command_runner: CommandRunner | None = None,
+) -> PromptfooResult:
+    """Run and record a fresh check without installing or changing configuration."""
+    return _execute_promptfoo(
+        plan,
+        allow_provider_usage=allow_provider_usage,
+        command_runner=command_runner,
+        verification_only=True,
+    )

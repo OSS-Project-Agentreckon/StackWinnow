@@ -1,6 +1,6 @@
 # Testing StackWinnow
 
-The default suite checks the implemented contracts/CLI/runtime, JSON configuration API, promptfoo adapter with command doubles, receipt handoff, and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
+The default suite checks the implemented contracts/CLI/runtime, JSON configuration API, promptfoo adapter and verification with command doubles, receipt handoff, preflight, recommendations, and reusable fixtures. It installs no Graphify, Headroom, promptfoo, Playwright, or browser; calls no model provider; and does not establish assistant integration support.
 
 ## Run local checks
 
@@ -58,11 +58,14 @@ Use `integration` for tests needing actual upstream tools/clients. `requires_pro
 | `python -m pytest --run-integration --run-provider` | Run | Run | Run |
 | `python -m pytest --run-provider` | Usage error | Usage error | Usage error |
 
-`tests/integration/test_promptfoo.py` contains a real install/evaluate/fail/repeat
-test and a separately gated OpenAI test. Both require the shared runner and the
-declared macOS arm64/Node 24 environment. In this branch, default execution is
-blocked because the runner from PR #6 is not yet integrated; the tests report
-that dependency as a skip. A skipped/unavailable check does not mean verified.
+`tests/integration/test_promptfoo.py` contains real onboarding and verification
+acceptance plus a separately gated OpenAI test. Both require the shared runner
+and the declared macOS arm64/Node 24 environment. The runner is now merged.
+Missing runtime/platform prerequisites are reported as skips, not successful
+verification. The main test runs positive, negative, and repeat onboarding, then
+read-only verification and three fresh checks (pass/fail/pass). It verifies one
+installation, twelve receipts, six distinct reports, unchanged owned config,
+preserved unrelated files, and no model tokens or shared reports.
 
 ```sh
 python -m pytest tests/integration/test_promptfoo.py --run-integration -rA
@@ -86,6 +89,22 @@ install/version commands never receive it. Adapter command-double tests verify
 this routing with synthetic values. They are not evidence of hosted model access.
 
 Strict markers/configuration catch misspelled markers and unknown pytest settings. Behavior changes should include their own relevant tests.
+
+## Verification regression coverage
+
+`tests/test_verification_states.py` covers missing/changed/unowned setup, read-only
+preservation, fresh pass/fail/repeat outcomes, missing prerequisites, malformed
+receipts, dry-run ownership, operation locks, changes during checks, and invalid
+or stale evidence. It verifies that installation/preflight success cannot imply
+connection or functionality. Unsupported selected tools prevent overall readiness.
+Synthetic hosted cases cover missing opt-in/credentials and distinguish provider
+responses from correct assertions. `tests/promptfoo_fakes.py` supplies the shared
+offline command double; none of its results are real provider evidence.
+
+Installed CLI tests run `check` outside the checkout and exercise structured
+results, human output, and exit codes. See [verification](verification.md) for
+the public contract and [implementation progress](implementation-progress.md) for
+dated local results and the merged runner's remaining limitations.
 
 ## Baseline and evidence
 
