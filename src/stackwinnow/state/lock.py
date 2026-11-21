@@ -7,6 +7,7 @@ creation; never follows symlinks on the lock path.
 
 from __future__ import annotations
 
+import errno
 import os
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -42,7 +43,12 @@ def project_lock(project_root: Path | str) -> Iterator[None]:
             os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW,
             0o600,
         )
-    except FileExistsError as exc:
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise ProjectLockError(
+                f"Lock path '{lock_path}' is a symlink; refusing to acquire. "
+                "Remove the symlink before retrying."
+            ) from exc
         raise ProjectLockError(
             "Another StackWinnow operation is active for this project. "
             "If no other process is running, remove "

@@ -17,11 +17,7 @@ import pytest
 from stackwinnow.contracts import InstallPlan, OperationStatus, PlanStep
 from stackwinnow.installer import (
     RunnerOutcome,
-    StepReceipt,
-    _now,
-    _persist,
     execute_plan,
-    load_record,
 )
 from stackwinnow.state import (
     ProjectLockError,
@@ -48,19 +44,15 @@ def _plan(root: str | Path, steps: list[dict] | None = None) -> InstallPlan:
 
 
 def _write_succeeded_receipt(root: Path, step: dict, owned_paths: list[str] | None = None) -> None:
-    """Inject a succeeded receipt without running the step."""
-    record = load_record(str(root))
-    record.steps.append(
-        StepReceipt(
-            step_id=step["step_id"],
-            tool_id=step["tool_id"],
+    """Seed a succeeded receipt via execute_plan."""
+    execute_plan(
+        _plan(root, steps=[step]),
+        step_runner=lambda s: RunnerOutcome(
             status=OperationStatus.SUCCEEDED,
             message="Pre-seeded succeeded receipt.",
-            timestamp=_now(),
             owned_paths=owned_paths or [],
-        )
+        ),
     )
-    _persist(record, project_root=str(root))
 
 
 def _write_failed_receipt(
@@ -68,18 +60,11 @@ def _write_failed_receipt(
     step: dict,
     message: str = "Step execution began but did not complete.",
 ) -> None:
-    """Inject a failed/interrupted receipt without running the step."""
-    record = load_record(str(root))
-    record.steps.append(
-        StepReceipt(
-            step_id=step["step_id"],
-            tool_id=step["tool_id"],
-            status=OperationStatus.FAILED,
-            message=message,
-            timestamp=_now(),
-        )
+    """Seed a failed receipt via execute_plan."""
+    execute_plan(
+        _plan(root, steps=[step]),
+        step_runner=lambda s: RunnerOutcome(status=OperationStatus.FAILED, message=message),
     )
-    _persist(record, project_root=str(root))
 
 
 # ---------------------------------------------------------------------------

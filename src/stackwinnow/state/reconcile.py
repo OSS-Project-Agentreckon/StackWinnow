@@ -34,6 +34,13 @@ if TYPE_CHECKING:
     from stackwinnow.installer import ExecutionRecord
 
 
+def _owned_path_exists(p: str, project_root: str) -> bool:
+    path = Path(p)
+    if not path.is_absolute():
+        path = Path(project_root) / path
+    return path.exists()
+
+
 class ReconcileAction(StrEnum):
     SKIP = "skip"
     RETRY = "retry"
@@ -80,7 +87,7 @@ def reconcile_step(
     """
     receipt = record.receipt_for(step.step_id)
 
-    if receipt is None or receipt.dry_run or receipt.tool_id != step.tool_id:
+    if receipt is None:
         return StepReconciliation(
             step_id=step.step_id,
             tool_id=step.tool_id,
@@ -88,10 +95,28 @@ def reconcile_step(
             message="No prior attempt recorded for this step.",
         )
 
+    if receipt.dry_run:
+        return StepReconciliation(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            action=ReconcileAction.FRESH,
+            message="Prior attempt was a dry run; treating as new.",
+        )
+
+    if receipt.tool_id != step.tool_id:
+        return StepReconciliation(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            action=ReconcileAction.FRESH,
+            message=f"Prior attempt used a different tool ('{receipt.tool_id}'); treating as new.",
+        )
+
     if receipt.status == OperationStatus.SUCCEEDED:
         # Verify that at least one owned path still exists on disk.  A step that
         # wrote no owned paths (e.g. a config-only step) is trusted by receipt alone.
-        if receipt.owned_paths and not any(Path(p).exists() for p in receipt.owned_paths):
+        if receipt.owned_paths and not any(
+            _owned_path_exists(p, project_root) for p in receipt.owned_paths
+        ):
             return StepReconciliation(
                 step_id=step.step_id,
                 tool_id=step.tool_id,

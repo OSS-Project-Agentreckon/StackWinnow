@@ -216,7 +216,10 @@ def execute_plan(
             if (
                 succeeded_receipt is not None
                 and succeeded_receipt.owned_paths
-                and not any(Path(p).exists() for p in succeeded_receipt.owned_paths)
+                and not any(
+                    (Path(p) if Path(p).is_absolute() else Path(plan.project_root) / p).exists()
+                    for p in succeeded_receipt.owned_paths
+                )
             ):
                 # Stale: fall through so the step is re-executed below.
                 pass
