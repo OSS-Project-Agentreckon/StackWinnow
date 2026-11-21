@@ -207,15 +207,29 @@ def execute_plan(
     results: list[OperationResult] = []
 
     for index, step in enumerate(plan.steps):
+        # --- stale-aware skip decision -----------------------------------
+        # A succeeded receipt is only trusted when its owned paths still exist on
+        # disk.  If all owned paths have disappeared the receipt is stale: surface
+        # the discrepancy and re-run the step instead of silently skipping it.
         if record.is_succeeded(step.step_id, step.tool_id):
-            result = OperationResult(
-                status=OperationStatus.SKIPPED,
-                message=f"Step '{step.step_id}' already completed in a previous run.",
-                tool_id=step.tool_id,
-                step_id=step.step_id,
-            )
-            results.append(result)
-            continue
+            succeeded_receipt = record.receipt_for(step.step_id)
+            if (
+                succeeded_receipt is not None
+                and succeeded_receipt.owned_paths
+                and not any(Path(p).exists() for p in succeeded_receipt.owned_paths)
+            ):
+                # Stale: fall through so the step is re-executed below.
+                pass
+            else:
+                result = OperationResult(
+                    status=OperationStatus.SKIPPED,
+                    message=f"Step '{step.step_id}' already completed in a previous run.",
+                    tool_id=step.tool_id,
+                    step_id=step.step_id,
+                )
+                results.append(result)
+                continue
+        # -----------------------------------------------------------------
 
         if dry_run:
             result = OperationResult(
