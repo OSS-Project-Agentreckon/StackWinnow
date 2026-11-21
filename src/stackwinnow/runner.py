@@ -2,8 +2,8 @@
 
 All commands are run as argument lists, never shell strings, to prevent
 injection. Secrets from the parent process are not inherited by subprocesses.
-A timed-out process is killed — including all of its descendants — and the
-caller receives an explicit timed_out result rather than a hung process.
+A timed-out process group is killed and output cleanup is bounded. Descendants
+that create a separate session are outside that group and may survive.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ _PASSTHROUGH_VARS: frozenset[str] = frozenset(
 )
 
 DEFAULT_TIMEOUT: int = 60
+_KILL_DRAIN_TIMEOUT: int = 2
 
 
 @dataclass(frozen=True)
@@ -109,8 +110,8 @@ def run_command(
 ) -> CommandResult:
     """Run args as a subprocess. Never uses shell=True.
 
-    Uses start_new_session=True so that on timeout the entire process group
-    (including any children the command spawned) is killed before returning.
+    Uses start_new_session=True so that on timeout the process group is killed.
+    Children that detach into another session are not contained by this runner.
     Sensitive values passed via extra_env are redacted from the returned
     stdout and stderr so diagnostics are safe to log.
     """
@@ -134,7 +135,18 @@ def run_command(
                 except ProcessLookupError:
                     pass
             proc.kill()
-            stdout_bytes, stderr_bytes = proc.communicate()
+            try:
+                stdout_bytes, stderr_bytes = proc.communicate(timeout=_KILL_DRAIN_TIMEOUT)
+            except subprocess.TimeoutExpired as exc:
+                # A descendant can escape the process group and retain a pipe.
+                # Never wait for its EOF; return the captured output and close
+                # our ends. This does not claim to terminate escaped sessions.
+                stdout_bytes, stderr_bytes = exc.output or b"", exc.stderr or b""
+                if proc.stdout is not None:
+                    proc.stdout.close()
+                if proc.stderr is not None:
+                    proc.stderr.close()
+                proc.wait(timeout=_KILL_DRAIN_TIMEOUT)
             return CommandResult(
                 returncode=-1,
                 stdout=_redact_secrets(_decode(stdout_bytes), env),
