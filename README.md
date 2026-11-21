@@ -8,6 +8,7 @@ functional verification, and removal that preserves the user's settings.
 ## Current scope
 
 Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
+feat/graphify-onboarding-
 project inspection with explicit goals/preferences, explainable recommendations, shared contracts, runtime
 inspection, execution receipts, owned JSON configuration edits, and a pinned
 promptfoo adapter with plan/apply commands, plus a Graphify recipe preview and
@@ -17,13 +18,28 @@ adapter uses the shared runner merged through PR #6; its earlier integration
 evidence is documented separately. Graphify managed apply, other tool adapters, general
 verification, and removal remain planned.
 
+project inspection with explicit goals/preferences, explainable recommendations,
+runtime inspection, a command runner, setup preflight, execution receipts, owned
+JSON configuration edits, and a pinned promptfoo adapter with plan/apply commands.
+`check` reports installation, configuration, connection, and fresh functionality
+for selected tools; promptfoo is the first verifier. The `inspect` command reads
+project declarations; host runtime inspection and setup preflight remain Python
+APIs. Other tool adapters, the unified guided journey, and removal remain planned.
+main^
+
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
 membership will not imply installation support. The supported integration OS,
 coding assistant, and tool versions must be agreed and tested before any
 integration is advertised as supported. The initial promptfoo execution scope
+feat/graphify-onboarding
 is macOS arm64 with Node 24. Graphify's local indexing/query probe was verified
 on macOS arm64; actual Codex connectivity remains pending.
+
+main-
+is macOS arm64 with Node 24. The runner is integrated; its remaining reviewed
+limitations are recorded in [implementation progress](docs/implementation-progress.md).
+
 
 ## Install and run
 
@@ -122,7 +138,7 @@ CLI JSON includes `schema_version` only in the response envelope; nested tool
 objects omit it. The Python models and stored catalog retain their schema versions.
 
 `catalog list --installable` currently returns no entries: all 30 tools are
-`catalog_only`, with no registered StackWinnow adapters. Empty documented
+`catalog_only`, with no adapters registered in catalog eligibility. Empty documented
 platform/client lists mean unknown compatibility. Empty conflict lists mean
 no conflicts recorded, not proof that a combination works. Alternatives are
 related options, not necessarily interchangeable tools. There are no measured
@@ -212,7 +228,7 @@ stackwinnow promptfoo apply promptfoo-plan.json --dry-run --json
 stackwinnow promptfoo apply promptfoo-plan.json --json
 ```
 
-With the shared runner integrated on the declared environment, apply installs
+On the declared environment, apply installs
 `promptfoo@0.125.1`, creates an owned evaluation configuration, runs two local
 uppercase checks, and records their results. Without the runner, apply returns
 `blocked` before changes. A separate `--scenario fail` plan verifies failure
@@ -221,9 +237,30 @@ reporting. Each repeat evaluation needs a new plan and a fresh result.
 The default fixture needs no API key or model calls and does not measure LLM
 quality. Optional OpenAI execution requires an explicit model and
 `--allow-provider-usage`, and may incur charges. See the
-[integration guide](docs/integrations/promptfoo.md) for the dependency gate,
+[integration guide](docs/integrations/promptfoo.md) for execution scope,
 release/license evidence, prerequisites, ownership, and limitations, or follow
 the [disposable-project example](examples/evaluation/README.md).
+
+## Check an existing setup
+
+```sh
+stackwinnow check ./my-project --tool promptfoo --json
+stackwinnow check ./my-project --tool promptfoo --run-functional --json
+stackwinnow check ./my-project --tool promptfoo --run-functional --scenario fail
+```
+
+The default check reads ownership and package/configuration metadata without
+commands, network, or writes. It leaves functionality `not_run`.
+`--run-functional` evaluates the existing owned setup and records one fresh
+evaluation receipt; it never installs packages or rewrites the evaluation
+configuration. The local provider is standalone, so connection is
+`not_applicable`; no assistant integration is claimed.
+
+Exit **0** means every selected tool is ready; **1** means a check failed, was
+blocked, or was not run; **2** means invalid input. A prior successful report
+cannot make a new read-only check ready. See [verification](docs/verification.md)
+for states, evidence, repeatable tool selection, and explicitly gated OpenAI
+checks using an already-owned provider configuration.
 
 ## Develop and check
 

@@ -10,21 +10,23 @@ The target is **12 substantive work commits per person, 36 total**: a 30-entry O
 | B | Runtime, execution, state, Headroom, packaging | 2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 32, 35 |
 | C | Fixtures/CI, configuration, verification/removal, promptfoo, Playwright | 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36 |
 
-As checked on **19 November 2026**, fetched main is `9c245d4`, including
-PR #7's detection and PR #8's promptfoo implementation/review fixes. Steps 1–4,
-6, and 7 are merged. PR #5 supplies part of step 8's executor work; step 5's pinned-command
-runner and managed environments remain pending in PR #6. C's step-9 promptfoo
-implementation now supplies the configuration receipt handoff and real adapter
-acceptance with an explicitly injected unmerged runner. Normal execution remains
-blocked until that dependency is fixed/integrated. Step 10 recommendations are
-implemented and tested locally on `feat/tool-recommendations`, pending PR review
-and merge. Integration has not followed
-every planned step in order, so use actual behavior and dependencies rather than
-PR numbers to select work; see the progress log for validation and commit counts.
-Review-fix and merge commits are additional history for their work items, not
-new completed steps. Preserve the required work and genuine authorship rather
-than rewriting history to force a Git commit count. The progress log retains
-the dated contribution counts and validation evidence.
+As checked on **21 November 2026**, fetched main is `ef300a5`. PRs #1–10 are
+merged, including the runner (#6), promptfoo (#8), recommendations (#9), and
+preflight (#10). The direct dependencies for C's step 12 are present. This
+branch implements step 12's verification models and `check` command, with
+real promptfoo acceptance using the merged runner and separate evidence for
+installed/configured/connected/functional states. Runner revision `761c5b3`
+still has the previously reproduced timeout, generic environment-confinement,
+and plural-secret-redaction findings; passing fixture acceptance does not
+resolve those defects. See the [progress log](implementation-progress.md).
+
+Integration has not followed every planned step in order. Use observed
+behavior and dependencies rather than PR numbers to select work. Review-fix
+and merge commits are additional history for their work items, not newly
+completed steps. Base-main non-merge counts are A: 9, B: 9, C: 5; this one
+step-12 contribution brings C to 6 actual work commits across four planned
+contributions. The target remains 12 each. Reconcile future substantive work
+boundaries while preserving genuine authorship and published history.
 
 Numbering below is the planned integration order, not a completion claim or an instruction to change authors or timestamps. Each change includes relevant tests and review. Dedicated test steps add scenario or reproduction evidence. Work can proceed concurrently where dependencies allow.
 

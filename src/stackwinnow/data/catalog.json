@@ -509,13 +509,15 @@
         "log-compression",
         "token-optimization"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Python 3.11+ for the Python package.",
         "Select the library, proxy, or wrapper mode; extras and provider configuration depend on that mode."
       ],
       "compatibility_notes": "The README documents coding-agent wrappers and Python/TypeScript integrations; the npm SDK uses a Python proxy.",
-      "supported_platforms": [],
+      "supported_platforms": [
+        "macos"
+      ],
       "supported_assistants": [
         "claude-code",
         "cursor",
