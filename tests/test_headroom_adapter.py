@@ -63,19 +63,22 @@ class FakeCommands:
         assert timeout > 0
         self.calls.append((args, Path(cwd), dict(extra_env or {})))
 
-        # --- python -m venv --without-pip <path> ---
-        if len(args) >= 3 and args[1] == "-m" and args[2] == "venv":
-            venv_path = Path(args[-1])
+        # Normalise: strip -I inserted by _isolated_args so dispatch uses -m <module> form.
+        effective = [args[0]] + (args[2:] if len(args) >= 2 and args[1] == "-I" else args[1:])
+
+        # --- python [-I] -m venv --without-pip <path> ---
+        if len(effective) >= 3 and effective[1] == "-m" and effective[2] == "venv":
+            venv_path = Path(effective[-1])
             if not self.venv_exit:
                 _create_minimal_venv(venv_path)
             return CommandResult(returncode=self.venv_exit)
 
-        # --- <venv>/bin/python -m ensurepip --upgrade ---
-        if len(args) >= 3 and args[1] == "-m" and args[2] == "ensurepip":
+        # --- <venv>/bin/python [-I] -m ensurepip --upgrade ---
+        if len(effective) >= 3 and effective[1] == "-m" and effective[2] == "ensurepip":
             return CommandResult(returncode=self.ensurepip_exit)
 
-        # --- <venv>/bin/python -m pip install --quiet headroom-ai==VERSION ---
-        if len(args) >= 3 and args[1] == "-m" and args[2] == "pip":
+        # --- <venv>/bin/python [-I] -m pip install --quiet headroom-ai==VERSION ---
+        if len(effective) >= 3 and effective[1] == "-m" and effective[2] == "pip":
             if not self.pip_exit:
                 venv_path = _venv_from_python(args[0])
                 _write_dist_info(venv_path)
@@ -201,17 +204,15 @@ def test_apply_headroom_dry_run_leaves_nothing_on_disk(fixture_project):
 
 
 def test_apply_headroom_blocked_when_no_runner(fixture_project, monkeypatch):
-    import platform
-
     monkeypatch.setattr(adapter, "_default_runner", lambda: None)
     plan = plan_headroom(fixture_project.root)
     result = apply_headroom(plan, command_runner=None)
-    if platform.system() == "Darwin" and platform.machine() == "arm64":
-        assert result.status == OperationStatus.BLOCKED
-        assert "runner" in result.message.lower() or "unavailable" in result.message.lower()
-    else:
-        assert result.status == OperationStatus.BLOCKED
-        assert "unverified" in result.message or "arm64" in result.message
+    assert result.status == OperationStatus.BLOCKED
+    # On macOS arm64 the runner check fires; on other platforms either the runner
+    # check or the platform guard can be the proximate cause of the block.
+    assert any(
+        kw in result.message.lower() for kw in ("runner", "unavailable", "unverified", "arm64")
+    )
 
 
 def test_apply_headroom_install_and_compress_succeed(fixture_project):
@@ -296,7 +297,7 @@ def test_apply_headroom_compress_bad_json(fixture_project):
     class BadJsonRunner(FakeCommands):
         def __call__(self, args, *, cwd, timeout, extra_env=None):
             self.calls.append((args, Path(cwd), dict(extra_env or {})))
-            if len(args) >= 3 and args[1] == "-I":
+            if len(args) >= 3 and args[1] == "-I" and args[2] == "-c":
                 return CommandResult(stdout="NOT VALID JSON")
             return super().__call__(args, cwd=cwd, timeout=timeout, extra_env=extra_env)
 
@@ -345,3 +346,123 @@ def test_apply_headroom_plan_already_attempted_is_blocked(fixture_project):
     result2 = apply_headroom(plan, command_runner=runner)
     assert result2.status == OperationStatus.BLOCKED
     assert "already attempted" in result2.message.lower()
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for reviewer findings
+# ---------------------------------------------------------------------------
+
+
+def test_plan_raises_when_tool_dir_is_symlink(fixture_project, tmp_path):
+    """Symlink at .stackwinnow/envs/headroom is rejected before any installation."""
+    envs_dir = fixture_project.root / ".stackwinnow" / "envs"
+    envs_dir.mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    tool_dir = envs_dir / _TOOL_ID
+    tool_dir.symlink_to(outside)
+    with pytest.raises(HeadroomError, match="symlink"):
+        plan_headroom(fixture_project.root)
+
+
+def test_apply_raises_when_tool_dir_becomes_symlink_after_plan(fixture_project, tmp_path):
+    """Symlink created between plan and apply is rejected at apply time."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        pytest.skip("Platform check skips before install step.")
+
+    plan = plan_headroom(fixture_project.root)
+    # Create symlink after planning but before applying.
+    envs_dir = fixture_project.root / ".stackwinnow" / "envs"
+    envs_dir.mkdir(parents=True, exist_ok=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    tool_dir = envs_dir / _TOOL_ID
+    tool_dir.symlink_to(outside)
+
+    runner = FakeCommands()
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.BLOCKED
+    assert "symlink" in result.message.lower()
+
+
+def test_bootstrap_commands_carry_isolation_flag(fixture_project):
+    """Every bootstrap/install command passes -I to avoid project-local module shadowing."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        pytest.skip("Bootstrap commands only run on the supported platform.")
+
+    runner = FakeCommands()
+    plan = plan_headroom(fixture_project.root)
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.SUCCEEDED
+
+    for args, _cwd, _env in runner.calls:
+        if "-c" in args:
+            continue  # compress step is already -I -c
+        if "-m" in args:
+            m_pos = args.index("-m")
+            assert m_pos >= 2 and args[m_pos - 1] == "-I", (
+                f"Expected -I before -m in bootstrap command: {args}"
+            )
+
+
+def test_apply_blocked_on_zero_messages_out(fixture_project):
+    """Compression claiming zero messages_out is rejected as invalid evidence."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        pytest.skip("Compress step only reached on the supported platform.")
+
+    runner = FakeCommands()
+    runner.compress_output = {"messages_in": 2, "messages_out": 0, "tokens_saved": 10}
+    plan = plan_headroom(fixture_project.root)
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.FAILED
+
+
+def test_apply_blocked_on_negative_tokens_saved(fixture_project):
+    """Negative tokens_saved is rejected as an invalid compression result."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        pytest.skip("Compress step only reached on the supported platform.")
+
+    runner = FakeCommands()
+    runner.compress_output = {"messages_in": 2, "messages_out": 2, "tokens_saved": -50}
+    plan = plan_headroom(fixture_project.root)
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.FAILED
+
+
+def test_apply_blocked_on_mismatched_messages_in(fixture_project):
+    """messages_in count not matching the fixture length is rejected."""
+    import platform
+
+    if platform.system() != "Darwin" or platform.machine() != "arm64":
+        pytest.skip("Compress step only reached on the supported platform.")
+
+    runner = FakeCommands()
+    runner.compress_output = {"messages_in": 999, "messages_out": 2, "tokens_saved": 10}
+    plan = plan_headroom(fixture_project.root)
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.FAILED
+    assert "mismatch" in result.message.lower()
+
+
+def test_apply_blocked_when_catalog_becomes_unavailable_after_plan(fixture_project, monkeypatch):
+    """Catalog unavailability after plan creation blocks apply."""
+    from stackwinnow.catalog import CatalogError
+
+    plan = plan_headroom(fixture_project.root)
+
+    def raise_catalog_error():
+        raise CatalogError("catalog unavailable")
+
+    monkeypatch.setattr(adapter, "load_catalog", raise_catalog_error)
+    runner = FakeCommands()
+    result = apply_headroom(plan, command_runner=runner)
+    assert result.status == OperationStatus.BLOCKED
+    assert "catalog" in result.message.lower()

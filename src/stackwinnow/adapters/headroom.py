@@ -121,8 +121,8 @@ class CompressionEvidence(Contract):
     """Recorded output from a fixture compression run."""
 
     messages_in: int = Field(ge=1)
-    messages_out: int = Field(ge=0)
-    tokens_saved: int | None = None
+    messages_out: int = Field(ge=1)
+    tokens_saved: int | None = Field(default=None, ge=0)
 
 
 class HeadroomResult(Contract):
@@ -134,6 +134,35 @@ class HeadroomResult(Contract):
     results: list[OperationResult] = Field(default_factory=list)
     record: ExecutionRecord | None = None
     compression: CompressionEvidence | None = None
+
+
+def _reject_link(path: Path, label: str = "managed path") -> None:
+    """Raise HeadroomError if path is a symbolic link."""
+    if path.is_symlink():
+        raise HeadroomError(
+            f"The {label} '{path}' is a symbolic link; "
+            "refusing to install outside the project boundary. "
+            "Remove the symlink before retrying."
+        )
+
+
+def _isolated_args(args: list[str]) -> list[str]:
+    """Insert -I after the Python executable in a python -m ... command."""
+    if len(args) >= 2 and args[1] == "-m":
+        return [args[0], "-I", "-m"] + args[2:]
+    return list(args)
+
+
+def _check_catalog_eligibility() -> None:
+    """Raise HeadroomError if the catalog is unavailable or the license is not reviewed."""
+    try:
+        entry = load_catalog().get("headroom")
+    except KeyError as exc:
+        raise HeadroomError("headroom is not in the tool catalog.") from exc
+    except CatalogError as exc:
+        raise HeadroomError("The tool catalog is unavailable or invalid.") from exc
+    if entry.license != "Apache-2.0" or entry.license_review != "reviewed":
+        raise HeadroomError("The headroom OSS license review is not available.")
 
 
 def _root(value: str | Path) -> Path:
@@ -170,6 +199,7 @@ def _compress_script() -> str:
     """Return a self-contained Python script that compresses the fixture and prints JSON."""
     fixture_repr = repr(_FIXTURE_INPUT)
     model_repr = repr(_MODEL_TARGET)
+    fail_signal = repr("FAIL test_timeout")
     return "\n".join(
         [
             "import json, sys",
@@ -181,6 +211,14 @@ def _compress_script() -> str:
             "try:",
             f"    messages = json.loads({fixture_repr})",
             f"    result = compress(messages, model={model_repr})",
+            "    sys_ok = any(isinstance(m, dict) and m.get('role') == 'system' for m in result.messages)",
+            f"    fail_ok = any(isinstance(m, dict) and {fail_signal} in str(m.get('content', '')) for m in result.messages)",
+            "    if not sys_ok or not fail_ok:",
+            "        missing = []",
+            '        if not sys_ok: missing.append("system role")',
+            '        if not fail_ok: missing.append("FAIL signal")',
+            '        print(json.dumps({"error": "required content did not survive compression: " + ", ".join(missing)}), file=sys.stderr)',
+            "        sys.exit(1)",
             '    out = {"messages_in": len(messages), "messages_out": len(result.messages)}',
             "    if hasattr(result, 'tokens_saved'):",
             '        out["tokens_saved"] = result.tokens_saved',
@@ -205,6 +243,8 @@ def _check_installation(root: Path, record: ExecutionRecord) -> bool:
         venv = python_env_path(str(root), _TOOL_ID)
     except EnvironmentBoundaryError as exc:
         raise HeadroomError(str(exc)) from exc
+    _reject_link(venv.parent, "tool directory")
+    _reject_link(venv, "managed venv")
     if not venv.exists():
         return False
     if not _has_path_ownership(record, venv):
@@ -257,6 +297,7 @@ def _build_plan(root: Path, *, run_id: str) -> HeadroomPlan:
 
 
 def _validate_plan(root: Path, plan: HeadroomPlan) -> None:
+    _check_catalog_eligibility()
     if str(_root(root)) != plan.project_root:
         raise HeadroomError("The project path now resolves elsewhere; create a new plan.")
     record = _record(root)
@@ -302,14 +343,7 @@ def _default_runner() -> CommandRunner | None:
 def plan_headroom(project_root: str | Path) -> HeadroomPlan:
     """Preview the headroom library installation without commands, network, or writes."""
     root = _root(project_root)
-    try:
-        entry = load_catalog().get("headroom")
-    except KeyError as exc:
-        raise HeadroomError("headroom is not in the tool catalog.") from exc
-    except CatalogError as exc:
-        raise HeadroomError("The tool catalog is unavailable or invalid.") from exc
-    if entry.license != "Apache-2.0" or entry.license_review != "reviewed":
-        raise HeadroomError("The headroom OSS license review is not available.")
+    _check_catalog_eligibility()
     record = _record(root)
     _check_installation(root, record)
     return _build_plan(root, run_id=uuid4().hex)
@@ -372,6 +406,8 @@ def apply_headroom(
             if step.step_id.endswith("-install"):
                 already_installed = _check_installation(root, load_record(str(root)))
                 if not already_installed:
+                    _reject_link(venv.parent, "tool directory")
+                    _reject_link(venv, "managed venv")
                     if venv.exists():
                         return RunnerOutcome(
                             status=OperationStatus.BLOCKED,
@@ -381,11 +417,13 @@ def apply_headroom(
                             ),
                         )
                     # Create venv without pip, then bootstrap pip, then install.
+                    # Use -I on every bootstrap command so project-local venv.py / pip.py
+                    # cannot shadow the stdlib modules when cwd=root.
                     for args, timeout, label in [
-                        (create_venv_args(venv), 60, "venv creation"),
-                        (bootstrap_pip_args(venv), 60, "pip bootstrap"),
+                        (_isolated_args(create_venv_args(venv)), 60, "venv creation"),
+                        (_isolated_args(bootstrap_pip_args(venv)), 60, "pip bootstrap"),
                         (
-                            pip_install_args(venv, _PACKAGE_NAME, VERSION),
+                            _isolated_args(pip_install_args(venv, _PACKAGE_NAME, VERSION)),
                             600,
                             f"{_PACKAGE_NAME} installation",
                         ),
@@ -448,6 +486,14 @@ def apply_headroom(
                     return RunnerOutcome(
                         status=OperationStatus.FAILED,
                         message=f"headroom.compress raised an exception: {data['error'][:200]}",
+                    )
+                if data.get("messages_in") != len(_FIXTURE_MESSAGES):
+                    return RunnerOutcome(
+                        status=OperationStatus.FAILED,
+                        message=(
+                            f"Fixture input count mismatch: "
+                            f"expected {len(_FIXTURE_MESSAGES)}, got {data.get('messages_in')}."
+                        ),
                     )
                 compression = CompressionEvidence(
                     messages_in=data["messages_in"],
