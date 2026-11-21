@@ -435,6 +435,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     checking.add_argument(
         "--json", action="store_true", help="Emit observations and derived readiness."
     )
+    playwright = commands.add_parser(
+        "playwright-mcp",
+        help="Plan/apply project-scoped Playwright MCP for Codex.",
+        allow_abbrev=False,
+    )
+    playwright_commands = playwright.add_subparsers(dest="playwright_command", required=True)
+    playwright_plan = playwright_commands.add_parser("plan", allow_abbrev=False)
+    playwright_plan.add_argument("project_root")
+    playwright_plan.add_argument("--assistant", required=True, choices=["codex"])
+    playwright_plan.add_argument("--json", action="store_true")
+    playwright_apply = playwright_commands.add_parser("apply", allow_abbrev=False)
+    playwright_apply.add_argument("plan_file")
+    playwright_apply.add_argument("--dry-run", action="store_true")
+    playwright_apply.add_argument("--json", action="store_true")
     promptfoo = commands.add_parser(
         "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
     )
@@ -504,6 +518,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _inspect(args, parser)
     if args.command == "recommend":
         return _recommend(args, parser)
+    if args.command == "playwright-mcp":
+        return _playwright(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
     if args.command == "graphify":

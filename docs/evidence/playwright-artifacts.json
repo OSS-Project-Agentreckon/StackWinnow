@@ -1,0 +1,68 @@
+{
+  "reviewed_on": "2026-11-21",
+  "platform": "macOS arm64",
+  "node": "24.13.1",
+  "codex": "0.169.0",
+  "packages": {
+    "node_modules/@playwright/mcp": {
+      "version": "0.0.86",
+      "resolved": "https://registry.npmjs.org/@playwright/mcp/-/mcp-0.0.86.tgz",
+      "integrity": "sha512-4SL9OSINmik3+EObCYJIxH8BkhcqqGU6CM8XIgztW015iBVR9WR6Q0xF180Ery+xuEVyyK5r6nC2bOg3zjgCoA==",
+      "license": "Apache-2.0",
+      "dependencies": {
+        "playwright": "1.66.0-alpha-2026-11-18",
+        "playwright-core": "1.66.0-alpha-2026-11-18"
+      },
+      "bin": {
+        "playwright-mcp": "cli.js"
+      },
+      "engines": {
+        "node": ">=20"
+      }
+    },
+    "node_modules/playwright": {
+      "version": "1.66.0-alpha-2026-11-18",
+      "resolved": "https://registry.npmjs.org/playwright/-/playwright-1.66.0-alpha-2026-11-18.tgz",
+      "integrity": "sha512-otQ+PFujQwUSpcLjoZ1zocwpEEF/5WhsBKaOuZeRhJ3ifjyRJJskKeosaw55WYdJzwlmfugK7OMX/tey1ExhWQ==",
+      "license": "Apache-2.0",
+      "dependencies": {
+        "playwright-core": "1.66.0-alpha-2026-11-18"
+      },
+      "bin": {
+        "playwright": "cli.js"
+      },
+      "engines": {
+        "node": ">=20"
+      }
+    },
+    "node_modules/playwright-core": {
+      "version": "1.66.0-alpha-2026-11-18",
+      "resolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.66.0-alpha-2026-11-18.tgz",
+      "integrity": "sha512-VQ60tKPjqhf/3tHJGKuQ8Qn6e28Ziorhpmh4DGBZThgQp5geZeyKmuoJF2o/OwQBs5K7LNkhxNbOclBoAicqPg==",
+      "license": "Apache-2.0",
+      "bin": {
+        "playwright-core": "cli.js"
+      },
+      "engines": {
+        "node": ">=20"
+      }
+    }
+  },
+  "license_notice_sha256": {
+    "@playwright/mcp/LICENSE": "9a7110fc2d2f964038e5dc49128f908f29f47a574c961cba16085914e879cbda",
+    "playwright/LICENSE": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb",
+    "playwright/NOTICE": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d",
+    "playwright-core/LICENSE": "45873d00a0dd243596deb4aa23b2493b3d1f0671921bf2538ea431d7380220eb",
+    "playwright-core/NOTICE": "6d602191187b35b9b01d2cffa01c8469c2c8d9de8a96f1bf868e0f264f51c81d",
+    "chromium_headless_shell-1255/chrome-headless-shell-mac-arm64/LICENSE.headless_shell": "59cde70a5aa243f853cb971782b72121b8656b5ed9705c230ce07253fb8038ce",
+    "ffmpeg-1013/COPYING.LGPLv2.1": "b634ab5640e258563c536e658cad87080553df6f34f62269a21d554844e58bfe"
+  },
+  "browser": {
+    "name": "chromium-headless-shell",
+    "revision": "1255",
+    "version": "159.0.8154.6",
+    "ffmpeg_revision": "1013"
+  },
+  "scope": "Installed npm license/notice files and downloaded browser/FFmpeg notices. Metadata integrity checks are not a complete installed-file audit. Downloads are not vendored or redistributed by StackWinnow.",
+  "client_evidence": "Actual Codex MCP invocation with scripted loopback provider; no hosted model calls. See integration test for repeat/negative/preservation acceptance."
+}

@@ -120,3 +120,17 @@ dated local results and the merged runner's remaining limitations.
 Before this harness, main `6616b86` passed 52 tests on macOS/Python 3.14.0. Ruff reported an unused `pytest` import and import-block spacing in runtime tests. Step 3 includes that minimal test-only cleanup so initial CI can pass; production runtime behavior is unchanged.
 
 Final validation and review references are recorded in [implementation-progress.md](implementation-progress.md). Local success does not mean hosted GitHub Actions has run.
+
+## Playwright MCP acceptance
+
+The default suite includes TOML ownership/preservation, stale plans, invalid
+receipts, runtime blocks and actual-client-event parsing tests. The opt-in
+real test requires macOS arm64, Node 24, npm and Codex CLI 0.169.0:
+
+    python -m pytest tests/integration/test_playwright_mcp.py --run-integration -q -W error
+
+It downloads pinned npm/browser artifacts, runs the real Codex/MCP/browser
+path with a local scripted provider, verifies a fresh DOM result, checks a
+negative fixture and repeats without reinstalling. No API key is used. It
+preserves unrelated project settings and runs the client in private temporary
+HOME/CODEX_HOME directories. See [integration details](integrations/playwright-mcp.md).

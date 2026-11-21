@@ -1,8 +1,9 @@
 # Verify a project's tools
 
 `stackwinnow check` reports installation, configuration, connection, and
-functionality separately for explicitly selected catalog tools. Promptfoo is
-the first verifier. Other known tools return `blocked: verifier-unavailable`;
+functionality separately for explicitly selected catalog tools. Promptfoo and
+[Playwright MCP](integrations/playwright-mcp.md) have verification adapters.
+Other known tools return `blocked: verifier-unavailable`;
 unknown tool IDs are input errors. Catalog membership and preflight eligibility
 do not establish a working integration.
 
@@ -148,3 +149,13 @@ hostile concurrent writer. The merged runner's outstanding timeout, generic
 environment-confinement, and plural-secret-redaction findings remain documented
 in [implementation progress](implementation-progress.md); this feature does not
 change that runner. Catalog availability remains `catalog_only`.
+
+## Playwright MCP client check
+
+Use --tool playwright-mcp with --run-functional after onboarding. Its
+connection scope is assistant: the real Codex CLI loads the selected server
+registration in an isolated client project and invokes browser tools against a
+loopback fixture. Model decisions are scripted locally; no hosted provider is
+called. Read-only checks leave connected/functional as not_run. The deliberate
+--scenario fail keeps client connectivity distinct from a failing DOM result.
+See the [integration guide](integrations/playwright-mcp.md) for trust and scope.

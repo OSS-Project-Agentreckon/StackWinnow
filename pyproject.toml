@@ -31,7 +31,7 @@ include = ["stackwinnow", "stackwinnow.*"]
 namespaces = false
 
 [tool.setuptools.package-data]
-stackwinnow = ["data/*.json", "data/*.cjs"]
+stackwinnow = ["data/*.json", "data/*.cjs", "data/*.html"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

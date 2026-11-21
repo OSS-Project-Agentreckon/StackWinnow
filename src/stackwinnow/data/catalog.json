@@ -1040,7 +1040,7 @@
       ],
       "availability": "catalog_only",
       "prerequisites": [
-        "Node.js 18+ and an MCP-compatible client are documented upstream.",
+        "The pinned @playwright/mcp@0.0.86 package requires Node.js >=20; the StackWinnow recipe is validated with Node 24 and Codex CLI 0.169.0 on macOS arm64.",
         "Provide a supported browser and any required operating-system browser dependencies."
       ],
       "compatibility_notes": "The README provides configurations for clients including Claude Code, Cursor, Codex, Gemini CLI, and GitHub Copilot.",

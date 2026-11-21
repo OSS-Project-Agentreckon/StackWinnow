@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>StackWinnow browser fixture</title>
+  </head>
+  <body>
+    <h1>Local browser check</h1>
+    <button id="complete-check" type="button">Complete check</button>
+    <p id="result" role="status">Not run</p>
+    <script>
+      document.getElementById("complete-check").addEventListener("click", () => {
+        document.getElementById("result").textContent = "StackWinnow fixture passed";
+      });
+    </script>
+  </body>
+</html>

@@ -184,7 +184,7 @@ class ConfigPatch(_ConfigContract):
     """Preview data; it becomes ownership evidence only after a reported write."""
 
     schema_version: Literal[1] = 1
-    format: Literal["json"] = "json"
+    format: Literal["json", "toml"] = "json"
     project_root: StrictStr
     relative_path: StrictStr
     tool_id: Identifier
