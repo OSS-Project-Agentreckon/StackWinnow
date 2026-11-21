@@ -70,7 +70,14 @@ def test_bundled_catalog_has_unique_reviewed_entries() -> None:
     for tool in catalog.tools:
         assert tool.license_review == "reviewed"
         assert {source.kind for source in tool.sources} >= {"license", "readme"}
-        assert tool.availability == "catalog_only"
+        assert tool.availability in ("catalog_only", "adapter_available")
+        if tool.availability == "adapter_available":
+            # Every entry that claims an adapter must have a corresponding module.
+            import importlib.util
+
+            module_name = f"stackwinnow.adapters.{tool.tool_id.replace('-', '_')}"
+            spec = importlib.util.find_spec(module_name)
+            assert spec is not None, f"No adapter module for {tool.tool_id!r}"
         assert tool.prerequisites
         assert tool.limitations
         assert not evaluate_eligibility(tool).installable
