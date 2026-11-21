@@ -33,6 +33,9 @@ runs the pinned browser installer. npm enforces registry tarball integrity;
 subsequent inspection checks metadata, not hashes of every installed file.
 Downloads need registry/browser-CDN access. Missing runtimes, unsupported client
 versions and incomplete setup remain blocked or failed.
+Installation exceptions after creating the managed state directory retain its
+ownership in a failed receipt. Exclusive creation prevents a competing existing
+directory from being adopted; no ownership is recorded if creation fails.
 
 The private installation, browser, caches, work directory, output and check
 reports live under **.stackwinnow/envs/playwright-mcp/**. Receipts are in the shared
@@ -99,6 +102,11 @@ results. Check commands reuse the installation and do not modify the registered
 configuration or create additional installation receipts. Apply records its
 verification step in the shared receipts. An operation lock serializes this
 adapter; shared state is not a transaction against unrelated external writers.
+Both apply and fresh checks revalidate installation ownership and the selected
+registration after the isolated client returns, while holding the operation
+lock. Changes to the managed setup block readiness and preserve user edits;
+unrelated configuration comments remain allowed. The isolated client's evidence
+alone cannot establish readiness for a registration that changed during the run.
 
 ## Open-source evidence and boundaries
 

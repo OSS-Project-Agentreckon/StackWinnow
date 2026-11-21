@@ -1,11 +1,13 @@
 import json
 from contextlib import contextmanager
+from pathlib import Path
 
 import pytest
 
 from stackwinnow.adapters import playwright_mcp as adapter
 from stackwinnow.adapters._managed import ManagedStateError
 from stackwinnow.cli import main
+from stackwinnow.installer import load_record
 from stackwinnow.runner import CommandResult
 from stackwinnow.verify import check_project, playwright_client
 
@@ -279,3 +281,147 @@ def test_failed_real_receipt_ownership_is_retained(tmp_path, runtime, client):
         tmp_path, tool_ids=["playwright-mcp"], run_functional=True, command_runner=runner
     )
     assert report.ready
+
+
+@pytest.mark.parametrize("failure", ["directory", "npmrc", "npm", "browser"])
+def test_install_exceptions_retain_created_state_ownership(
+    tmp_path, runtime, client, monkeypatch, failure
+):
+    plan = adapter.plan_playwright(tmp_path, assistant="codex")
+    runner = Runner(tmp_path)
+    original_mkdir, original_open = Path.mkdir, Path.open
+
+    def mkdir(path, *args, **kwargs):
+        if failure == "directory" and path == tmp_path / adapter.STATE / "home":
+            raise PermissionError("simulated child-directory failure")
+        return original_mkdir(path, *args, **kwargs)
+
+    def open_file(path, *args, **kwargs):
+        if failure == "npmrc" and path == tmp_path / adapter.STATE / "global.npmrc":
+            raise PermissionError("simulated npmrc creation failure")
+        return original_open(path, *args, **kwargs)
+
+    def commands(args, **kwargs):
+        if (failure == "npm" and args[0].endswith("npm")) or (
+            failure == "browser" and "chromium" in args
+        ):
+            raise PermissionError("simulated command launch failure")
+        return runner(args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", mkdir)
+    monkeypatch.setattr(Path, "open", open_file)
+    result = adapter.apply_playwright(plan, command_runner=commands)
+    assert result.status == "failed", result.message
+    record = load_record(str(tmp_path))
+    receipt = record.receipt_for(plan.installation.steps[0].step_id)
+    assert receipt.status == "failed"
+    assert receipt.owned_paths == [str(tmp_path / adapter.STATE)]
+    assert result.record == record
+    assert not client and not (tmp_path / ".codex").exists()
+    # Recovery still requires inspection, but the real partial write stays owned.
+    with pytest.raises(ManagedStateError, match="incomplete"):
+        adapter.plan_playwright(tmp_path, assistant="codex")
+
+
+def test_failed_state_creation_does_not_adopt_a_competing_directory(
+    tmp_path, runtime, client, monkeypatch
+):
+    plan = adapter.plan_playwright(tmp_path, assistant="codex")
+    original = Path.mkdir
+    state = tmp_path / adapter.STATE
+
+    def racing_mkdir(path, *args, **kwargs):
+        if path == state:
+            original(path, *args, **kwargs)
+            (state / "external.txt").write_text("belongs to another operation")
+            raise FileExistsError("another operation created the directory")
+        return original(path, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "mkdir", racing_mkdir)
+    runner = Runner(tmp_path)
+    result = adapter.apply_playwright(plan, command_runner=runner)
+    assert result.status == "failed"
+    receipt = load_record(str(tmp_path)).receipt_for(plan.installation.steps[0].step_id)
+    assert receipt.owned_paths == []
+    assert list(state.iterdir()) == [state / "external.txt"]
+    assert len(runner.calls) == 2  # Only preflight probes, never npm or the browser.
+    assert not client
+
+
+@pytest.mark.parametrize("operation", ["apply", "check"])
+@pytest.mark.parametrize("mutation", ["config", "missing-config", "browser", "ownership"])
+def test_setup_changes_during_client_execution_block_readiness(
+    tmp_path, runtime, client, monkeypatch, operation, mutation
+):
+    runner, _ = setup(tmp_path)
+    config = tmp_path / ".codex/config.toml"
+    modified = []
+
+    def changed_client(root, registration, codex, **kwargs):
+        assert (root / ".stackwinnow/playwright-mcp.lock").exists()
+        if mutation == "config":
+            config.write_text(config.read_text().replace('"browser_click"', '"browser_type"'))
+        elif mutation == "missing-config":
+            config.unlink()
+        elif mutation == "browser":
+            (root / adapter.BROWSER).unlink()
+        else:
+            path = root / ".stackwinnow/receipts.json"
+            record = json.loads(path.read_text())
+            for receipt in record["steps"]:
+                receipt["owned_paths"] = []
+            path.write_text(json.dumps(record))
+        modified.append(config.read_bytes() if config.exists() else None)
+        return {
+            "connected": True,
+            "functional": True,
+            "message": "Isolated client passed.",
+            "evidence_path": str(root / "evidence.json"),
+        }
+
+    monkeypatch.setattr(playwright_client, "run_client_check", changed_client)
+    monkeypatch.setattr("stackwinnow.verify.playwright_mcp.run_client_check", changed_client)
+    if operation == "apply":
+        result = adapter.apply_playwright(
+            adapter.plan_playwright(tmp_path, assistant="codex"), command_runner=runner
+        )
+        assert result.status == "blocked"
+        receipt = load_record(str(tmp_path)).receipt_for(result.plan.installation.steps[-1].step_id)
+        assert receipt.status != "succeeded"
+    else:
+        report = check_project(
+            tmp_path, tool_ids=["playwright-mcp"], run_functional=True, command_runner=runner
+        )
+        assert not report.ready and report.status == "blocked"
+    assert modified == [config.read_bytes() if config.exists() else None]
+
+
+@pytest.mark.parametrize("operation", ["apply", "check"])
+def test_unrelated_config_edits_during_client_check_are_preserved(
+    tmp_path, runtime, client, monkeypatch, operation
+):
+    runner, _ = setup(tmp_path)
+    config = tmp_path / ".codex/config.toml"
+    expected = b"# user comment during check\n" + config.read_bytes()
+
+    def changed_client(root, registration, codex, **kwargs):
+        config.write_bytes(expected)
+        return {
+            "connected": True,
+            "functional": True,
+            "message": "Client passed.",
+            "evidence_path": str(root / "evidence.json"),
+        }
+
+    monkeypatch.setattr(playwright_client, "run_client_check", changed_client)
+    monkeypatch.setattr("stackwinnow.verify.playwright_mcp.run_client_check", changed_client)
+    if operation == "apply":
+        result = adapter.apply_playwright(
+            adapter.plan_playwright(tmp_path, assistant="codex"), command_runner=runner
+        )
+        assert result.status == "succeeded"
+    else:
+        assert check_project(
+            tmp_path, tool_ids=["playwright-mcp"], run_functional=True, command_runner=runner
+        ).ready
+    assert config.read_bytes() == expected

@@ -249,6 +249,12 @@ def inspect_setup(root: Path, node: str) -> tuple[bool, bool]:
     return bool(ready), configured
 
 
+def revalidate_client_setup(root: Path, node: str, registration: dict) -> None:
+    """The isolated client's result is usable only while the selected setup matches."""
+    if settings(root, node) != registration or inspect_setup(root, node) != (True, True):
+        raise PlaywrightError("Owned setup changed during client verification; inspect and retry.")
+
+
 def _build(root: Path, run_id: str) -> PlaywrightPlan:
     if not root.is_dir() or root.resolve(strict=True) != root:
         raise PlaywrightError("Select an existing, unchanged project directory.")
@@ -374,60 +380,79 @@ def apply_playwright(
             guard(root)
             if step.step_id.endswith("-install"):
                 exists, _ = inspect_setup(root, checked.node)
-                owned = [str(root / STATE)]
-                if not exists:
-                    directories(root, STATE, create=True)
-                    for part in ("node", "home", "tmp", "work", "output", "checks", "npm-cache"):
-                        directories(root, STATE + "/" + part, create=True)
-                    for name in ("user.npmrc", "global.npmrc"):
-                        with (root / STATE / name).open("xb"):
-                            pass
-                    commands = [
-                        [
-                            npm,
-                            "install",
-                            "--prefix",
-                            str(root / NODE),
-                            "--save-exact",
-                            "--registry=https://registry.npmjs.org",
-                            "--ignore-scripts",
-                            "--no-audit",
-                            "--no-fund",
-                            f"@playwright/mcp@{VERSION}",
-                        ],
-                        [
-                            checked.node,
-                            str(root / NODE / "node_modules/playwright/cli.js"),
-                            "install",
-                            "chromium",
-                            "--only-shell",
-                        ],
-                    ]
-                    for index, command in enumerate(commands):
-                        if index == 1 and not packages_installed(root):
-                            return RunnerOutcome(
-                                status=OperationStatus.FAILED,
-                                message="Pinned npm metadata did not match; browser installer was not executed.",
-                                owned_paths=owned,
-                            )
-                        outcome = runner(command, cwd=root / NODE, timeout=600, extra_env=env)
-                        if not outcome.succeeded:
-                            return RunnerOutcome(
-                                status=OperationStatus.FAILED,
-                                message="Installation failed or timed out; preserve the partial state for inspection.",
-                                owned_paths=owned,
-                            )
-                if not installed(root):
+                owned = [str(root / STATE)] if exists else []
+                try:
+                    if not exists:
+                        directories(root, str(Path(STATE).parent), create=True)
+                        # Exclusive creation prevents adopting a directory that appeared
+                        # after inspection. Only a successful mkdir establishes ownership.
+                        (root / STATE).mkdir(mode=0o700)
+                        owned.append(str(root / STATE))
+                        for part in (
+                            "node",
+                            "home",
+                            "tmp",
+                            "work",
+                            "output",
+                            "checks",
+                            "npm-cache",
+                        ):
+                            directories(root, STATE + "/" + part, create=True)
+                        for name in ("user.npmrc", "global.npmrc"):
+                            with (root / STATE / name).open("xb"):
+                                pass
+                        commands = [
+                            [
+                                npm,
+                                "install",
+                                "--prefix",
+                                str(root / NODE),
+                                "--save-exact",
+                                "--registry=https://registry.npmjs.org",
+                                "--ignore-scripts",
+                                "--no-audit",
+                                "--no-fund",
+                                f"@playwright/mcp@{VERSION}",
+                            ],
+                            [
+                                checked.node,
+                                str(root / NODE / "node_modules/playwright/cli.js"),
+                                "install",
+                                "chromium",
+                                "--only-shell",
+                            ],
+                        ]
+                        for index, command in enumerate(commands):
+                            if index == 1 and not packages_installed(root):
+                                return RunnerOutcome(
+                                    status=OperationStatus.FAILED,
+                                    message="Pinned npm metadata did not match; browser installer was not executed.",
+                                    owned_paths=owned,
+                                )
+                            outcome = runner(command, cwd=root / NODE, timeout=600, extra_env=env)
+                            if not outcome.succeeded:
+                                return RunnerOutcome(
+                                    status=OperationStatus.FAILED,
+                                    message="Installation failed or timed out; preserve the partial state for inspection.",
+                                    owned_paths=owned,
+                                )
+                    if not installed(root):
+                        return RunnerOutcome(
+                            status=OperationStatus.FAILED,
+                            message="Pinned package integrity metadata or Chromium prerequisite is missing.",
+                            owned_paths=owned,
+                        )
                     return RunnerOutcome(
-                        status=OperationStatus.FAILED,
-                        message="Pinned package integrity metadata or Chromium prerequisite is missing.",
+                        status=OperationStatus.SUCCEEDED,
+                        message="Verified pinned packages and managed Chromium headless shell.",
                         owned_paths=owned,
                     )
-                return RunnerOutcome(
-                    status=OperationStatus.SUCCEEDED,
-                    message="Verified pinned packages and managed Chromium headless shell.",
-                    owned_paths=owned,
-                )
+                except (OSError, ManagedStateError):
+                    return RunnerOutcome(
+                        status=OperationStatus.FAILED,
+                        message="Installation could not complete; preserve partial state for inspection.",
+                        owned_paths=owned,
+                    )
             if step.step_id.endswith("-configure"):
                 if not inspect_setup(root, checked.node)[0]:
                     raise PlaywrightError(
@@ -447,9 +472,15 @@ def apply_playwright(
                 raise PlaywrightError("Owned setup is missing before client verification.")
             from stackwinnow.verify.playwright_client import run_client_check
 
-            result.client_check = run_client_check(
-                root, settings(root, checked.node), codex, runner=runner
-            )
+            registration = settings(root, checked.node)
+            result.client_check = run_client_check(root, registration, codex, runner=runner)
+            try:
+                revalidate_client_setup(root, checked.node, registration)
+            except (OSError, ValueError):
+                return RunnerOutcome(
+                    status=OperationStatus.BLOCKED,
+                    message="Owned setup changed during client verification; preserve changes and retry.",
+                )
             return RunnerOutcome(
                 status=OperationStatus.SUCCEEDED
                 if result.client_check["functional"]

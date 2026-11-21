@@ -6,6 +6,21 @@ Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project
 
 ## Step 15 / Person C's fifth planned contribution
 
+PR #16 review follow-up, 21 November: install exceptions now return failed
+outcomes retaining ownership of the state directory actually created by the
+attempt. Creation is exclusive, so an intervening directory is not adopted.
+Apply and check both revalidate owned installation and the selected registration
+after client execution, while holding the operation lock. Changed setup blocks
+readiness; unrelated configuration comments remain preserved and allowed.
+
+Fifteen new cases cover filesystem/runner exceptions, competing creation, and
+configuration/browser/ownership changes during both execution paths. Thirteen
+negative cases failed against the original revision; all now pass. Rebuilt
+package validation on Python 3.11.14: **783 passed, 6 opt-in skips**, warnings
+treated as errors. Ruff lint/format and diff checks passed. Real client/browser
+integration was not rerun for this fix; the original evidence below remains
+separate. The review fixes and regression work were AI-assisted.
+
 This contribution starts from merged main f8b826a, after PRs #12 and #13.
 It implements the pinned Playwright MCP recipe on macOS arm64 / Node 24 /
 Codex CLI 0.169.0, including npm and Chromium headless-shell installation,

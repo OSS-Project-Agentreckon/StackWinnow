@@ -65,13 +65,15 @@ def check_playwright(root: Path, options, *, command_runner=None) -> ToolVerific
                     raise adapter.PlaywrightError(
                         "Owned setup changed before the functional check."
                     )
+                registration = adapter.settings(root, plan.node)
                 result = run_client_check(
                     root,
-                    adapter.settings(root, plan.node),
+                    registration,
                     codex,
                     runner=runner,
                     scenario=options.scenario,
                 )
+                adapter.revalidate_client_setup(root, plan.node, registration)
             for kind, key in (
                 (CheckKind.CONNECTED, "connected"),
                 (CheckKind.FUNCTIONAL, "functional"),
