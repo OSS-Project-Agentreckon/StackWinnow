@@ -5,6 +5,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from stackwinnow.catalog import Catalog, load_catalog
 from stackwinnow.contracts import ProjectProfile
@@ -87,6 +88,11 @@ def test_empty_project_does_not_invent_a_need_for_tools(tmp_path):
         "avoid code navigation",
         "evaluate answers without hosted models",
         "reevaluation",
+        "re-evaluation of model outputs",
+        "non-evaluation",
+        "evaluation-driven",
+        "not-evaluation but code navigation",
+        "Don’t-evaluate answers but code navigation",
         "if evaluation helps",
         "Don't evaluate answers",
         "Don’t evaluate answers",
@@ -115,6 +121,13 @@ def test_matching_is_case_and_separator_insensitive_and_not_double_counted():
 
 def test_positive_goal_with_apostrophe_still_matches():
     assert set(ids(recommend_tools(profile("We’d like code navigation")))) == {"graphify", "serena"}
+
+
+@pytest.mark.parametrize("goal", ["cost-optimization", "multi-agent", "reduce context-tokens"])
+def test_supported_hyphenated_phrases_match_like_spaces(goal):
+    result = recommend_tools(profile(goal))
+    assert not result.unmatched_goals
+    assert ids(result) == ids(recommend_tools(profile(goal.replace("-", " "))))
 
 
 def test_manual_choices_are_retained_in_selection_order_despite_unmatched_goal():
@@ -255,6 +268,49 @@ def test_catalog_only_matches_never_become_ready_from_goal_or_selection():
 def test_unknown_selection_is_rejected_by_api():
     with pytest.raises(RecommendationError, match="Selected tool ID"):
         recommend_tools(profile(selected_tools=["unknown-tool"]))
+
+
+def test_mutated_selection_is_revalidated_by_api():
+    source = profile(selected_tools=["graphify"])
+    source.selected_tools.append("invalid tool id")
+    with pytest.raises(ValidationError):
+        recommend_tools(source)
+
+
+def test_project_inspection_leaves_target_platform_explicitly_unknown(tmp_path):
+    result = recommend_tools(inspect_project(tmp_path, goals=["code navigation"]))
+    assert result.target_platform is None
+    assert all(
+        "platform-unknown" in {reason.code for reason in item.eligibility.reasons}
+        for item in result.recommendations
+    )
+
+
+@pytest.mark.parametrize(
+    "facts,operating_system,expected",
+    [
+        ({"os": ["linux"]}, "Darwin Kernel Version 27.0.0", "linux"),
+        ({}, "Darwin Kernel Version 27.0.0", "macos"),
+    ],
+)
+def test_profile_platform_evidence_and_explicit_override(facts, operating_system, expected):
+    source = InspectionResult(
+        profile=ProjectProfile(
+            project_root="/example",
+            goals=["code navigation"],
+            facts=facts,
+            operating_system=operating_system,
+        ),
+        selected_tools=["graphify"],
+    )
+    before = source.model_dump_json()
+    assert recommend_tools(source).target_platform == expected
+    override = recommend_tools(source, platform="windows")
+    assert override.target_platform == "windows"
+    assert override.recommendations[0].selected
+    assert source.model_dump_json() == before
+    with pytest.raises(ValidationError):
+        recommend_tools(source, platform="unsupported-platform")
 
 
 def test_result_roundtrip_stability_and_no_execution(monkeypatch):

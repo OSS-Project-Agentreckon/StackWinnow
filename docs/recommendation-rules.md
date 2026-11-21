@@ -54,7 +54,11 @@ diagnostics. No arbitrary confidence percentages or estimated savings are used.
 
 Matching is case-insensitive and uses whole phrases after Unicode normalization
 and punctuation handling. Common smart apostrophes are normalized before
-tokenizing contractions. It is a small English phrase matcher, not natural-language inference.
+tokenizing contractions. Hyphens may join words of a supported phrase, such as
+`code-navigation` or `cost-optimization`. A word inside another compound does
+not match on its own: `re-evaluation` and `evaluation-driven` remain unmatched.
+Negation checks also inspect hyphen-separated words. This is a small English
+phrase matcher, not natural-language inference.
 Goals containing `no`, `not`, `never`, `avoid`, `without`, `unless`,
 or `if` are conservatively left unmatched, as are `cannot` and negative
 contractions ending in `n't` (including don't, don’t, won't, can't, and shouldn't).
@@ -113,6 +117,14 @@ Eligibility comes from the existing catalog API. The command does not invent
 adapter registration or prerequisite results. All entries currently remain
 catalog-only while runner integration is pending, including promptfoo. A
 recommendation is not an executable plan, setup approval, or functionality check.
+
+Project inspection does not infer a target OS from the machine running the CLI.
+Supply `--platform macos`, `--platform linux`, or `--platform windows` when known.
+Without it, a CLI recommendation retains an unknown target and includes the
+`platform-unknown` eligibility blocker. Python callers can supply profile
+`facts["os"]` or `operating_system` evidence; the latter is a fallback when OS
+facts are absent or empty. An explicit `platform` argument takes precedence,
+without changing the input profile. This keeps host and project targets separate.
 
 ## Output and Python API
 

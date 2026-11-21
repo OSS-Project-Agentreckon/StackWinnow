@@ -1,6 +1,6 @@
 # StackWinnow implementation progress
 
-Last updated: **19 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **21 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
@@ -10,6 +10,17 @@ Based on fetched main `9c245d4` (PR #8 merged), step 10 is implemented on
 `feat/tool-recommendations` and locally validated; it is prepared for PR review
 and is not merged. Step 7 is merged through PR #7 as `fa3616e`. Earlier sections below
 retain their original branch-specific evidence.
+
+Review follow-up for [PR #9](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/9)
+on 21 November: hyphenated compounds no longer expose individual words to goal
+rules, while supported phrases such as `code-navigation` still match. Eligibility
+context updates now pass through validation. Human output labels relationships
+and computes only the relevant reason detail. Target-platform evidence, explicit
+overrides, and unknown-target behavior are documented and covered by tests.
+Local Python 3.11 verification after rebuilding/reinstalling the package:
+**486 passed, 2 skipped**, with warnings treated as errors; Ruff lint/format and
+diff checks passed. The skipped cases require integration/provider opt-ins.
+These review fixes do not complete another roadmap step or establish merged status.
 
 - Adds `recommend_tools()` and `stackwinnow recommend` with human/JSON output.
   Rules match goals to catalog capabilities and exact dependency aliases, with

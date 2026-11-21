@@ -148,9 +148,11 @@ def _show_recommendations(result: RecommendationResult) -> None:
         )
         print(f"  {item.name} ({item.tool_id}) [{label}]: {item.description}")
         for reason in item.reasons:
-            detail = "; ".join(reason.goals)
-            if reason.fact_key:
-                detail = reason.fact_key + ": " + ", ".join(reason.values)
+            detail = (
+                reason.fact_key + ": " + ", ".join(reason.values)
+                if reason.fact_key
+                else "; ".join(reason.goals)
+            )
             print(f"    Why: {reason.message}" + (f" ({detail})" if detail else ""))
             if reason.matched_capabilities:
                 print("      Matched capabilities: " + ", ".join(reason.matched_capabilities))
@@ -163,6 +165,8 @@ def _show_recommendations(result: RecommendationResult) -> None:
             print("    Conflicts with: " + ", ".join(item.conflicts_with))
         for limitation in item.limitations:
             print(f"    Limitation: {limitation}")
+    if result.relationships:
+        print("Relationships:")
     for relationship in result.relationships:
         print(f"  {relationship.kind}: " + " / ".join(relationship.tools))
     for note in result.notes:

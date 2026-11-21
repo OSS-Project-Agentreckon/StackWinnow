@@ -340,6 +340,7 @@ def test_recommend_human_output_and_unmatched_goal(tmp_path: Path) -> None:
         "Alternatives",
         "Matched capabilities:",
         "code-relationships",
+        "Relationships:\n  alternative: graphify / serena",
     ):
         assert text in result.stdout
     unmatched = run_cli(tmp_path, "recommend", ".", "--goal", "manage payroll", "--json")
@@ -347,6 +348,17 @@ def test_recommend_human_output_and_unmatched_goal(tmp_path: Path) -> None:
     payload = json.loads(unmatched.stdout)
     assert payload["recommendations"] == [] and payload["unmatched_goals"] == ["manage payroll"]
     assert list(tmp_path.iterdir()) == []
+
+
+def test_recommend_human_output_omits_empty_relationship_section(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text('{"dependencies":{"promptfoo":"*"}}')
+    result = run_cli(tmp_path, "recommend", ".", "--goal", "Evaluate answers")
+    assert result.returncode == 0
+    assert "node.dependencies: promptfoo" in result.stdout
+    assert "(Evaluate answers)" in result.stdout
+    single = run_cli(tmp_path, "recommend", ".")
+    assert single.returncode == 0
+    assert "Relationships:" not in single.stdout
 
 
 @pytest.mark.parametrize("selection", [[], ["--tool", "promptfoo"]])

@@ -228,10 +228,11 @@ def _goal_text(goal: str) -> str:
         .casefold()
         .translate(str.maketrans({"’": "'", "‘": "'", "ʼ": "'"}))
     )
-    words = re.findall(r"[a-z0-9]+(?:'[a-z0-9]+)?", normalized)
+    words = re.findall(r"[a-z0-9]+(?:['-][a-z0-9]+)*", normalized)
+    parts = {part for word in words for part in word.split("-")}
     # This small phrase matcher cannot safely interpret negated/conditional prose.
-    if {"no", "not", "never", "avoid", "without", "unless", "if", "cannot"} & set(words) or any(
-        word.endswith("n't") for word in words
+    if {"no", "not", "never", "avoid", "without", "unless", "if", "cannot"} & parts or any(
+        part.endswith("n't") for part in parts
     ):
         return ""
     return " " + " ".join(words) + " "
@@ -286,10 +287,15 @@ def recommend_tools(
     goals = {goal: _goal_text(goal) for goal in dict.fromkeys(inspection.profile.goals)}
     matched_goals: set[str] = set()
     for rule in _RULES:
+        # Hyphens may join phrase words, but must not expose words inside compounds.
+        phrases = [
+            re.compile(" " + "[ -]".join(re.escape(word) for word in phrase.split()) + " ")
+            for phrase in rule.phrases
+        ]
         matches = sorted(
             goal
             for goal, normalized in goals.items()
-            if any(" " + phrase + " " in normalized for phrase in rule.phrases)
+            if any(phrase.search(normalized) for phrase in phrases)
         )
         if not matches:
             continue
@@ -307,9 +313,13 @@ def recommend_tools(
                 )
                 matched_goals.update(matches)
     context = EligibilityContext.from_profile(inspection.profile)
-    if platform is not None:
-        context = EligibilityContext.model_validate({**context.model_dump(), "platform": platform})
-    context.selected_tools = selected
+    context = EligibilityContext.model_validate(
+        {
+            **context.model_dump(),
+            "platform": platform if platform is not None else context.platform,
+            "selected_tools": selected,
+        }
+    )
     recommendations = []
     for tool_id, matches in reasons.items():
         tool = by_id[tool_id]
