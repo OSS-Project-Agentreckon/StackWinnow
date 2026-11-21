@@ -11,10 +11,11 @@ Version `0.1.0.dev0` provides an installable Python package, catalog discovery,
 project inspection with explicit goals/preferences, explainable recommendations,
 runtime inspection, a command runner, setup preflight, execution receipts, owned
 JSON configuration edits, and a pinned promptfoo adapter with plan/apply commands.
+Graphify provides a recipe preview and local relationship-evidence checks.
 `check` reports installation, configuration, connection, and fresh functionality
 for selected tools; promptfoo is the first verifier. The `inspect` command reads
 project declarations; host runtime inspection and setup preflight remain Python
-APIs. Other tool adapters, the unified guided journey, and removal remain planned.
+APIs. Graphify managed apply, the unified guided journey, and removal remain planned.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -23,6 +24,8 @@ coding assistant, and tool versions must be agreed and tested before any
 integration is advertised as supported. The initial promptfoo execution scope
 is macOS arm64 with Node 24. The runner is integrated; its remaining reviewed
 limitations are recorded in [implementation progress](docs/implementation-progress.md).
+Graphify's local indexing/query probe was verified on macOS arm64; actual Codex
+connectivity remains pending.
 
 ## Install and run
 
@@ -88,6 +91,19 @@ Tool fit and installation readiness are separate. Local/hosted model support is
 reported as unverified where the catalog lacks evidence. See
 [recommendation rules](docs/recommendation-rules.md) for supported phrases,
 ranking, dependency aliases, JSON output, and the Python API.
+
+## Preview Graphify setup
+
+```sh
+stackwinnow graphify plan . --platform macos --assistant codex
+stackwinnow graphify plan . --platform macos --assistant codex --json
+```
+
+This read-only preview describes the pinned `graphifyy==0.9.114` wheel, local
+code indexing commands, output path, and remaining setup blockers. It does not
+install or configure tools; `ready_to_apply` remains false. The
+[Graphify guide](docs/integrations/graphify.md) documents the real known-relationship
+probe and the pending configuration/verification integration.
 
 ## Browse the catalog
 

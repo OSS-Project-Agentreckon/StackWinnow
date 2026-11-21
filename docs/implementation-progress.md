@@ -4,6 +4,64 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 13 / Person A: Graphify preview and relationship evidence
+
+On 21 November, work started on `feat/graphify-onboarding` from main `ef300a5`.
+PRs #6, #9, and #10 are merged. Their runner, recommendation, and preflight
+modules are present; the step 12 shared verification framework is not. This
+is the first independently testable portion of step 13, not completed onboarding.
+
+- Adds a read-only `graphify plan PROJECT --platform macos --assistant codex`
+  command with human/JSON output, shared preflight observations, pinned wheel
+  identity/hash, code-only index commands, and explicit remaining blockers.
+- Inspected the `graphifyy==0.9.114` wheel, Python requirement and included
+  Apache-2.0 license. Transitive dependencies are inventoried for the probe,
+  not locked or represented as a completed artifact-license audit.
+- Adds a known-relationship expectation and evidence checker, reusing the
+  existing `greet() → normalize_name()` fixture. A separate upstream query
+  uses exact node IDs; wrong/missing/reversed/ambiguous relationships fail.
+- Real upstream probe passed on macOS arm64/Python 3.11.14: two local index/query
+  runs, missing-target exit 4, removed-edge failure, zero model tokens, and
+  preserved source/settings. The probe used a separately prepared environment;
+  it does not establish managed apply or actual Codex connectivity.
+- No Graphify installer/configuration writer, removal command, provider calls,
+  catalog availability change, or ownership claim is introduced. Markdown/skill
+  ownership and C's verification interface remain integration dependencies.
+
+See [Graphify integration](integrations/graphify.md) and
+[recorded probe evidence](evidence/graphify-probe.json). Initial commit `0096d08`
+is published in [PR #12](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/12).
+Research and implementation were
+AI-assisted. Baseline main passed **578 tests, 2 skipped** on Python 3.11.
+After rebuilding/reinstalling the package, the final local default suite passed
+**619 tests, 3 skipped**, with warnings treated as errors. The three default
+skips are opt-in integration/provider cases; the real Graphify integration test
+was run separately and passed (**1 passed**). Ruff lint/format, dependency
+compatibility, and diff checks passed. No hosted CI result is claimed for this
+feature branch, and no Python 3.14 run was performed for this slice.
+
+PR #12 review follow-up: explicit `calls`/`EXTRACTED` self-edges now verify
+recursive functions. Matching a node to itself without the edge still fails.
+Recursive queries use upstream `explain --all` because `path` rejects identical
+endpoints. The new positive regression failed against the initial code; negative
+cases cover removed, incorrect, and inferred self-edges. Rebuilt/reinstalled
+package validation on Python 3.11: **623 passed, 4 opt-in skips** in the default
+suite, plus **2 real Graphify integration cases passed** (cross-file and recursive
+calls, each with repeated indexing and negative controls). Ruff lint/format and
+diff checks passed. This follow-up addresses PR #12's recursive-call finding;
+review acceptance and merge status remain tracked on the PR.
+
+PR #12 merge repair, 21 November: merge commit `5538496` incorporated main
+`13a7081` (including Headroom and shared verification) but omitted the closing
+parenthesis on Graphify's `--json` argument. Restored it while preserving both
+Graphify and `check` commands, reconciled the duplicated README scope text and
+stray branch labels, and removed a misplaced progress heading. After rebuilding
+and reinstalling the package, Python 3.11.14 passed **722 tests, 5 opt-in skips**
+with warnings treated as errors. Ruff lint/format, dependency compatibility,
+and diff checks passed. Hosted CI must rerun after publication of this repair.
+Real upstream integrations were not rerun for
+this syntax/documentation repair.
+
 ## Step 12 / person C's fourth planned contribution
 
 Current base is fetched main **`ef300a5`** on 21 November. PRs #1–10 are now
@@ -121,8 +179,8 @@ new branch, or published-history rewrite is introduced.
 ## Step 10 / Person A: local recommendation implementation
 
 Based on fetched main `9c245d4` (PR #8 merged), step 10 is implemented on
-`feat/tool-recommendations` and locally validated; it is prepared for PR review
-and is not merged. Step 7 is merged through PR #7 as `fa3616e`. Earlier sections below
+`feat/tool-recommendations` and merged through PR #9 on 21 November, including
+review fix `dd401e7`. Step 7 is merged through PR #7 as `fa3616e`. Earlier sections below
 retain their original branch-specific evidence.
 
 Review follow-up for [PR #9](https://github.com/OSS-Project-Agentreckon/StackWinnow/pull/9)
@@ -155,11 +213,10 @@ These review fixes do not complete another roadmap step or establish merged stat
   CLI checks. Ruff lint/format, dependency checks and diff checks passed.
   No hosted CI result is claimed for this local branch.
 
-PR #6 remains the runner integration gate. The merged promptfoo implementation
-does not establish default installation readiness until the fixed runner is
-integrated and accepted. The next action is PR review and integration.
-Person A's next engineering milestone is step 13 (Graphify), subject to
-the runner, executor, preflight, and verification dependencies in the shared plan.
+PR #6 and preflight PR #10 are now merged. The final recommendation revision
+passed **486 tests, 2 skipped** locally and both Python 3.11/3.14 hosted jobs in
+CI run `44865454273`. Person A has started step 13 above; merged prerequisites
+alone do not establish complete integration acceptance.
 
 ## Step 9 / person C's third planned contribution
 

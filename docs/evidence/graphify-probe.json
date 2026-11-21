@@ -1,0 +1,186 @@
+{
+  "observed_on": "2026-11-21",
+  "base_commit": "ef300a5dc0a9f3abf43aef4ed1a4e2656c7ab0db",
+  "scope": "Upstream code-only fixture indexing and CLI query through StackWinnow command previews; not managed apply, removal, or actual Codex connectivity.",
+  "artifact": {
+    "distribution": "graphifyy",
+    "version": "0.9.114",
+    "wheel": "graphifyy-0.9.114-py3-none-any.whl",
+    "sha256": "cf3cb57e87840a0c6ef7399578a95ad7ff6a83539dc71dcef0465b1b7f3a3453",
+    "license": "Apache-2.0",
+    "license_sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+    "requires_python": ">=3.11.5,<3.15",
+    "extras": [],
+    "transitive_dependencies_locked": false,
+    "license_scope": "Wheel's included Graphify LICENSE; this is not a completed license audit of transitive dependencies."
+  },
+  "environment": {
+    "python": "3.11.14",
+    "system": "Darwin",
+    "release": "27.2.0",
+    "machine": "arm64",
+    "installed_distributions": [
+      {
+        "name": "graphifyy",
+        "version": "0.9.114"
+      },
+      {
+        "name": "networkx",
+        "version": "3.6.1"
+      },
+      {
+        "name": "numpy",
+        "version": "2.4.6"
+      },
+      {
+        "name": "pip",
+        "version": "25.3"
+      },
+      {
+        "name": "PyYAML",
+        "version": "6.0.4"
+      },
+      {
+        "name": "RapidFuzz",
+        "version": "3.14.6"
+      },
+      {
+        "name": "setuptools",
+        "version": "80.10.1"
+      },
+      {
+        "name": "tree-sitter",
+        "version": "0.25.2"
+      },
+      {
+        "name": "tree-sitter-bash",
+        "version": "0.25.1"
+      },
+      {
+        "name": "tree-sitter-c",
+        "version": "0.24.2"
+      },
+      {
+        "name": "tree-sitter-c-sharp",
+        "version": "0.24.0"
+      },
+      {
+        "name": "tree-sitter-cpp",
+        "version": "0.23.4"
+      },
+      {
+        "name": "tree-sitter-elixir",
+        "version": "0.3.5"
+      },
+      {
+        "name": "tree-sitter-fortran",
+        "version": "0.6.0"
+      },
+      {
+        "name": "tree-sitter-go",
+        "version": "0.25.0"
+      },
+      {
+        "name": "tree-sitter-groovy",
+        "version": "0.1.2"
+      },
+      {
+        "name": "tree-sitter-java",
+        "version": "0.23.5"
+      },
+      {
+        "name": "tree-sitter-javascript",
+        "version": "0.25.0"
+      },
+      {
+        "name": "tree-sitter-json",
+        "version": "0.24.8"
+      },
+      {
+        "name": "tree-sitter-julia",
+        "version": "0.23.1"
+      },
+      {
+        "name": "tree-sitter-kotlin",
+        "version": "1.1.0"
+      },
+      {
+        "name": "tree-sitter-lua",
+        "version": "0.5.0"
+      },
+      {
+        "name": "tree-sitter-objc",
+        "version": "3.0.2"
+      },
+      {
+        "name": "tree-sitter-php",
+        "version": "0.24.1"
+      },
+      {
+        "name": "tree-sitter-powershell",
+        "version": "0.26.4"
+      },
+      {
+        "name": "tree-sitter-python",
+        "version": "0.25.0"
+      },
+      {
+        "name": "tree-sitter-ruby",
+        "version": "0.23.1"
+      },
+      {
+        "name": "tree-sitter-rust",
+        "version": "0.24.2"
+      },
+      {
+        "name": "tree-sitter-scala",
+        "version": "0.26.13"
+      },
+      {
+        "name": "tree-sitter-swift",
+        "version": "0.7.4"
+      },
+      {
+        "name": "tree-sitter-typescript",
+        "version": "0.23.2"
+      },
+      {
+        "name": "tree-sitter-verilog",
+        "version": "1.0.3"
+      },
+      {
+        "name": "tree-sitter-zig",
+        "version": "1.1.2"
+      }
+    ]
+  },
+  "validation": {
+    "command": "STACKWINNOW_GRAPHIFY_PYTHON=/path/to/isolated/bin/python .venv/bin/python -m pytest -q -W error tests/integration/test_graphify.py --run-integration",
+    "result": "1 passed",
+    "index_runs": 2,
+    "positive_query": "greet() --calls [EXTRACTED]--> normalize_name()",
+    "positive_query_exit_code": 0,
+    "missing_target_exit_code": 4,
+    "removed_call_edge_result": "failed",
+    "model_input_tokens": 0,
+    "model_output_tokens": 0,
+    "project_source_and_settings_preserved": true,
+    "codex_configuration_written": false,
+    "codex_connectivity": "not tested",
+    "managed_installation": "not implemented"
+  },
+  "recursive_review_followup": {
+    "pull_request": 12,
+    "reviewed_commit": "0096d080dbf6762876150b21b6588273ca47709d",
+    "integration_result": "2 passed",
+    "cases": ["cross-file-call", "recursive-call"],
+    "index_runs_per_case": 2,
+    "recursive_query": "explain recursive_factorial --all --graph <graph.json>",
+    "recursive_output_contains": "--> factorial() [calls] [EXTRACTED]",
+    "removed_self_edge_result": "failed",
+    "missing_target_exit_code": 4,
+    "model_input_tokens": 0,
+    "model_output_tokens": 0
+  },
+  "ai_assisted": true
+}

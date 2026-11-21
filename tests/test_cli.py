@@ -308,6 +308,50 @@ def test_inspect_explicit_missing_configuration_exits_one(tmp_path: Path) -> Non
     assert not json.loads(result.stdout)["complete"]
 
 
+def test_graphify_installed_cli_preview_is_explicitly_blocked_without_writes(tmp_path: Path):
+    args = ("graphify", "plan", ".", "--platform", "macos", "--assistant", "codex")
+    result = run_cli(tmp_path, *args, "--json")
+    assert result.returncode == 0, result.stderr
+    payload = json.loads(result.stdout)
+    assert payload["phase"] == "preview-only" and not payload["ready_to_apply"]
+    assert payload["artifact"]["distribution"] == "graphifyy"
+    assert payload["artifact"]["version"] == "0.9.114"
+    assert payload["blockers"]
+    assert result.stdout.count('"schema_version"') == 1
+    human = run_cli(tmp_path, *args)
+    assert human.returncode == 0 and "Apply: unavailable (preview only)" in human.stdout
+    assert "Shared verification" in human.stdout and "Codex" in human.stdout
+    assert list(tmp_path.iterdir()) == []
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("graphify", "plan", "."),
+        ("graphify", "plan", ".", "--platform", "linux", "--assistant", "codex"),
+        ("graphify", "plan", ".", "--platform", "macos", "--assistant", "cursor"),
+        ("graphify", "plan", "missing", "--platform", "macos", "--assistant", "codex"),
+        ("graphify", "apply", "plan.json"),
+    ],
+)
+def test_graphify_cli_rejects_unsupported_or_incomplete_requests(tmp_path: Path, args):
+    result = run_cli(tmp_path, *args)
+    assert result.returncode == 2
+    assert "Traceback" not in result.stderr
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_graphify_cli_does_not_echo_corrupt_receipt_values(tmp_path: Path):
+    (tmp_path / ".stackwinnow").mkdir()
+    (tmp_path / ".stackwinnow/receipts.json").write_text('{"private":"synthetic-secret"}')
+    result = run_cli(
+        tmp_path, "graphify", "plan", ".", "--platform", "macos", "--assistant", "codex"
+    )
+    assert result.returncode == 2
+    assert "synthetic-secret" not in result.stderr + result.stdout
+    assert "Traceback" not in result.stderr
+
+
 def test_recommend_installed_cli_explains_selection_and_project_evidence(tmp_path: Path) -> None:
     manifest = tmp_path / "package.json"
     manifest.write_text('{"devDependencies":{"promptfoo":"0.125.1"}}')
