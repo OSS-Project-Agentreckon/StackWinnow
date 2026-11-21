@@ -346,6 +346,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     graphify_plan.add_argument("--assistant", required=True, choices=["codex"])
     graphify_plan.add_argument(
         "--json", action="store_true", help="Emit a read-only recipe preview."
+    )
     checking = commands.add_parser(
         "check",
         help="Verify selected tools without installing or changing their configuration.",

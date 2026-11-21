@@ -51,7 +51,17 @@ calls, each with repeated indexing and negative controls). Ruff lint/format and
 diff checks passed. This follow-up addresses PR #12's recursive-call finding;
 review acceptance and merge status remain tracked on the PR.
 
-## Step 10 / Person A: recommendation implementation (merged)
+PR #12 merge repair, 21 November: merge commit `5538496` incorporated main
+`13a7081` (including Headroom and shared verification) but omitted the closing
+parenthesis on Graphify's `--json` argument. Restored it while preserving both
+Graphify and `check` commands, reconciled the duplicated README scope text and
+stray branch labels, and removed a misplaced progress heading. After rebuilding
+and reinstalling the package, Python 3.11.14 passed **722 tests, 5 opt-in skips**
+with warnings treated as errors. Ruff lint/format, dependency compatibility,
+and diff checks passed. Hosted CI must rerun after publication of this repair.
+Real upstream integrations were not rerun for
+this syntax/documentation repair.
+
 ## Step 12 / person C's fourth planned contribution
 
 Current base is fetched main **`ef300a5`** on 21 November. PRs #1–10 are now
