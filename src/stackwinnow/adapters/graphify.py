@@ -1,8 +1,8 @@
 """Read-only Graphify recipe previews and known-relationship evidence checks.
 
-Managed apply and client verification await the shared verification framework
-and ownership support for upstream's Markdown/skill edits. A preview never
-executes its commands or declares an existing installation owned.
+The separate install-only adapter executes locked package setup. Indexing and
+client verification still need integration and owned Markdown/skill edits. A
+preview never executes commands or declares an existing installation owned.
 """
 
 from __future__ import annotations
@@ -251,7 +251,7 @@ def plan_graphify(project_root: str | Path, *, platform: str, assistant: str) ->
         ]
         + [index_command(root, python)],
         blockers=[
-            "Managed Graphify apply is not implemented; these commands are previews only.",
+            "This preview cannot be applied; use execution-plan and explicit --install-only apply.",
             "Shared verification and actual Codex connectivity checks are pending.",
             "Owned Markdown/skill changes are required before automating upstream Codex setup.",
             "Host Python/platform prerequisites and the dependency set need validation at apply time.",

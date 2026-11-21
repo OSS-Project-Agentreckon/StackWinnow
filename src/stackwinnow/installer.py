@@ -192,6 +192,7 @@ def execute_plan(
     dry_run: bool = False,
     step_runner: StepRunner | None = None,
     configuration_intents: Mapping[str, list[ConfigPatch]] | None = None,
+    before_execute: Callable[[], None] | None = None,
 ) -> tuple[ExecutionRecord, list[OperationResult]]:
     """Execute each step in order, persisting a receipt after every real step.
 
@@ -204,6 +205,8 @@ def execute_plan(
       that an interrupted run leaves an explicit record rather than silent corruption.
     - Raises InstallerError if receipts are corrupt or belong to another project;
       the caller must resolve the state before retrying.
+    - before_execute may reject stale adapter inputs before any receipt writes.
+      It runs under the project lock for real execution and must be read-only.
     """
     intents: dict[str, list[ConfigPatch]] = {}
     steps = {step.step_id: step for step in plan.steps}
@@ -224,9 +227,13 @@ def execute_plan(
     if dry_run:
         # Dry runs never touch disk, so there is nothing to serialise; skip the
         # lock to avoid creating an empty .stackwinnow/ directory as a side-effect.
+        if before_execute is not None:
+            before_execute()
         return _run_locked(plan, intents, dry_run=True, step_runner=step_runner)
     try:
         with project_lock(plan.project_root):
+            if before_execute is not None:
+                before_execute()
             return _run_locked(plan, intents, dry_run=False, step_runner=step_runner)
     except ProjectLockError as exc:
         # Re-raise as InstallerError so callers only need to handle one error type

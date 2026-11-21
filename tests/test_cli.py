@@ -383,7 +383,7 @@ def test_graphify_execution_plan_installed_roundtrip_and_stale_source(tmp_path: 
     assert validated.returncode == 0, validated.stderr
     assert json.loads(validated.stdout) == payload
     human = run_cli(tmp_path, *args)
-    assert human.returncode == 0 and "Apply: unavailable" in human.stdout
+    assert human.returncode == 0 and "--install-only; full apply is pending" in human.stdout
     assert "No commands, downloads, or project writes" in human.stdout
     assert list(project.iterdir()) == [source]
     source.write_text("def recurse(): return None\n")

@@ -4,6 +4,43 @@ Last updated: **21 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## Step 13 continuation: managed package installation
+
+Started `feat/graphify-managed-install` from merged main `32181cd` on
+21 November. PRs #14, #15 and #16 are merged; earlier open-PR statements below
+record their historical state. This contribution covers package installation
+only; review and merge status are tracked separately on GitHub.
+
+- Adds `graphify apply PLAN.json --install-only [--dry-run] [--json]`, accepting
+  the existing execution preparation only for explicit package installation.
+  Full install/index preparation readiness and assistant readiness remain false.
+- Reuses the 31-wheel hash lock, creates a project-local copied Python venv,
+  bootstraps pip, installs direct wheel URLs with required hashes and no dependency
+  resolution, then verifies the environment prefix, all versions and core imports.
+- Uses shared execution receipts and a read-only validation callback under the
+  project lock. Invalid/stale/conflicting state blocks before receipt writes.
+  Failures retain created ownership; competing directories are never adopted.
+  Unchanged successful installs can be reused from the original saved plan after
+  content/permission inventory checks. Changed or partial state requires inspection.
+- Bounds the runner's post-kill pipe drain, including a regression with an escaped
+  child retaining stdout. Separately detached sessions are not contained.
+- Restores the existing Playwright CLI handler omitted by the merge. The baseline
+  suite reproduced its NameError: **849 passed, 1 failed, 6 opt-in skips**.
+
+Validation: rebuilt-package suite **887 passed, 7 opt-in skips** on Python
+3.11.14 with warnings treated as errors; Ruff lint/format, dependency and diff
+checks passed. The real managed Graphify test separately passed **1 case** on
+macOS 27.2.1 arm64/Python 3.11.14: download/install/health, dry-run, unchanged
+reuse, changed-state rejection, and controlled download-failure ownership.
+No provider calls or client configuration were used. Existing indexing/client
+integration cases were not rerun. No Python 3.14 or hosted CI result is claimed.
+Implementation, tests and documentation were AI-assisted.
+
+Step 13 remains partial. Next: managed fresh indexing, changed-source
+reconciliation and shared Graphify verification, followed by owned Codex setup
+and actual client acceptance. See [Graphify scope](integrations/graphify.md) for
+the supported platform, inventory limits, recovery boundaries and commands.
+
 ## Step 13 continuation: locked execution preparation
 
 On 21 November, PR #12 is merged as main `f8b826a`; its final repair passed

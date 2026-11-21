@@ -1,8 +1,9 @@
-# Graphify recipe preview and local relationship evidence
+# Graphify installation and local relationship evidence
 
 Step 13 has a read-only recipe preview and tested command builders for local
-indexing/querying. Managed apply, client configuration, and the complete
-verification lifecycle are not implemented. The catalog remains `catalog_only`.
+indexing/querying, plus explicit managed package installation. Managed indexing,
+client configuration, and the complete verification lifecycle are not implemented.
+The catalog remains `catalog_only`.
 
 ## Preview a project
 
@@ -21,7 +22,8 @@ installation intentions, command argument arrays, child environment overrides,
 preflight observations, notes, and blockers. `phase` is `preview-only` and
 `ready_to_apply` is always false. Exit 0 means the preview was produced, including
 blocked plans; exit 2 means invalid input, unsupported target, or unreadable or
-invalid project state. There is no `graphify apply` command or saved-plan executor.
+invalid project state. This original preview is not accepted by `graphify apply`;
+use the separate execution preparation below for install-only execution.
 The preview is a developer review artifact; do not treat its command arrays as
 an installation approval or run an arbitrary edited JSON document.
 
@@ -168,8 +170,9 @@ dependency resolution and download evidence was collected on Python 3.11.14.
 
 The lock binds Graphify's dependencies, not the interpreter, pip/ensurepip, or
 operating system. It contains no optional extras. Artifact downloads and hashes
-were validated; complete dependency-license acceptance and real managed
-installation remain pending. Wheels are not redistributed with StackWinnow.
+were validated; complete dependency-license acceptance remains pending. Managed
+installation has a separate opt-in acceptance check described below.
+Wheels are not redistributed with StackWinnow.
 
 Plans record the current runtime identity, receipt-file digest, and hashes of
 the selected relationship sources. `validate-plan` rebuilds the reviewed recipe
@@ -178,14 +181,17 @@ catalog identity/license or receipts require a new plan. Input JSON is bounded;
 duplicate keys, unsafe source paths and symlink inputs are rejected. Sources and
 receipts are limited to 4 MiB each, expectation JSON to 64 KiB, saved plans to
 1 MiB. Existing Graphify paths or real receipts block this fresh-install slice
-until shared reconciliation is integrated; no ownership is inferred or adopted.
+during preparation; no ownership is inferred or adopted. After a successful
+install, reuse the original saved plan with `apply --install-only` instead of
+regenerating a fresh-install plan.
 
 **Neither command executes a plan.** Both return 0 for successfully prepared or
 revalidated output, including its blockers, and 2 for invalid/stale input. The
 phase is `execution-preparation` and `ready_to_apply` is always false. Validation
 is not a signature, permission record, functional check or Codex connection.
-No new `apply` command is exposed. Reviewed shared locking/reconciliation,
-bounded execution and owned client configuration remain prerequisites.
+The explicit install-only executor below performs just the package installation
+part. The preparation still reports false for readiness of its full install/index
+scope; it is not an executable arbitrary command list.
 
 To reproduce the lock download check on the declared target (network required):
 
@@ -198,6 +204,67 @@ python -m pip --isolated download --require-hashes --only-binary=:all: \
 This downloads wheels only. It neither installs Graphify nor configures a client.
 See [lock evidence](../evidence/graphify-lock.json) for the recorded result.
 
+### Managed package installation
+
+```sh
+stackwinnow graphify apply plan.json --install-only --dry-run --json
+stackwinnow graphify apply plan.json --install-only --json
+```
+
+`--install-only` is required so the broader preparation cannot accidentally be
+interpreted as completed index/client onboarding. Apply accepts only the reviewed
+recipe on CPython 3.11.5–3.11.x / macOS 14+ arm64. It reconstructs recipe inputs,
+checks the source/runtime/receipt snapshots and ownership, then rechecks under
+the shared project lock before writing any intent receipt. Dry-run is read-only:
+no locks, commands, downloads, directories or receipt writes.
+
+A fresh apply exclusively creates `.stackwinnow/envs/graphify`, uses Python's
+`venv --copies --without-pip`, bootstraps pip through that interpreter's ensurepip,
+and installs the 31 direct wheel URLs with `--require-hashes`, `--no-deps`,
+`--no-index`, `--only-binary=:all:` and no pip cache. Child commands use `-I`, a
+private HOME under the owned directory, disabled Graphify refresh/query logging,
+and the shared runner's minimal environment. Download timeout is 600 seconds;
+creation, bootstrap and health checks each allow 60 seconds. The runner also
+bounds post-kill pipe draining; separately detached sessions are not contained.
+
+The health check confirms the virtual environment prefix, every locked
+installed distribution version, and imports Graphify, NumPy, NetworkX and
+tree-sitter. A receipt records ownership and the digest of an installation
+inventory. Reuse of the same plan compares file contents and permissions with
+that inventory without running another command. This is a local change detector,
+not tamper-proof attestation: someone able to rewrite both state and receipts
+is outside this trust model. The interpreter/OS and pip bootstrap remain outside
+the dependency lock. Inventory limits are 20,000 files, 128 MiB per file, 512 MiB
+in total and 4 MiB for the manifest; links and special files are rejected.
+
+Failures retain the exact directory created by this attempt in the receipt.
+Pre-existing directories are never adopted. Partial installations, missing or
+changed files, modified sources/runtime, and unfamiliar receipts block reuse;
+they are not deleted or repaired automatically. A process interruption leaves
+an intent receipt; inspect the recorded state before taking any recovery action.
+No automatic recovery/removal command is supplied by this slice. If sources have
+changed since the original plan, replanning an existing installation is also
+pending the indexing/reconciliation follow-up. Unrelated tool receipts and user
+configuration are preserved.
+
+JSON reports `scope: local-install-only`, `installed`, `dry_run`, operation
+results and `ready: false`. Exit 0 means a valid dry-run or a successful/reused
+installation; exit 1 means an installation step failed; exit 2 means invalid,
+stale, unsupported or conflicting input. No index, graph, Codex settings, skill
+files, hooks, or assistant connection is produced. The shared `check` command
+still reports Graphify as unsupported; it is the next integration slice.
+
+Reproduce real managed acceptance on the supported target (network downloads,
+no provider calls):
+
+```sh
+python -m pytest -q -W error tests/integration/test_graphify_install.py --run-integration
+```
+
+The test covers a real install/health check, no-write dry-run, unchanged reuse,
+changed-state rejection, and retained partial ownership after a controlled
+download failure. It does not establish indexing or Codex readiness.
+
 ### Execution and client integration still pending
 
 1. Integrate with C's step 12 verification framework and distinguish package,
@@ -206,10 +273,9 @@ See [lock evidence](../evidence/graphify-lock.json) for the recorded result.
    write `AGENTS.md`, `.codex/skills/graphify/` and `.codex/hooks.json`. Existing
    JSON patch ownership does not cover Markdown sections or copied skill trees.
    Do not invoke its installer or broad all-client uninstaller as a shortcut.
-3. Implement apply using the shared runner/executor, revalidate prerequisites,
-   dependency artifacts, reviewed plans, and path ownership at execution time;
-   handle failed/repeated operations and concurrent changes. A preflight external
-   or managed observation alone must never establish ownership or readiness.
+3. Extend install-only apply with fresh code indexing and relationship queries.
+   Establish source provenance for the whole indexed project, handle changed
+   sources and reindexing, and never reuse stale graph data after a failed run.
 4. Exercise the actual selected Codex integration and preserve unrelated user
    settings. Record provider-dependent checks separately if needed. Validate
    scoped removal through the team's lifecycle component before advertising it.
