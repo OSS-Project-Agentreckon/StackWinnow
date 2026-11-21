@@ -42,6 +42,7 @@ def test_help_is_available_without_a_project(tmp_path: Path, args: tuple[str, ..
     assert "--version" in result.stdout
     assert "catalog" in result.stdout
     assert "inspect" in result.stdout
+    assert "recommend" in result.stdout
     assert "promptfoo" in result.stdout
     assert "Promptfoo execution requires the shared runner" in " ".join(result.stdout.split())
     assert result.stderr == ""
@@ -289,6 +290,131 @@ def test_inspect_explicit_missing_configuration_exits_one(tmp_path: Path) -> Non
     result = run_cli(tmp_path, "inspect", ".", "--config", "missing.json", "--json")
     assert result.returncode == 1
     assert not json.loads(result.stdout)["complete"]
+
+
+def test_recommend_installed_cli_explains_selection_and_project_evidence(tmp_path: Path) -> None:
+    manifest = tmp_path / "package.json"
+    manifest.write_text('{"devDependencies":{"promptfoo":"0.125.1"}}')
+    before = manifest.read_bytes()
+    result = run_cli(
+        tmp_path,
+        "recommend",
+        ".",
+        "--goal",
+        "Evaluate answers",
+        "--tool",
+        "promptfoo",
+        "--model-preference",
+        "local",
+        "--assistant",
+        "codex",
+        "--platform",
+        "macos",
+        "--json",
+    )
+    assert result.returncode == 0 and result.stderr == ""
+    payload = json.loads(result.stdout)
+    first = payload["recommendations"][0]
+    assert first["tool_id"] == "promptfoo" and first["selected"] and first["already_declared"]
+    assert {reason["kind"] for reason in first["reasons"]} == {"selection", "dependency", "goal"}
+    goal_reason = next(reason for reason in first["reasons"] if reason["kind"] == "goal")
+    assert goal_reason["matched_capabilities"] == ["prompt-evaluation"]
+    assert not first["eligibility"]["installable"]
+    assert payload["model_preference_status"] == "unverified"
+    assert payload["inspection"]["model_preference"] == "local"
+    assert payload["complete"] and payload["target_platform"] == "macos"
+    assert result.stdout.count('"schema_version"') == 1
+    assert manifest.read_bytes() == before and sorted(p.name for p in tmp_path.iterdir()) == [
+        "package.json"
+    ]
+
+
+def test_recommend_human_output_and_unmatched_goal(tmp_path: Path) -> None:
+    result = run_cli(tmp_path, "recommend", ".", "--goal", "code navigation")
+    assert result.returncode == 0
+    for text in (
+        "Graphify",
+        "Serena",
+        "Why:",
+        "Setup: unavailable",
+        "Alternatives",
+        "Matched capabilities:",
+        "code-relationships",
+        "Relationships:\n  alternative: graphify / serena",
+    ):
+        assert text in result.stdout
+    unmatched = run_cli(tmp_path, "recommend", ".", "--goal", "manage payroll", "--json")
+    assert unmatched.returncode == 0
+    payload = json.loads(unmatched.stdout)
+    assert payload["recommendations"] == [] and payload["unmatched_goals"] == ["manage payroll"]
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_recommend_human_output_omits_empty_relationship_section(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text('{"dependencies":{"promptfoo":"*"}}')
+    result = run_cli(tmp_path, "recommend", ".", "--goal", "Evaluate answers")
+    assert result.returncode == 0
+    assert "node.dependencies: promptfoo" in result.stdout
+    assert "(Evaluate answers)" in result.stdout
+    single = run_cli(tmp_path, "recommend", ".")
+    assert single.returncode == 0
+    assert "Relationships:" not in single.stdout
+
+
+@pytest.mark.parametrize("selection", [[], ["--tool", "promptfoo"]])
+def test_recommend_loads_one_catalog_for_inspection_and_matching(
+    tmp_path, monkeypatch, capsys, selection
+):
+    loader = Mock(wraps=load_catalog)
+    forbidden = Mock(side_effect=AssertionError("Reuse the catalog loaded by the CLI"))
+    monkeypatch.setattr(cli, "load_catalog", loader)
+    monkeypatch.setattr("stackwinnow.detect.load_catalog", forbidden)
+    monkeypatch.setattr("stackwinnow.recommend.load_catalog", forbidden)
+    assert (
+        cli.main(["recommend", str(tmp_path), "--goal", "Evaluate answers", "--json", *selection])
+        == 0
+    )
+    loader.assert_called_once_with()
+    forbidden.assert_not_called()
+    assert json.loads(capsys.readouterr().out)["recommendations"]
+
+
+@pytest.mark.parametrize("goal", ["Don’t evaluate answers", "I won't evaluate answers"])
+def test_recommend_installed_cli_does_not_invert_negated_goal(tmp_path: Path, goal: str):
+    result = run_cli(tmp_path, "recommend", ".", "--goal", goal, "--json")
+    assert result.returncode == 0 and result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["recommendations"] == [] and payload["unmatched_goals"] == [goal]
+
+
+def test_recommend_incomplete_inspection_keeps_partial_json(tmp_path: Path) -> None:
+    (tmp_path / "package.json").write_text('{invalid: "synthetic-secret"}')
+    result = run_cli(tmp_path, "recommend", ".", "--goal", "Evaluate answers", "--json")
+    assert result.returncode == 1 and result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert not payload["complete"] and payload["recommendations"]
+    assert any(item["status"] == "failed" for item in payload["inspection"]["diagnostics"])
+    assert "synthetic-secret" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ("missing-directory",),
+        (".", "--tool", "unknown-tool"),
+        (".", "--goal", " "),
+        (".", "--assistant", "Invalid"),
+        (".", "--platform", "unknown"),
+        (".", "--config", "../outside.json"),
+        (".", "--model-preference", "other"),
+        (".", "--j"),
+    ],
+)
+def test_recommend_rejects_invalid_arguments_without_writes(tmp_path: Path, args: tuple[str, ...]):
+    result = run_cli(tmp_path, "recommend", *args)
+    assert result.returncode == 2
+    assert "error:" in result.stderr and "Traceback" not in result.stderr
+    assert list(tmp_path.iterdir()) == []
 
 
 def test_inspect_deep_dependency_marker_returns_partial_json(tmp_path: Path) -> None:

@@ -17,7 +17,7 @@ from packaging.utils import canonicalize_name
 from packaging.version import InvalidVersion, Version
 from pydantic import Field
 
-from stackwinnow.catalog import load_catalog
+from stackwinnow.catalog import Catalog, load_catalog
 from stackwinnow.contracts import (
     Contract,
     EvidenceRef,
@@ -358,6 +358,7 @@ def inspect_project(
     selected_tools: list[str] | None = None,
     model_preference: ModelPreference | None = None,
     config_path: str | None = None,
+    catalog: Catalog | None = None,
 ) -> InspectionResult:
     """Read project declarations. Invalid requests raise; file problems become diagnostics."""
     try:
@@ -374,7 +375,7 @@ def inspect_project(
         model_preference=model_preference,
     )
     if result.selected_tools:
-        catalog = load_catalog()
+        catalog = catalog if catalog is not None else load_catalog()
         try:
             for tool_id in result.selected_tools:
                 catalog.get(tool_id)
