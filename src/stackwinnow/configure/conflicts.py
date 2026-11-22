@@ -52,6 +52,39 @@ def _classify_owned(document: dict[str, JsonValue], patch: ConfigPatch) -> list[
     return conflicts
 
 
+def _classify_foreign(
+    document: dict[str, JsonValue],
+    patch: ConfigPatch,
+    intended_edits: Sequence[JsonConfigEdit],
+) -> list[KeyConflict]:
+    """Flag intended keys we did not write that are already occupied on disk.
+
+    A key is foreign when it was meant to be ours (in ``intended_edits``) but is
+    absent from ``patch.edits`` — the apply skipped or was blocked — and the path
+    is now occupied: either its leaf exists, or a parent along the way is a
+    non-object that cannot hold our leaf.
+    """
+    owned = {edit.key_path for edit in patch.edits}
+    foreign: list[KeyConflict] = []
+    for edit in intended_edits:
+        if edit.key_path in owned:
+            continue
+        current: object = document
+        occupied = False
+        for key in edit.key_path:
+            if not isinstance(current, dict):
+                occupied = True  # a non-object parent already holds this path
+                break
+            if key not in current:
+                break
+            current = current[key]
+        else:
+            occupied = True  # walked the whole path; the leaf itself exists
+        if occupied:
+            foreign.append(KeyConflict(key_path=edit.key_path, kind=ConflictKind.FOREIGN_PRESENT))
+    return foreign
+
+
 def reconcile_config_patch(
     patch: ConfigPatch,
     *,
@@ -98,5 +131,7 @@ def reconcile_config_patch(
         return report(FileState.UNREADABLE)
 
     file_state = FileState.READABLE if state == patch.written_file else FileState.STALE
-    keys = tuple(_classify_owned(document, patch))
-    return report(file_state, keys)
+    keys = _classify_owned(document, patch)
+    if intended_edits is not None:
+        keys.extend(_classify_foreign(document, patch, intended_edits))
+    return report(file_state, tuple(keys))

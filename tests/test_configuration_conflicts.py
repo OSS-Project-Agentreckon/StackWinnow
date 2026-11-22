@@ -200,3 +200,39 @@ def test_relocated_project_root_is_reported_not_crashed(
     moved = patch.model_copy(update={"project_root": patch.project_root + "-gone"})
     report = reconcile_config_patch(moved)
     assert report.file_state in (FileState.MISSING, FileState.UNREADABLE)
+
+
+# --- Task 4: foreign registration detection via intended edits ---------------
+
+
+def test_preexisting_registration_is_foreign_when_intended_but_not_written(
+    fixture_project: FixtureProject,
+) -> None:
+    # The fixture already contains mcpServers.existing-fixture-server; we never wrote it.
+    patch = _apply_server(fixture_project)  # owns only ("mcpServers", "fixture-tool")
+    intended = [
+        JsonConfigEdit(key_path=("mcpServers", "fixture-tool"), value={"command": "x"}),
+        JsonConfigEdit(key_path=("mcpServers", "existing-fixture-server"), value={"command": "y"}),
+    ]
+    report = reconcile_config_patch(patch, intended_edits=intended)
+    foreign = [k for k in report.keys if k.kind is ConflictKind.FOREIGN_PRESENT]
+    assert len(foreign) == 1
+    assert foreign[0].key_path == ("mcpServers", "existing-fixture-server")
+
+
+def test_no_intended_edits_never_reports_foreign(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    report = reconcile_config_patch(patch)
+    assert all(k.kind is not ConflictKind.FOREIGN_PRESENT for k in report.keys)
+
+
+def test_intended_key_whose_parent_is_nonobject_is_foreign(
+    fixture_project: FixtureProject,
+) -> None:
+    patch = _apply_server(fixture_project)
+    intended = [JsonConfigEdit(key_path=("theme", "nested"), value="z")]  # theme is a string
+    report = reconcile_config_patch(patch, intended_edits=intended)
+    assert any(
+        k.key_path == ("theme", "nested") and k.kind is ConflictKind.FOREIGN_PRESENT
+        for k in report.keys
+    )
