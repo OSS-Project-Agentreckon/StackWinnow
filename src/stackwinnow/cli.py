@@ -42,6 +42,46 @@ from stackwinnow.recommend import RecommendationError, RecommendationResult, rec
 from stackwinnow.verify import VerificationError, check_project
 
 
+def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.playwright_mcp import (
+        apply_playwright,
+        load_playwright_plan,
+        plan_playwright,
+    )
+
+    try:
+        if args.playwright_command == "plan":
+            plan = plan_playwright(args.project_root, assistant=args.assistant)
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(
+                    f"Project: {plan.project_root}; client: Codex; Playwright MCP: {plan.version}"
+                )
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print("Save --json output, then use 'playwright-mcp apply PLAN.json'.")
+            return 0
+        result = apply_playwright(load_playwright_plan(args.plan_file), dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except (OSError, ValueError, ConfigurationError) as exc:
+        from stackwinnow.adapters._managed import ManagedStateError
+
+        message = (
+            str(exc)
+            if isinstance(exc, (ManagedStateError, ConfigurationError))
+            else "Invalid Playwright plan or project state."
+        )
+        parser.exit(2, f"error: {message}\n")
+        return 2
+
+
 def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
         report = check_project(
