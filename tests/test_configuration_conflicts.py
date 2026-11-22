@@ -85,3 +85,66 @@ def test_report_round_trips_through_json() -> None:
         file_state=FileState.STALE,
     )
     assert ConfigReconcileReport.model_validate_json(report.model_dump_json()) == report
+
+
+# --- Task 2: per-key classification against written values -------------------
+
+
+def _rewrite(project: FixtureProject, data: dict) -> None:
+    project.settings.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+
+
+def test_unchanged_owned_value_is_clean(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    report = reconcile_config_patch(patch)
+    assert report.file_state is FileState.READABLE
+    assert [k.kind for k in report.keys] == [ConflictKind.CLEAN]
+    assert report.safe_to_revert is True
+
+
+def test_user_modified_owned_value_is_reported_on_exact_key(
+    fixture_project: FixtureProject,
+) -> None:
+    patch = _apply_server(fixture_project)
+    data = json.loads(fixture_project.settings.read_text())
+    data["mcpServers"]["fixture-tool"] = {"command": "user-changed-it"}
+    _rewrite(fixture_project, data)
+    report = reconcile_config_patch(patch)
+    assert report.file_state is FileState.STALE
+    conflict = report.requires_attention
+    assert len(conflict) == 1
+    assert conflict[0].key_path == ("mcpServers", "fixture-tool")
+    assert conflict[0].kind is ConflictKind.USER_MODIFIED
+
+
+def test_user_removed_owned_key_is_user_removed(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    data = json.loads(fixture_project.settings.read_text())
+    del data["mcpServers"]["fixture-tool"]
+    _rewrite(fixture_project, data)
+    report = reconcile_config_patch(patch)
+    assert [k.kind for k in report.keys] == [ConflictKind.USER_REMOVED]
+
+
+def test_present_null_is_modified_not_removed(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    data = json.loads(fixture_project.settings.read_text())
+    data["mcpServers"]["fixture-tool"] = None
+    _rewrite(fixture_project, data)
+    report = reconcile_config_patch(patch)
+    assert [k.kind for k in report.keys] == [ConflictKind.USER_MODIFIED]
+
+
+def test_unrelated_sibling_key_does_not_appear(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    report = reconcile_config_patch(patch)
+    assert all(k.key_path == ("mcpServers", "fixture-tool") for k in report.keys)
+
+
+def test_diagnostics_never_contain_config_values(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    data = json.loads(fixture_project.settings.read_text())
+    data["mcpServers"]["fixture-tool"] = {"command": "SENSITIVE-SECRET-VALUE"}
+    _rewrite(fixture_project, data)
+    report = reconcile_config_patch(patch)
+    assert "SENSITIVE-SECRET-VALUE" not in report.model_dump_json()
