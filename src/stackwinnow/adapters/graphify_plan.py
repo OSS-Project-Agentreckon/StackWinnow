@@ -325,7 +325,6 @@ def _prepare_graphify_execution(
         )
         runtime = _runtime()
         blockers = [
-            "Full index/query execution is pending; apply requires explicit --install-only scope.",
             "A complete dependency-license audit remains pending; wheels are downloaded, not redistributed.",
             "Owned Codex configuration and actual client verification are not implemented.",
         ]
