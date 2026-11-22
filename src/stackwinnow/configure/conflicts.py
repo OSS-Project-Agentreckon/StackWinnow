@@ -64,15 +64,39 @@ def reconcile_config_patch(
     flag a pre-existing registration the manager meant to own but never wrote.
     """
     patch = ConfigPatch.model_validate(patch.model_dump(warnings=False))
-    with patches._parent(patch.project_root, patch.relative_path) as (parent, name):
-        raw, state = patches._read(parent, name)
-    document = patches._document(raw)
+
+    def report(file_state: FileState, keys: tuple[KeyConflict, ...] = ()) -> ConfigReconcileReport:
+        return ConfigReconcileReport(
+            project_root=patch.project_root,
+            relative_path=patch.relative_path,
+            tool_id=patch.tool_id,
+            file_state=file_state,
+            keys=keys,
+        )
+
+    if patch.format != "json":
+        return report(FileState.UNSUPPORTED)
+
+    try:
+        with patches._parent(patch.project_root, patch.relative_path) as (parent, name):
+            raw, state = patches._read(parent, name)
+    except patches.ConfigurationConflict:
+        # Unsupported shape, symlinked file, or a parent that is not a real
+        # directory. Read-only: tell the caller, do not raise.
+        return report(FileState.UNREADABLE)
+    except FileNotFoundError:
+        return report(FileState.MISSING)
+    except OSError:
+        return report(FileState.UNREADABLE)
+
+    if not state.exists:
+        return report(FileState.MISSING)
+
+    try:
+        document = patches._document(raw)
+    except patches.ConfigurationConflict:
+        return report(FileState.UNREADABLE)
+
     file_state = FileState.READABLE if state == patch.written_file else FileState.STALE
-    keys = _classify_owned(document, patch)
-    return ConfigReconcileReport(
-        project_root=patch.project_root,
-        relative_path=patch.relative_path,
-        tool_id=patch.tool_id,
-        file_state=file_state,
-        keys=tuple(keys),
-    )
+    keys = tuple(_classify_owned(document, patch))
+    return report(file_state, keys)

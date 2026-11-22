@@ -5,6 +5,7 @@ No assistant or tool is executed; projects are copied fixtures.
 
 import json
 import os
+from pathlib import Path
 
 import pytest
 from conftest import FixtureProject
@@ -148,3 +149,54 @@ def test_diagnostics_never_contain_config_values(fixture_project: FixtureProject
     _rewrite(fixture_project, data)
     report = reconcile_config_patch(patch)
     assert "SENSITIVE-SECRET-VALUE" not in report.model_dump_json()
+
+
+# --- Task 3: file-state safety -----------------------------------------------
+
+
+def test_missing_file_is_reported_not_raised(fixture_project: FixtureProject) -> None:
+    patch = _apply_server(fixture_project)
+    fixture_project.settings.unlink()
+    report = reconcile_config_patch(patch)
+    assert report.file_state is FileState.MISSING
+
+
+def test_malformed_file_is_unreadable_and_does_not_raise(
+    fixture_project: FixtureProject,
+) -> None:
+    patch = _apply_server(fixture_project)
+    fixture_project.settings.write_text("{ this is : not json")
+    report = reconcile_config_patch(patch)
+    assert report.file_state is FileState.UNREADABLE
+
+
+def test_toml_format_patch_is_unsupported_without_reading(
+    fixture_project: FixtureProject,
+) -> None:
+    patch = _apply_server(fixture_project)
+    toml_patch = patch.model_copy(update={"format": "toml"})
+    report = reconcile_config_patch(toml_patch)
+    assert report.file_state is FileState.UNSUPPORTED
+    assert report.keys == ()
+
+
+def test_symlinked_config_is_refused_as_unreadable(
+    fixture_project: FixtureProject, tmp_path: Path
+) -> None:
+    patch = _apply_server(fixture_project)
+    real = fixture_project.settings.read_bytes()
+    fixture_project.settings.unlink()
+    target = tmp_path / "elsewhere.json"
+    target.write_bytes(real)
+    fixture_project.settings.symlink_to(target)
+    report = reconcile_config_patch(patch)
+    assert report.file_state is FileState.UNREADABLE
+
+
+def test_relocated_project_root_is_reported_not_crashed(
+    fixture_project: FixtureProject,
+) -> None:
+    patch = _apply_server(fixture_project)
+    moved = patch.model_copy(update={"project_root": patch.project_root + "-gone"})
+    report = reconcile_config_patch(moved)
+    assert report.file_state in (FileState.MISSING, FileState.UNREADABLE)
