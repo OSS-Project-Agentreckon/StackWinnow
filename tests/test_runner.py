@@ -317,3 +317,40 @@ def test_timeout_does_not_wait_for_escaped_child_pipe(tmp_path):
                 os.kill(int(pid_file.read_text()), signal.SIGKILL)
             except ProcessLookupError:
                 pass
+
+
+@pytest.mark.parametrize("wait_times_out", [False, True])
+def test_timeout_cleanup_returns_result_when_reaping_is_delayed(
+    tmp_path, monkeypatch, wait_times_out
+):
+    import subprocess
+    from unittest.mock import Mock
+
+    proc = Mock()
+    proc.communicate.side_effect = [
+        subprocess.TimeoutExpired(["fixture-command"], 1),
+        subprocess.TimeoutExpired(
+            ["fixture-command"],
+            2,
+            output=b"partial secret-value",
+            stderr=b"error secret-value",
+        ),
+    ]
+    if wait_times_out:
+        proc.wait.side_effect = subprocess.TimeoutExpired(["fixture-command"], 2)
+    monkeypatch.setattr(subprocess, "Popen", Mock(return_value=proc))
+    monkeypatch.setattr(os, "killpg", Mock(), raising=False)
+    result = run_command(
+        ["fixture-command"],
+        cwd=tmp_path,
+        timeout=1,
+        extra_env={"API_TOKEN": "secret-value"},
+    )
+    assert result.timed_out and not result.succeeded and result.returncode == -1
+    assert result.stdout == "partial <redacted>" and result.stderr == "error <redacted>"
+    proc.kill.assert_called_once()
+    proc.stdout.close.assert_called_once()
+    proc.stderr.close.assert_called_once()
+    assert proc.communicate.call_count == 2
+    assert all(call.kwargs["timeout"] > 0 for call in proc.communicate.call_args_list)
+    assert proc.wait.call_count == 1 and proc.wait.call_args.kwargs["timeout"] > 0

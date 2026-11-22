@@ -146,7 +146,12 @@ def run_command(
                     proc.stdout.close()
                 if proc.stderr is not None:
                     proc.stderr.close()
-                proc.wait(timeout=_KILL_DRAIN_TIMEOUT)
+                try:
+                    proc.wait(timeout=_KILL_DRAIN_TIMEOUT)
+                except subprocess.TimeoutExpired:
+                    # Reaping may still be delayed after SIGKILL. Preserve the
+                    # timed-out result rather than raising or waiting forever.
+                    pass
             return CommandResult(
                 returncode=-1,
                 stdout=_redact_secrets(_decode(stdout_bytes), env),

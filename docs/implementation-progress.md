@@ -1,6 +1,6 @@
 # StackWinnow implementation progress
 
-Last updated: **21 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **22 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
@@ -40,6 +40,18 @@ Step 13 remains partial. Next: managed fresh indexing, changed-source
 reconciliation and shared Graphify verification, followed by owned Codex setup
 and actual client acceptance. See [Graphify scope](integrations/graphify.md) for
 the supported platform, inventory limits, recovery boundaries and commands.
+
+PR #17 review follow-up, 22 November: bounded process reaping now tolerates
+TimeoutExpired and retains the timed-out result with redacted partial output.
+The Playwright handler returns 2 even if a test replaces parser.exit. Graphify
+validation errors retain their original message, and post-install snapshot,
+inventory and manifest failures identify the post-install-verification stage.
+Seven targeted assertions failed before these fixes; all ten selected cases
+pass afterward, including the successful cleanup and early-write controls.
+Rebuilt-package validation on Python 3.11.14: **893 passed, 7 opt-in skips**,
+with warnings treated as errors; Ruff lint/format and diff checks passed.
+Real package-download/client integrations were not rerun for these error-path
+changes. This follow-up does not change the install-only scope.
 
 ## Step 13 continuation: locked execution preparation
 

@@ -191,6 +191,7 @@ def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
             else "Invalid Playwright plan or project state."
         )
         parser.exit(2, f"error: {message}\n")
+        return 2
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:

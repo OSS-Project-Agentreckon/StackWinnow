@@ -318,6 +318,12 @@ def test_file_failures_after_creation_preserve_ownership(project, plan, monkeypa
     result = adapter.apply_graphify_install(plan, command_runner=FakeInstall())
     assert not result.installed and result.results[0].status == "failed"
     assert result.record.receipt_for(adapter.STEP_ID).owned_paths == [adapter.INSTALL_ROOT]
+    expected_phase = (
+        "post-install-verification"
+        if failure in ("inventory", "manifest")
+        else "create-environment"
+    )
+    assert result.results[0].message == f"Graphify {expected_phase} could not complete (OSError)."
 
 
 def test_unreadable_inventory_directory_blocks_reuse(project, plan, monkeypatch):
@@ -332,3 +338,19 @@ def test_unreadable_inventory_directory_blocks_reuse(project, plan, monkeypatch)
     with pytest.raises(GraphifyError, match="Cannot inspect all"):
         adapter.apply_graphify_install(plan, command_runner=runner)
     assert len(runner.calls) == 4
+
+
+@pytest.mark.parametrize("conflict", ["source", "unowned"])
+def test_apply_preserves_actionable_graphify_validation_errors(project, plan, conflict):
+    if conflict == "source":
+        (project / "caller.py").write_text("changed source\n")
+    else:
+        (project / adapter.INSTALL_ROOT).mkdir(parents=True)
+    with pytest.raises(GraphifyError) as original:
+        adapter._validate(plan)
+    runner = FakeInstall()
+    with pytest.raises(GraphifyError) as reported:
+        adapter.apply_graphify_install(plan, command_runner=runner)
+    assert str(reported.value) == str(original.value)
+    assert reported.value.__cause__ is None
+    assert not runner.calls

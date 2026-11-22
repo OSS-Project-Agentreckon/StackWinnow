@@ -275,6 +275,7 @@ def _install(plan: GraphifyExecutionPlan, runner: CommandRunner) -> RunnerOutcom
                     errors=["Inspect the partial owned installation before retrying."],
                     owned_paths=owned,
                 )
+        phase = "post-install-verification"
         # Verify source/runtime/recipe snapshots again without treating the new
         # intent receipt or the installation we just created as foreign state.
         current = _prepare_graphify_execution(
@@ -347,5 +348,7 @@ def apply_graphify_install(
             record=record,
             results=results,
         )
+    except GraphifyError:
+        raise
     except (OSError, ValueError, RuntimeError, ManagedStateError, InstallerError) as exc:
         raise GraphifyError(f"Cannot install Graphify: {exc}") from exc
