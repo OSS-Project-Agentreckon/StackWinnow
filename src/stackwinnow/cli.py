@@ -8,6 +8,10 @@ from pydantic import ValidationError
 
 from stackwinnow import __version__
 from stackwinnow.adapters.graphify import GraphifyError, plan_graphify
+from stackwinnow.adapters.graphify_install import (
+    apply_graphify_install,
+    load_graphify_install_plan,
+)
 from stackwinnow.adapters.graphify_plan import (
     load_graphify_execution_plan,
     load_relationship_expectation,
@@ -66,6 +70,23 @@ def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
 
 def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.graphify_command == "apply":
+        try:
+            result = apply_graphify_install(
+                load_graphify_install_plan(args.plan_file), dry_run=args.dry_run
+            )
+        except GraphifyError as exc:
+            parser.exit(2, f"error: {exc}\n")
+            return 2
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print("Graphify scope: local installation only; assistant ready: no")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+            for limitation in result.limitations:
+                print(f"  Pending: {limitation}")
+        return 0 if result.dry_run or result.installed else 1
     if args.graphify_command in ("execution-plan", "validate-plan"):
         return _graphify_execution_plan(args, parser)
     try:
@@ -120,7 +141,7 @@ def _graphify_execution_plan(args: argparse.Namespace, parser: argparse.Argument
         print(f"Project: {plan.project_root}")
         print(f"Execution preparation: {plan.target}; {len(plan.packages)} locked wheels")
         print("Scope: local install/index; intended assistant: Codex (not configured)")
-        print("Apply: unavailable; plan validation does not authorize execution")
+        print("Install only: graphify apply PLAN.json --install-only; full apply is pending")
         print(f"Planned environment: {plan.environment_path}")
         print(f"Planned graph: {plan.graph_path}")
         for operation in plan.operations:
@@ -131,6 +152,46 @@ def _graphify_execution_plan(args: argparse.Namespace, parser: argparse.Argument
             print(f"  Blocked: {blocker}")
         print("No commands, downloads, or project writes were performed.")
     return 0
+
+
+def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.playwright_mcp import (
+        apply_playwright,
+        load_playwright_plan,
+        plan_playwright,
+    )
+
+    try:
+        if args.playwright_command == "plan":
+            plan = plan_playwright(args.project_root, assistant=args.assistant)
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(
+                    f"Project: {plan.project_root}; client: Codex; Playwright MCP: {plan.version}"
+                )
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print("Save --json output, then use 'playwright-mcp apply PLAN.json'.")
+            return 0
+        result = apply_playwright(load_playwright_plan(args.plan_file), dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except (OSError, ValueError, ConfigurationError) as exc:
+        from stackwinnow.adapters._managed import ManagedStateError
+
+        message = (
+            str(exc)
+            if isinstance(exc, (ManagedStateError, ConfigurationError))
+            else "Invalid Playwright plan or project state."
+        )
+        parser.exit(2, f"error: {message}\n")
+        return 2
 
 
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -373,7 +434,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command")
     graphify = commands.add_parser(
         "graphify",
-        help="Preview the pinned Graphify recipe (apply is not available).",
+        help="Preview Graphify or explicitly install its locked local packages.",
         allow_abbrev=False,
     )
     graphify_commands = graphify.add_subparsers(dest="graphify_command", required=True)
@@ -387,7 +448,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     execution_plan = graphify_commands.add_parser(
         "execution-plan",
         allow_abbrev=False,
-        help="Prepare a locked macOS arm64/Python 3.11 plan; execution is unavailable.",
+        help="Prepare a locked macOS arm64/Python 3.11 plan for explicit install-only apply.",
     )
     execution_plan.add_argument("project_root", help="Existing project directory.")
     execution_plan.add_argument(
@@ -401,6 +462,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     validate_plan.add_argument("plan_file", help="Saved execution-plan JSON file.")
     validate_plan.add_argument("--json", action="store_true", help="Emit the revalidated plan.")
+    graphify_apply = graphify_commands.add_parser("apply", allow_abbrev=False)
+    graphify_apply.add_argument("plan_file", help="Saved execution-plan JSON file.")
+    graphify_apply.add_argument(
+        "--install-only",
+        action="store_true",
+        required=True,
+        help="Explicitly select package installation only; no indexing or Codex setup.",
+    )
+    graphify_apply.add_argument("--dry-run", action="store_true")
+    graphify_apply.add_argument("--json", action="store_true")
     checking = commands.add_parser(
         "check",
         help="Verify selected tools without installing or changing their configuration.",
