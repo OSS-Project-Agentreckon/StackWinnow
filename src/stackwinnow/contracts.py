@@ -224,3 +224,52 @@ class ConfigApplyResult(_ConfigContract):
     schema_version: Literal[1] = 1
     result: OperationResult
     ownership: ConfigPatch | None = None
+
+
+class ConflictKind(StrEnum):
+    """How one owned key compares to what this manager last wrote."""
+
+    CLEAN = "clean"  # present and identical to the value we wrote
+    USER_MODIFIED = "user_modified"  # present but changed since we wrote it
+    USER_REMOVED = "user_removed"  # a key we wrote is now absent
+    FOREIGN_PRESENT = "foreign_present"  # a key we intended to own holds a value we did not write
+
+
+class FileState(StrEnum):
+    """File-level outcome of reconciling an owned configuration file."""
+
+    READABLE = "readable"  # parsed and still matches the state we wrote
+    MISSING = "missing"  # an expected-existing file is now absent
+    UNREADABLE = "unreadable"  # malformed, non-regular, or a symlink; not parsed
+    UNSUPPORTED = "unsupported"  # the patch format is not JSON; not read
+    STALE = "stale"  # digest, existence, or permissions differ from what we wrote
+
+
+class KeyConflict(_ConfigContract):
+    """A categorical verdict for one owned key path; it carries no value."""
+
+    key_path: JsonKeyPath
+    kind: ConflictKind
+
+
+class ConfigReconcileReport(_ConfigContract):
+    """Read-only comparison of a recorded patch against the current file."""
+
+    schema_version: Literal[1] = 1
+    project_root: StrictStr
+    relative_path: StrictStr
+    tool_id: Identifier
+    file_state: FileState
+    keys: tuple[KeyConflict, ...] = ()
+
+    @property
+    def safe_to_revert(self) -> bool:
+        """True only when the file is readable and every owned key is unchanged."""
+        return self.file_state is FileState.READABLE and all(
+            key.kind is ConflictKind.CLEAN for key in self.keys
+        )
+
+    @property
+    def requires_attention(self) -> tuple[KeyConflict, ...]:
+        """Owned keys whose on-disk state no longer matches what we wrote."""
+        return tuple(key for key in self.keys if key.kind is not ConflictKind.CLEAN)
