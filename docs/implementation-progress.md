@@ -1,8 +1,34 @@
 # StackWinnow implementation progress
 
-Last updated: **21 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **22 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
+
+## Step 18 / person C: configuration collision detection
+
+Branch `feat/config-conflicts`, cut from `origin/main` at `32181cd`
+(includes the merged step-15 Playwright work). Adds a read-only inspector,
+`configure.reconcile_config_patch(patch, *, intended_edits=None)`, in a new
+`src/stackwinnow/configure/conflicts.py`, with contracts `ConflictKind`,
+`FileState`, `KeyConflict`, and `ConfigReconcileReport` in `contracts.py`. It
+reuses the writer's hardened `_parent`/`_read`/`_document`/`_json` primitives;
+it never writes, follows a link, or adopts a value, and its diagnostics are
+categorical (no configuration values).
+
+Implemented and tested (`tests/test_configuration_conflicts.py`, 18 cases):
+clean / user-modified / user-removed / foreign keys; missing / unreadable /
+unsupported / stale file states with no exception escaping and no value leak;
+present-null distinguished from an absent key; symlink and relocated-root
+cases fail safe. Status: implemented and tested locally; **not yet pushed or
+merged** (awaiting the user's push credentials). Documented in
+[configuration](configuration.md). This is a substantive step-18 contribution
+(roadmap item 18), not a completion claim for any later C step.
+
+Note: the base branch `origin/main` ships a pre-existing, unrelated defect —
+`cli.py:522` calls an undefined `_playwright`, failing
+`tests/test_playwright_adapter.py::test_cli_plan_and_dry_run`. It is untouched
+by this branch (no diff to `cli.py`) and belongs to the step-15 CLI wiring, not
+step 18.
 
 ## Step 13 continuation: locked execution preparation
 
