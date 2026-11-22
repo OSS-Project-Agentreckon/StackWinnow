@@ -18,6 +18,14 @@ scripted local provider. See the [progress log](implementation-progress.md)
 and [integration scope](integrations/playwright-mcp.md). Graphify's merged
 preview is still only part of step 13; broader onboarding remains outstanding.
 
+Update, **22 November 2026**: C's step 18 (detect configuration collisions and
+preserve later user changes) is implemented and tested on branch
+`feat/config-conflicts`, cut from `origin/main` `32181cd` (step 15 merged). It
+adds the read-only `configure.reconcile_config_patch` inspector and its report
+contracts; see the [progress log](implementation-progress.md). Not yet pushed
+or merged. This brings C's substantive work toward the 12-each target; it is
+one step-18 contribution, not a claim on later C steps.
+
 Integration has not followed every planned step in order. Use observed
 behavior and dependencies rather than PR numbers to select work. Review-fix
 and merge commits are additional history for their work items, not newly

@@ -178,13 +178,40 @@ and recovery belong to later steps. Permission bits are retained, but this
 primitive does not copy extended attributes/ACLs or promise crash-durable
 directory entries.
 
+## Reconciling a recorded patch
+
+`configure.reconcile_config_patch(patch, *, intended_edits=None)` compares a
+recorded `ConfigPatch` against the file on disk and returns a
+`ConfigReconcileReport`. It is strictly read-only: it reuses the same
+symlink-safe parent descriptors, size/stamp checks, and strict JSON parser as
+the writer, and it never writes, follows a link, or adopts a value.
+
+The report's `file_state` is one of `readable` (parsed and still matching the
+state we wrote), `missing` (an expected file is gone), `unreadable` (malformed,
+non-regular, or a symlink — reported, never raised), `unsupported` (a non-JSON
+patch, which is not read), or `stale` (digest, existence, or permissions differ
+from what we wrote). Each owned key gets a categorical `ConflictKind`: `clean`,
+`user_modified`, `user_removed`, or `foreign_present`. `foreign_present` marks a
+key the manager *intended* to own but never wrote, whose path is already
+occupied; it is only derivable when the original requests are passed as
+`intended_edits`. `report.safe_to_revert` is true only when the file is readable
+and every owned key is `clean`; `report.requires_attention` lists the rest.
+
+Like the writer, reconciliation diagnostics are categorical only and never
+contain a configuration value. This read-only analysis is what a later safe
+removal step relies on to restore only unchanged manager-owned entries while
+preserving subsequent user edits.
+
 ## Verification
 
 `tests/test_configuration_patches.py` uses copied fixture projects, including
 paths with spaces. It covers preservation, explicit replacement, ownership
 round trips, missing/null values, no-op behavior, malformed input, stale plans,
 IO failures, publication races, symlinks/special files, and cleanup failures.
-All tool command values are inert fixture data. See [testing](testing.md) and
+`tests/test_configuration_conflicts.py` covers read-only reconciliation: clean,
+user-modified, user-removed, and foreign keys, and the missing/unreadable/
+unsupported/stale file states, asserting no exception escapes and no value
+leaks. All tool command values are inert fixture data. See [testing](testing.md) and
 [implementation progress](implementation-progress.md) for recorded checks.
 
 ## Narrow Codex TOML registration

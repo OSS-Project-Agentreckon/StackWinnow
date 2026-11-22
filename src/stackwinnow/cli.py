@@ -17,6 +17,12 @@ from stackwinnow.adapters.graphify_plan import (
     load_relationship_expectation,
     plan_graphify_execution,
 )
+from stackwinnow.adapters.playwright_mcp import (
+    PlaywrightError,
+    apply_playwright,
+    load_playwright_plan,
+    plan_playwright,
+)
 from stackwinnow.adapters.promptfoo import (
     PromptfooError,
     apply_promptfoo,
@@ -270,6 +276,40 @@ def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
     except ValidationError:
         parser.exit(2, "error: Invalid promptfoo plan or provider/model selection.\n")
     except (PromptfooError, ConfigurationError, CatalogError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+    except OSError:
+        parser.exit(2, "error: Cannot read the project or selected plan file.\n")
+
+
+def _playwright(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        if args.playwright_command == "plan":
+            plan = plan_playwright(args.project_root, assistant=args.assistant)
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(f"Project: {plan.project_root}")
+                print(f"Pinned release: Playwright MCP {plan.version}")
+                print(f"Assistant: {plan.assistant}; Node: {plan.node}")
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print(
+                    "Use --json to save a reviewable plan; "
+                    "'playwright-mcp apply PLAN.json' applies it."
+                )
+            return 0
+        plan = load_playwright_plan(args.plan_file)
+        result = apply_playwright(plan, dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except ValidationError:
+        parser.exit(2, "error: Invalid Playwright MCP plan or assistant selection.\n")
+    except (PlaywrightError, ConfigurationError, CatalogError) as exc:
         parser.exit(2, f"error: {exc}\n")
     except OSError:
         parser.exit(2, "error: Cannot read the project or selected plan file.\n")
