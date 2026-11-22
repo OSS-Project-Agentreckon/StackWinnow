@@ -1,7 +1,7 @@
 """Read-only, reproducible preparation for Graphify managed execution.
 
-These plans are deliberately not accepted by an executor yet. Validation binds
-the reviewed recipe to current inputs; it is not a signature or user approval.
+Full install/index execution remains pending; the install-only adapter accepts
+an explicit subset. Validation binds the recipe to current inputs, not approval.
 """
 
 from __future__ import annotations
@@ -276,6 +276,16 @@ def plan_graphify_execution(
     Snapshots cover the explicit relationship's source files, not the whole
     project. A future executor must additionally establish index provenance.
     """
+    return _prepare_graphify_execution(project_root, expectation=expectation, require_fresh=True)
+
+
+def _prepare_graphify_execution(
+    project_root: str | Path,
+    *,
+    expectation: RelationshipExpectation,
+    require_fresh: bool,
+) -> GraphifyExecutionPlan:
+    """Rebuild recipe inputs; the install adapter separately validates existing ownership."""
     try:
         root = _root(project_root)
         expected = RelationshipExpectation.model_validate(expectation.model_dump())
@@ -288,8 +298,9 @@ def plan_graphify_execution(
             raise GraphifyError("Graphify's reviewed catalog identity/license is unavailable.")
         lock = load_graphify_lock()
         # Occupied locations need the pending shared reconciliation interface.
-        if os.path.lexists(root / ".stackwinnow/envs/graphify") or os.path.lexists(
-            root / STATE_PATH
+        if require_fresh and (
+            os.path.lexists(root / ".stackwinnow/envs/graphify")
+            or os.path.lexists(root / STATE_PATH)
         ):
             raise GraphifyError("Existing Graphify paths require reconciliation before planning.")
         receipt_data = None
@@ -302,7 +313,9 @@ def plan_graphify_execution(
             ids = [step.step_id for step in record.steps]
             if record.project_root != str(root) or len(ids) != len(set(ids)):
                 raise GraphifyError("Receipt ownership is invalid or ambiguous.")
-            if any(step.tool_id == "graphify" and not step.dry_run for step in record.steps):
+            if require_fresh and any(
+                step.tool_id == "graphify" and not step.dry_run for step in record.steps
+            ):
                 raise GraphifyError(
                     "Existing Graphify receipts require reconciliation before planning."
                 )
@@ -312,8 +325,8 @@ def plan_graphify_execution(
         )
         runtime = _runtime()
         blockers = [
-            "Managed execution awaits reviewed shared locking, reconciliation and bounded runner support.",
-            "Dependency artifact/license acceptance and managed installation testing are pending.",
+            "Full index/query execution is pending; apply requires explicit --install-only scope.",
+            "A complete dependency-license audit remains pending; wheels are downloaded, not redistributed.",
             "Owned Codex configuration and actual client verification are not implemented.",
         ]
         if (

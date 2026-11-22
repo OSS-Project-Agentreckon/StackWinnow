@@ -383,7 +383,7 @@ def test_graphify_execution_plan_installed_roundtrip_and_stale_source(tmp_path: 
     assert validated.returncode == 0, validated.stderr
     assert json.loads(validated.stdout) == payload
     human = run_cli(tmp_path, *args)
-    assert human.returncode == 0 and "Apply: unavailable" in human.stdout
+    assert human.returncode == 0 and "--install-only; full apply is pending" in human.stdout
     assert "No commands, downloads, or project writes" in human.stdout
     assert list(project.iterdir()) == [source]
     source.write_text("def recurse(): return None\n")
@@ -550,3 +550,23 @@ def test_inspect_deep_dependency_marker_returns_partial_json(tmp_path: Path) -> 
         for item in payload["diagnostics"]
     )
     assert "synthetic-secret" not in result.stdout
+
+
+@pytest.mark.parametrize("command", ["plan", "apply"])
+def test_playwright_errors_return_two_when_parser_exit_is_replaced(
+    tmp_path, monkeypatch, capsys, command
+):
+    exit_stub = Mock()
+    monkeypatch.setattr(cli.argparse.ArgumentParser, "exit", exit_stub)
+
+    def invalid(*args, **kwargs):
+        raise ValueError("controlled invalid input")
+
+    monkeypatch.setattr("stackwinnow.adapters.playwright_mcp.plan_playwright", invalid)
+    monkeypatch.setattr("stackwinnow.adapters.playwright_mcp.load_playwright_plan", invalid)
+    argv = ["playwright-mcp", command, str(tmp_path)]
+    if command == "plan":
+        argv.extend(["--assistant", "codex"])
+    assert cli.main(argv) == 2
+    exit_stub.assert_called_once_with(2, "error: Invalid Playwright plan or project state.\n")
+    assert capsys.readouterr().out == ""

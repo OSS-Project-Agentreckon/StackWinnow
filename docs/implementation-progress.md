@@ -4,31 +4,54 @@ Last updated: **22 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
-## Step 18 / person C: configuration collision detection
+## Step 13 continuation: managed package installation
 
-Branch `feat/config-conflicts`, cut from `origin/main` at `32181cd`
-(includes the merged step-15 Playwright work). Adds a read-only inspector,
-`configure.reconcile_config_patch(patch, *, intended_edits=None)`, in a new
-`src/stackwinnow/configure/conflicts.py`, with contracts `ConflictKind`,
-`FileState`, `KeyConflict`, and `ConfigReconcileReport` in `contracts.py`. It
-reuses the writer's hardened `_parent`/`_read`/`_document`/`_json` primitives;
-it never writes, follows a link, or adopts a value, and its diagnostics are
-categorical (no configuration values).
+Started `feat/graphify-managed-install` from merged main `32181cd` on
+21 November. PRs #14, #15 and #16 are merged; earlier open-PR statements below
+record their historical state. This contribution covers package installation
+only; review and merge status are tracked separately on GitHub.
 
-Implemented and tested (`tests/test_configuration_conflicts.py`, 18 cases):
-clean / user-modified / user-removed / foreign keys; missing / unreadable /
-unsupported / stale file states with no exception escaping and no value leak;
-present-null distinguished from an absent key; symlink and relocated-root
-cases fail safe. Status: implemented and tested locally; **not yet pushed or
-merged** (awaiting the user's push credentials). Documented in
-[configuration](configuration.md). This is a substantive step-18 contribution
-(roadmap item 18), not a completion claim for any later C step.
+- Adds `graphify apply PLAN.json --install-only [--dry-run] [--json]`, accepting
+  the existing execution preparation only for explicit package installation.
+  Full install/index preparation readiness and assistant readiness remain false.
+- Reuses the 31-wheel hash lock, creates a project-local copied Python venv,
+  bootstraps pip, installs direct wheel URLs with required hashes and no dependency
+  resolution, then verifies the environment prefix, all versions and core imports.
+- Uses shared execution receipts and a read-only validation callback under the
+  project lock. Invalid/stale/conflicting state blocks before receipt writes.
+  Failures retain created ownership; competing directories are never adopted.
+  Unchanged successful installs can be reused from the original saved plan after
+  content/permission inventory checks. Changed or partial state requires inspection.
+- Bounds the runner's post-kill pipe drain, including a regression with an escaped
+  child retaining stdout. Separately detached sessions are not contained.
+- Restores the existing Playwright CLI handler omitted by the merge. The baseline
+  suite reproduced its NameError: **849 passed, 1 failed, 6 opt-in skips**.
 
-Note: the base branch `origin/main` ships a pre-existing, unrelated defect —
-`cli.py:522` calls an undefined `_playwright`, failing
-`tests/test_playwright_adapter.py::test_cli_plan_and_dry_run`. It is untouched
-by this branch (no diff to `cli.py`) and belongs to the step-15 CLI wiring, not
-step 18.
+Validation: rebuilt-package suite **887 passed, 7 opt-in skips** on Python
+3.11.14 with warnings treated as errors; Ruff lint/format, dependency and diff
+checks passed. The real managed Graphify test separately passed **1 case** on
+macOS 27.2.1 arm64/Python 3.11.14: download/install/health, dry-run, unchanged
+reuse, changed-state rejection, and controlled download-failure ownership.
+No provider calls or client configuration were used. Existing indexing/client
+integration cases were not rerun. No Python 3.14 or hosted CI result is claimed.
+Implementation, tests and documentation were AI-assisted.
+
+Step 13 remains partial. Next: managed fresh indexing, changed-source
+reconciliation and shared Graphify verification, followed by owned Codex setup
+and actual client acceptance. See [Graphify scope](integrations/graphify.md) for
+the supported platform, inventory limits, recovery boundaries and commands.
+
+PR #17 review follow-up, 22 November: bounded process reaping now tolerates
+TimeoutExpired and retains the timed-out result with redacted partial output.
+The Playwright handler returns 2 even if a test replaces parser.exit. Graphify
+validation errors retain their original message, and post-install snapshot,
+inventory and manifest failures identify the post-install-verification stage.
+Seven targeted assertions failed before these fixes; all ten selected cases
+pass afterward, including the successful cleanup and early-write controls.
+Rebuilt-package validation on Python 3.11.14: **893 passed, 7 opt-in skips**,
+with warnings treated as errors; Ruff lint/format and diff checks passed.
+Real package-download/client integrations were not rerun for these error-path
+changes. This follow-up does not change the install-only scope.
 
 ## Step 13 continuation: locked execution preparation
 

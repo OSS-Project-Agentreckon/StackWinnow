@@ -12,11 +12,13 @@ project inspection with explicit goals/preferences, explainable recommendations,
 runtime inspection, a command runner, setup preflight, execution receipts, owned
 JSON configuration edits, and pinned promptfoo and Playwright MCP adapters with
 plan/apply commands. Playwright adds an owned Codex project TOML registration.
-Graphify provides a recipe preview and local relationship-evidence checks.
+Graphify provides a recipe preview, locked install-only execution, and local
+relationship-evidence checks.
 `check` reports installation, configuration, connection, and fresh functionality
 for selected tools; promptfoo and Playwright MCP have verification adapters. The `inspect` command reads
 project declarations; host runtime inspection and setup preflight remain Python
-APIs. Graphify managed apply, the unified guided journey, and removal remain planned.
+APIs. Managed Graphify indexing/client setup, the unified guided journey, and
+removal remain planned.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -109,13 +111,25 @@ install or configure tools; `ready_to_apply` remains false. The
 [Graphify guide](docs/integrations/graphify.md) documents the real known-relationship
 probe and the pending configuration/verification integration.
 
-For the next managed-execution slice, `graphify execution-plan PROJECT
+`graphify execution-plan PROJECT
 --expectation expected.json --json` prepares a separate plan with hash-pinned
 dependency wheels and explicit relationship source hashes. `graphify validate-plan
 plan.json` rechecks saved inputs without execution. Both remain read-only;
-managed apply and Codex connectivity are pending. The locked dependency target is
+explicit install-only execution is available below. The locked dependency target is
 macOS 14+ arm64 with CPython 3.11. See the guide for the expectation format and
 the distinction between plan validation and working integration.
+
+```sh
+stackwinnow graphify execution-plan ./my-project --expectation expected.json --json > plan.json
+stackwinnow graphify apply plan.json --install-only --dry-run
+stackwinnow graphify apply plan.json --install-only --json
+```
+
+Install-only apply creates a project-local environment, downloads the 31 locked
+wheels with required hashes, and checks package versions/imports. It does not
+index code or configure Codex; `ready` remains false. The exact supported target
+is CPython 3.11.5–3.11.x on macOS 14+ arm64. Reusing the original plan skips an
+unchanged successful install; changed or partial state requires inspection.
 
 ## Browse the catalog
 
