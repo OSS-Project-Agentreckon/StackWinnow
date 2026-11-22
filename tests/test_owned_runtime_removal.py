@@ -1,13 +1,15 @@
-"""Acceptance tests for managed-resource removal planning (step 20).
+"""Acceptance tests for managed-resource removal planning (B02 corrections).
 
-Verifies the four classification rules:
+Verifies the full classification rule set:
   1. Absent paths → RETAIN (nothing to delete).
   2. External paths (outside .stackwinnow/) → RETAIN.
-  3. Paths shared with a retained tool → RETAIN.
-  4. Exclusively managed paths → REMOVE.
-
-Also covers tool_ids scoping, failed-receipt exclusion, and the receipts-file
-protection guard.
+  3. Symlinks → RETAIN (unsafe alias).
+  4. Shared infrastructure (.stackwinnow dir, receipts, lock) → RETAIN.
+  5. Project data (results, graphs, reports, caches) → RETAIN.
+  6. Paths shared with a retained tool → RETAIN (normalised comparison).
+  7. Directories containing retained files → RETAIN (containment).
+  8. Paths from failed/interrupted steps → RETAIN.
+  9. Exclusively managed paths → REMOVE.
 """
 
 from __future__ import annotations
@@ -286,3 +288,146 @@ def test_receipts_file_is_protected(tmp_path):
     assert len(plan.items) == 1
     assert plan.items[0].action == RemovalAction.RETAIN
     assert "receipts" in plan.items[0].reason.lower()
+
+
+# ---------------------------------------------------------------------------
+# B02 — new classification rules
+# ---------------------------------------------------------------------------
+
+
+def test_symlink_inside_managed_prefix_is_retained(tmp_path):
+    """A symlink inside .stackwinnow/ must not be removed automatically."""
+    target = tmp_path / "external_target"
+    target.mkdir()
+    link = tmp_path / ".stackwinnow" / "envs" / "tool-a" / "python"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(target)
+
+    _run(tmp_path, _STEP_A, owned_paths=[str(link)])
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "symlink" in plan.items[0].reason.lower()
+
+
+def test_operation_lock_file_is_retained(tmp_path):
+    """The operation lock file is shared infrastructure and must never be removed."""
+    lock_path = tmp_path / ".stackwinnow" / "operation.lock"
+
+    # Seed a succeeded receipt that claims the lock file as owned.
+    _run(tmp_path, _STEP_A, owned_paths=[str(lock_path)])
+    # Recreate the file so plan_removal sees an existing path to classify.
+    lock_path.touch()
+
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "infrastructure" in plan.items[0].reason.lower()
+
+
+def test_managed_prefix_itself_is_retained(tmp_path):
+    """The .stackwinnow/ directory itself is infrastructure and must not be a candidate."""
+    managed = tmp_path / ".stackwinnow"
+
+    # Seed receipt claiming .stackwinnow/ itself, then ensure it exists for classification.
+    _run(tmp_path, _STEP_A, owned_paths=[str(managed)])
+    managed.mkdir(parents=True, exist_ok=True)
+
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "infrastructure" in plan.items[0].reason.lower()
+
+
+def test_results_directory_is_retained_as_project_data(tmp_path):
+    """A results/ sub-directory inside .stackwinnow/ is project data, not removable."""
+    results = tmp_path / ".stackwinnow" / "promptfoo" / "results"
+    results.mkdir(parents=True)
+
+    _run(tmp_path, _STEP_A, owned_paths=[str(results)])
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "project data" in plan.items[0].reason.lower()
+
+
+def test_graphs_directory_is_retained_as_project_data(tmp_path):
+    """A graphs/ sub-directory inside .stackwinnow/ is project data, not removable."""
+    graphs = tmp_path / ".stackwinnow" / "graphify" / "graphs"
+    graphs.mkdir(parents=True)
+
+    _run(tmp_path, _STEP_A, owned_paths=[str(graphs)])
+    plan = plan_removal(str(tmp_path))
+
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "project data" in plan.items[0].reason.lower()
+
+
+def test_failed_step_path_is_retained_even_when_in_scope(tmp_path):
+    """Paths from failed steps are always protected, even when the tool is in scope."""
+    managed = tmp_path / ".stackwinnow" / "envs" / "tool-a" / "python"
+    managed.mkdir(parents=True)
+    _run_failed(tmp_path, _STEP_A, owned_paths=[str(managed)])
+
+    # A second plan marks the step as FAILED so plan_removal sees it as partial state.
+    plan = plan_removal(str(tmp_path), tool_ids=["tool-a"])
+
+    # The path exists and is in scope, but came from a failed step — retain it.
+    assert plan.items == [] or all(i.action == RemovalAction.RETAIN for i in plan.items)
+
+
+def test_relative_and_absolute_paths_to_same_resource_treated_as_shared(tmp_path):
+    """Absolute path in one receipt and relative path in another resolve to the same
+    resource; the shared-use check must protect it."""
+    shared = tmp_path / ".stackwinnow" / "envs" / "shared" / "bin"
+    shared.mkdir(parents=True)
+
+    abs_path = str(shared)
+    rel_path = str(shared.relative_to(tmp_path))
+
+    # tool-a records the absolute path; tool-b records the relative path.
+    execute_plan(
+        _plan(tmp_path, [_STEP_A, _STEP_B]),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="ok",
+            owned_paths=[abs_path if s.tool_id == "tool-a" else rel_path],
+        ),
+    )
+
+    # Remove only tool-a; tool-b's relative path should protect the shared resource.
+    plan = plan_removal(str(tmp_path), tool_ids=["tool-a"])
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "shared" in plan.items[0].reason.lower()
+
+
+def test_directory_containing_retained_file_is_itself_retained(tmp_path):
+    """A parent directory owned by tool-a is retained when tool-b owns a file inside it."""
+    parent = tmp_path / ".stackwinnow" / "envs" / "shared"
+    child = parent / "data.json"
+    parent.mkdir(parents=True)
+    child.write_text("{}")
+
+    # tool-a owns the parent directory; tool-b owns the file inside it.
+    execute_plan(
+        _plan(tmp_path, [_STEP_A, _STEP_B]),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="ok",
+            owned_paths=[str(parent) if s.tool_id == "tool-a" else str(child)],
+        ),
+    )
+
+    # Remove tool-a; its parent dir contains tool-b's file, so it must be retained.
+    plan = plan_removal(str(tmp_path), tool_ids=["tool-a"])
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+    assert "contains" in plan.items[0].reason.lower()
+
