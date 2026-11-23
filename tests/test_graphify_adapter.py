@@ -56,7 +56,8 @@ def test_preview_is_read_only_pinned_and_explicitly_blocked(fixture_project, mon
     assert not plan.preflight.is_ready_to_apply
     assert {check.status for check in plan.preflight.checks} == {"blocked"}
     assert plan.installation.tool_ids == ["graphify"]
-    assert load_catalog().get("graphify").availability == "catalog_only"
+    # Executable modes now exist, but this old command remains a non-executable preview.
+    assert load_catalog().get("graphify").availability == "adapter_available"
     assert GraphifyPlan.model_validate_json(plan.model_dump_json()) == plan
     assert before == {
         str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()

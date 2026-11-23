@@ -407,9 +407,9 @@
         "code-relationships",
         "knowledge-graphs"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
-        "Python >=3.11,<3.15 in the reviewed package manifest.",
+        "Python >=3.11.5,<3.15 in the pinned package manifest.",
         "Install the graphifyy Python package with uv, pipx, or pip; configure the selected coding assistant."
       ],
       "compatibility_notes": "Upstream documents macOS, Linux, Windows, and clients including Claude Code, Cursor, Codex, Gemini CLI, and GitHub Copilot.",
@@ -427,7 +427,8 @@
       ],
       "limitations": [
         "The README quickstart still says Python 3.10+; the reviewed package manifest has the stricter range recorded here.",
-        "Code parsing is local; semantic processing of documents/media can require a model. Cloud features are a separate offering."
+        "Code parsing is local; semantic processing of documents/media can require a model. Cloud features are a separate offering.",
+        "StackWinnow provides a narrow executable mode; use workflow modes for its tested scope and requirements. Upstream compatibility is not manager execution support."
       ],
       "conflicts": [],
       "alternatives": [
@@ -527,7 +528,8 @@
         "opencode"
       ],
       "limitations": [
-        "Compression benefit depends on the input; token savings and preserved task quality need workload-specific measurement."
+        "Compression benefit depends on the input; token savings and preserved task quality need workload-specific measurement.",
+        "StackWinnow provides a narrow executable mode; use workflow modes for its tested scope and requirements. Upstream compatibility is not manager execution support."
       ],
       "conflicts": [],
       "alternatives": [
@@ -1038,7 +1040,7 @@
         "browser-automation",
         "mcp-tools"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "The pinned @playwright/mcp@0.0.86 package requires Node.js >=20; the StackWinnow recipe is validated with Node 24 and Codex CLI 0.169.0 on macOS arm64.",
         "Provide a supported browser and any required operating-system browser dependencies."
@@ -1058,7 +1060,8 @@
       ],
       "limitations": [
         "Concurrent clients sharing a persistent browser profile can conflict; use isolated sessions or distinct user-data directories.",
-        "Upstream also offers a separate CLI/skills approach; MCP is not automatically the lowest-token choice."
+        "Upstream also offers a separate CLI/skills approach; MCP is not automatically the lowest-token choice.",
+        "StackWinnow provides a narrow executable mode; use workflow modes for its tested scope and requirements. Upstream compatibility is not manager execution support."
       ],
       "conflicts": [],
       "alternatives": [],
@@ -1090,7 +1093,7 @@
         "regression-testing",
         "model-comparison"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "The reviewed Node package requires Node.js >=22.22.0.",
         "Prepare evaluation configuration and a provider; external model providers commonly require credentials."
@@ -1100,7 +1103,8 @@
       "supported_assistants": [],
       "limitations": [
         "A deterministic local-provider evaluation does not establish quality on a real model.",
-        "Provider use and automated red-team workloads can incur costs."
+        "Provider use and automated red-team workloads can incur costs.",
+        "StackWinnow provides a narrow executable mode; use workflow modes for its tested scope and requirements. Upstream compatibility is not manager execution support."
       ],
       "conflicts": [],
       "alternatives": [
