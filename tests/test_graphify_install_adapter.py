@@ -116,6 +116,17 @@ def test_install_repeat_and_serialized_plan_preserve_other_files(project, plan, 
     assert len(runner.calls) == 4 and after == snapshot(project)
 
 
+def test_installation_manifest_does_not_prevent_runtime_removal(project, plan):
+    from stackwinnow.runtime.remove import plan_removal
+
+    adapter.apply_graphify_install(plan, command_runner=FakeInstall())
+    before = snapshot(project)
+    removal = plan_removal(str(project.resolve()), ["graphify"])
+
+    assert [item.path for item in removal.candidates] == [adapter.INSTALL_ROOT]
+    assert snapshot(project) == before
+
+
 @pytest.mark.parametrize("phase", [1, 2, 3, 4])
 @pytest.mark.parametrize("raises", [False, True])
 def test_failures_retain_partial_ownership_and_block_retry(project, plan, phase, raises):

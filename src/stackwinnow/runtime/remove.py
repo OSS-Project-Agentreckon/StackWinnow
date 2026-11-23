@@ -2,7 +2,7 @@
 
 Classifies every receipt-owned path as either a removal candidate or a
 retained resource.  The plan is read-only — it never deletes anything.
-Actual deletion is performed by the remove command (B07).
+Deletion is a separate lifecycle operation, not implemented by this planner.
 
 Classification rules, applied in order:
   1. Path not present on disk                      → RETAIN (nothing to delete)
@@ -37,13 +37,28 @@ _LOCK_FILE = "operation.lock"
 # Directory name components within .stackwinnow/ that hold project data
 # (evaluation results, relationship graphs, verification evidence) rather than
 # installed software.  These survive tool removal so the user keeps their history.
-_RETAINED_DATA_NAMES: frozenset[str] = frozenset({
-    "results",
-    "reports",
-    "graphs",
-    "output",
-    "checks",
-})
+_RETAINED_DATA_NAMES: frozenset[str] = frozenset(
+    {
+        "results",
+        "reports",
+        "graphs",
+        "output",
+        "checks",
+    }
+)
+
+# Project outputs and reusable caches, separate from .stackwinnow/envs/.
+# These are retention rules, never evidence that a path is manager-owned.
+_RETAINED_DATA_ROOTS = tuple(
+    Path(relative)
+    for relative in (
+        "graphify",
+        "promptfoo/results",
+        "promptfoo/cache",
+        "cache",
+        "caches",
+    )
+)
 
 
 class RemovalAction(StrEnum):
@@ -92,9 +107,19 @@ def _normalise(raw: str, project_root: Path) -> str:
     """
     abs_p = _resolve(raw, project_root)
     try:
+        # Python 3.14 resolve(strict=False) can leave a symlink loop unresolved.
+        # stat still reports ELOOP; allow missing paths, never ambiguous aliases.
+        try:
+            abs_p.stat()
+        except FileNotFoundError:
+            pass
         return str(abs_p.resolve())
-    except OSError:
-        return str(abs_p.absolute())
+    except (OSError, RuntimeError, ValueError) as exc:
+        from stackwinnow.installer import InstallerError
+
+        raise InstallerError(
+            "Cannot safely resolve recorded ownership; inspect the paths before removal."
+        ) from exc
 
 
 def _is_managed(path: Path, project_root: Path) -> bool:
@@ -104,6 +129,8 @@ def _is_managed(path: Path, project_root: Path) -> bool:
     as external-alias -> .stackwinnow/envs/shared does not make a file look managed.
     """
     managed = (project_root / _MANAGED_PREFIX).absolute()
+    if ".." in path.parts or managed.is_symlink():
+        return False
     try:
         abs_path = path.absolute()
         rel = abs_path.relative_to(managed)
@@ -115,7 +142,10 @@ def _is_managed(path: Path, project_root: Path) -> bool:
         current = current / part
         if current.is_symlink():
             return False
-    return True
+    try:
+        return abs_path.resolve().is_relative_to(managed.resolve())
+    except (OSError, RuntimeError, ValueError):
+        return False
 
 
 def _is_infrastructure(path: Path, project_root: Path) -> bool:
@@ -137,7 +167,9 @@ def _is_project_data(norm_path: str, project_root: Path) -> bool:
     try:
         managed = (project_root / _MANAGED_PREFIX).resolve()
         rel = Path(norm_path).relative_to(managed)
-        return any(part in _RETAINED_DATA_NAMES for part in rel.parts)
+        return any(rel.is_relative_to(prefix) for prefix in _RETAINED_DATA_ROOTS) or any(
+            part in _RETAINED_DATA_NAMES for part in rel.parts
+        )
     except (ValueError, OSError):
         return False
 
@@ -193,19 +225,29 @@ def plan_removal(
             for raw in step.owned_paths:
                 retained_norm.add(_normalise(raw, root))
 
-    # Pre-compute paths that will be RETAIN within the removal batch:
-    # (a) evidence-referenced outputs inside owned directories (e.g. graph.json),
-    # (b) owned paths that are themselves project data (e.g. results/).
-    # These are added to the containment check so a parent directory is not
-    # incorrectly marked REMOVE when it contains retained data.
-    batch_retain_norm: set[str] = set()
+    # Preserve declared data roots even when only their parent is receipt-owned.
+    # Evidence alone does not imply retention: installation.json and package
+    # health evidence belong to removable runtimes, not retained project data.
+    batch_retain_norm = {
+        _normalise(str(root / _MANAGED_PREFIX / relative), root)
+        for relative in _RETAINED_DATA_ROOTS
+        if os.path.lexists(root / _MANAGED_PREFIX / relative)
+    }
     for receipt in to_remove:
         for ev in receipt.evidence:
-            batch_retain_norm.add(_normalise(ev.source, root))
+            candidate = _resolve(ev.source, root)
+            if _is_project_data(str(candidate), root):
+                batch_retain_norm.add(_normalise(ev.source, root))
         for raw in receipt.owned_paths:
             norm = _normalise(raw, root)
             if _is_project_data(norm, root):
                 batch_retain_norm.add(norm)
+            path = _resolve(raw, root)
+            if not _is_managed(path, root):
+                # An explicitly retained alias must also protect its lexical
+                # parent: retaining only the resolved target would still allow
+                # a candidate parent to delete the alias recursively.
+                batch_retain_norm.update((norm, str(path.absolute())))
 
     # Combined set used for the two-directional containment check.
     all_retained_norm = retained_norm | batch_retain_norm
@@ -289,7 +331,7 @@ def plan_removal(
                 )
                 continue
 
-            if norm_key in retained_norm:
+            if norm_key in all_retained_norm:
                 items.append(
                     RemovalItem(
                         path=raw,
@@ -297,15 +339,15 @@ def plan_removal(
                         step_id=receipt.step_id,
                         action=RemovalAction.RETAIN,
                         reason=(
-                            "Path is also referenced by a tool that is not being removed; "
-                            "retaining for shared use."
+                            "Path is retained project data or referenced by a retained "
+                            "tool/failed step; retaining for shared use."
                         ),
                     )
                 )
                 continue
 
             # Inverse containment: retain a path that sits inside a retained directory.
-            if any(norm_key.startswith(rp + os.sep) for rp in retained_norm):
+            if any(norm_key.startswith(rp + os.sep) for rp in all_retained_norm):
                 items.append(
                     RemovalItem(
                         path=raw,
@@ -323,9 +365,7 @@ def plan_removal(
             # Containment: retain a directory that contains files owned by a
             # retained tool, a failed step, or retained data (evidence/project data)
             # within this removal batch.
-            if path.is_dir() and any(
-                rp.startswith(norm_key + os.sep) for rp in all_retained_norm
-            ):
+            if path.is_dir() and any(rp.startswith(norm_key + os.sep) for rp in all_retained_norm):
                 items.append(
                     RemovalItem(
                         path=raw,

@@ -34,7 +34,8 @@ def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "integration: requires an actual upstream tool/client")
     config.addinivalue_line("markers", "requires_provider: requires model-provider access")
     config.addinivalue_line(
-        "markers", "packaging: builds and installs the distribution (slow; requires --run-packaging)"
+        "markers",
+        "packaging: builds and installs the distribution (slow; requires --run-packaging)",
     )
     if config.getoption("--run-provider") and not config.getoption("--run-integration"):
         raise pytest.UsageError("--run-provider also requires --run-integration")

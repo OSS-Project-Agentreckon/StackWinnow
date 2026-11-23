@@ -216,9 +216,12 @@ def _headroom(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
                 print(f"headroom {plan.version} (Apache-2.0); mode: {plan.mode}")
                 for step in plan.installation.steps:
                     print(f"  {step.description}")
-                print("Use --json to save a reviewable plan; 'headroom apply PLAN.json' applies it.")
+                print(
+                    "Use --json to save a reviewable plan; 'headroom apply PLAN.json' applies it."
+                )
             return 0
-        plan = HeadroomPlan.model_validate_json(open(args.plan_file).read())
+        with open(args.plan_file, encoding="utf-8") as stream:
+            plan = HeadroomPlan.model_validate_json(stream.read())
         result = apply_headroom(plan, dry_run=args.dry_run)
         if args.json:
             print(result.model_dump_json(indent=2))

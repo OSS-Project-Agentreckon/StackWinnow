@@ -1,8 +1,30 @@
 # StackWinnow implementation progress
 
-Last updated: **22 November 2026**. This records observed history and actual work status. The [36-work-commit plan](chronological-commit-plan.md) is the roadmap; a planned step is not completed work.
+Last updated: **23 November 2026**. This records observed history and actual work status. The [sequential B→A checkpoint](two-person-sequential-plan.md) is the active remaining-work schedule; the [36-work-commit plan](chronological-commit-plan.md) is historical. A planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
+
+## B01/B02 — baseline and removal classification
+
+Started fix/b-foundation-baseline-removal from main 8466c8c at the user's
+request to finish B's outstanding foundations before A's product work.
+Fixed Headroom's unclosed plan file, baseline lint/format failures, and the
+reproduced removal classification defects. Added explicit data retention,
+traversal rejection, unresolved-ownership handling and retained-alias ancestor
+protection. See [removal policy](runtime-removal.md).
+
+Validation: 993 rebuilt-package tests passed with warnings treated as errors;
+12 opt-in integration/packaging cases skipped. The focused selection passed
+86 tests; lint, formatting, dependency, CLI smoke and diff checks passed.
+[Environment and validation evidence](evidence/b01-b02-baseline.md) distinguish
+fixture tests from real tool acceptance. Baseline cleanup is commit 9c80b11;
+removal classification and this progress entry are the following commit on
+the same branch. No PR, merge or hosted CI result is claimed for this slice.
+
+Next: B03, TOML/JSON lifecycle reconciliation and restoration, including
+runtime references from preserved configuration. B04–B08 remain outstanding;
+A's product implementation has not started. Earlier entries below are history,
+not evidence that the new handoff is complete.
 
 ## Step 13 continuation: managed package installation
 

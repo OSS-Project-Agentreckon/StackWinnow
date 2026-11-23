@@ -7,10 +7,7 @@ graphify_install.py wires up configuration_intents, all tests should pass.
 
 from __future__ import annotations
 
-import json
-import sys
 import tomllib
-from pathlib import Path
 
 import pytest
 
@@ -71,7 +68,6 @@ def test_plan_graphify_codex_server_has_one_edit_for_new_file(tmp_path):
 def test_plan_graphify_codex_server_no_edits_when_already_registered(tmp_path):
     """When the server entry already matches, preview returns an empty-edits patch."""
     from stackwinnow.configure.codex import (
-        GRAPHIFY_SERVER,
         apply_graphify_codex_server,
         plan_graphify_codex_server,
     )
@@ -158,9 +154,7 @@ def test_lifecycle_conflict_when_entry_differs(tmp_path):
 
     (tmp_path / ".codex").mkdir()
     path = tmp_path / ".codex/config.toml"
-    path.write_text(
-        '[mcp_servers.stackwinnow_graphify]\ncommand = "other-python"\n'
-    )
+    path.write_text('[mcp_servers.stackwinnow_graphify]\ncommand = "other-python"\n')
 
     with pytest.raises(ConfigurationConflict):
         plan_graphify_codex_server(tmp_path, GRAPHIFY_SETTINGS)
@@ -227,6 +221,11 @@ def test_graphify_server_settings_uses_managed_python(tmp_path):
 
     python_path = str(root / INSTALL_ROOT / "python" / "bin" / "python")
     # The command must be the managed Python inside the graphify environment.
-    assert s["command"] == python_path or python_path in s.get("args", []) or (
-        str(root / ".stackwinnow/envs/graphify/python/bin/python") in [s.get("command")] + s.get("args", [])
+    assert (
+        s["command"] == python_path
+        or python_path in s.get("args", [])
+        or (
+            str(root / ".stackwinnow/envs/graphify/python/bin/python")
+            in [s.get("command")] + s.get("args", [])
+        )
     )

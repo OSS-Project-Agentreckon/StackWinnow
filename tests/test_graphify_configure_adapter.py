@@ -21,7 +21,6 @@ from stackwinnow.adapters.graphify import (
     RelationshipExpectation,
 )
 from stackwinnow.adapters.graphify_index import INDEX_STEP_ID
-from stackwinnow.adapters.graphify_install import STEP_ID as INSTALL_STEP_ID
 from stackwinnow.configure.codex import GRAPHIFY_SERVER
 from stackwinnow.contracts import EvidenceRef, OperationStatus
 from stackwinnow.installer import ExecutionRecord, StepReceipt
@@ -257,9 +256,9 @@ def test_configure_no_op_when_already_configured(project, plan):
 def test_graphify_plan_does_not_include_codex_config_blocker(plan):
     """After B05, the execution plan must not list Codex configuration as not implemented."""
     for blocker in plan.blockers:
-        assert "codex configuration" not in blocker.lower() or "not implemented" not in blocker.lower(), (
-            f"Unexpected Codex config blocker: {blocker!r}"
-        )
+        assert (
+            "codex configuration" not in blocker.lower() or "not implemented" not in blocker.lower()
+        ), f"Unexpected Codex config blocker: {blocker!r}"
 
 
 # ---------------------------------------------------------------------------
