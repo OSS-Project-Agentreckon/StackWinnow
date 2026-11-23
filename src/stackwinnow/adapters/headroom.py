@@ -17,14 +17,16 @@ import hashlib
 import json
 import os
 import platform
-from collections.abc import Iterator
-from contextlib import contextmanager
 from pathlib import Path
 from typing import Literal, Protocol
 from uuid import uuid4
 
-from pydantic import Field
+from pydantic import Field, StrictBool, StrictInt, model_validator
 
+from stackwinnow.adapters import headroom_state as state
+from stackwinnow.adapters._managed import directories, record_for
+from stackwinnow.adapters.graphify_index import _publish
+from stackwinnow.adapters.graphify_plan import _digest, _json
 from stackwinnow.catalog import CatalogError, load_catalog
 from stackwinnow.contracts import (
     Contract,
@@ -48,7 +50,6 @@ from stackwinnow.installer import (
     InstallerError,
     RunnerOutcome,
     execute_plan,
-    load_record,
 )
 
 VERSION = "0.44.0"
@@ -74,7 +75,7 @@ _FIXTURE_INPUT = json.dumps(_FIXTURE_MESSAGES, separators=(",", ":"), ensure_asc
 _FIXTURE_SHA256 = hashlib.sha256(_FIXTURE_INPUT.encode()).hexdigest()
 
 # Tokenizer target.  headroom uses tiktoken to count tokens; no model API
-# calls are made during compression.  "gpt-4o" selects the cl100k tokenizer.
+# calls are made during compression.  "gpt-4o" selects o200k_base.
 _MODEL_TARGET = "gpt-4o"
 
 
@@ -120,9 +121,34 @@ class HeadroomPlan(Contract):
 class CompressionEvidence(Contract):
     """Recorded output from a fixture compression run."""
 
-    messages_in: int = Field(ge=1)
-    messages_out: int = Field(ge=1)
-    tokens_saved: int | None = Field(default=None, ge=0)
+    messages_in: StrictInt = Field(ge=1)
+    messages_out: StrictInt = Field(ge=1)
+    tokens_before: StrictInt = Field(ge=1)
+    tokens_after: StrictInt = Field(ge=1)
+    tokens_saved: StrictInt = Field(ge=0)
+
+    @model_validator(mode="after")
+    def consistent_counts(self):
+        if self.tokens_before - self.tokens_after != self.tokens_saved:
+            raise ValueError("Token counts and savings disagree.")
+        return self
+
+
+class CompressionRun(CompressionEvidence):
+    run_id: str
+    fixture_sha256: Literal[_FIXTURE_SHA256]
+    model_target: Literal["gpt-4o"]
+    tokenizer: Literal["o200k_base"]
+    system_preserved: StrictBool
+    failure_preserved: StrictBool
+
+    @model_validator(mode="after")
+    def preserved_fixture(self):
+        if self.messages_in != len(_FIXTURE_MESSAGES):
+            raise ValueError("Fixture input count mismatch.")
+        if not self.system_preserved or not self.failure_preserved:
+            raise ValueError("Required fixture content did not survive.")
+        return self
 
 
 class HeadroomResult(Contract):
@@ -175,114 +201,65 @@ def _root(value: str | Path) -> Path:
         raise HeadroomError("Select an existing project directory.") from exc
 
 
-def _installed_release(venv_path: Path) -> bool:
-    """True if headroom-ai==VERSION is installed in the given venv."""
-    try:
-        lib = venv_path / "lib"
-        for python_dir in lib.iterdir():
-            if not python_dir.name.startswith("python"):
-                continue
-            dist_info = python_dir / "site-packages" / f"{_DIST_INFO_NAME}-{VERSION}.dist-info"
-            if not dist_info.is_dir():
-                continue
-            metadata = dist_info / "METADATA"
-            if not metadata.is_file():
-                continue
-            content = metadata.read_text(errors="replace")
-            return f"Version: {VERSION}" in content and "Name: headroom-ai" in content
-        return False
-    except OSError:
-        return False
-
-
-def _compress_script() -> str:
-    """Return a self-contained Python script that compresses the fixture and prints JSON."""
-    fixture_repr = repr(_FIXTURE_INPUT)
-    model_repr = repr(_MODEL_TARGET)
-    fail_signal = repr("FAIL test_timeout")
-    return "\n".join(
-        [
-            "import json, sys",
-            "try:",
-            "    from headroom import compress",
-            "except ImportError as e:",
-            '    print(json.dumps({"error": repr(e)}), file=sys.stderr)',
-            "    sys.exit(1)",
-            "try:",
-            f"    messages = json.loads({fixture_repr})",
-            f"    result = compress(messages, model={model_repr})",
-            "    sys_ok = any(isinstance(m, dict) and m.get('role') == 'system' for m in result.messages)",
-            f"    fail_ok = any(isinstance(m, dict) and {fail_signal} in str(m.get('content', '')) for m in result.messages)",
-            "    if not sys_ok or not fail_ok:",
-            "        missing = []",
-            '        if not sys_ok: missing.append("system role")',
-            '        if not fail_ok: missing.append("FAIL signal")',
-            '        print(json.dumps({"error": "required content did not survive compression: " + ", ".join(missing)}), file=sys.stderr)',
-            "        sys.exit(1)",
-            '    out = {"messages_in": len(messages), "messages_out": len(result.messages)}',
-            "    if hasattr(result, 'tokens_saved'):",
-            '        out["tokens_saved"] = result.tokens_saved',
-            "    print(json.dumps(out))",
-            "    sys.exit(0)",
-            "except Exception as e:",
-            '    print(json.dumps({"error": repr(e)}), file=sys.stderr)',
-            "    sys.exit(1)",
-        ]
-    )
-
-
-def _has_path_ownership(record: ExecutionRecord, path: Path) -> bool:
-    return any(
-        receipt.tool_id == _TOOL_ID and str(path) in receipt.owned_paths for receipt in record.steps
-    )
-
-
-def _check_installation(root: Path, record: ExecutionRecord) -> bool:
-    """Return True if the managed venv exists and is owned.  Raise on conflict."""
-    try:
-        venv = python_env_path(str(root), _TOOL_ID)
-    except EnvironmentBoundaryError as exc:
-        raise HeadroomError(str(exc)) from exc
-    _reject_link(venv.parent, "tool directory")
-    _reject_link(venv, "managed venv")
-    if not venv.exists():
-        return False
-    if not _has_path_ownership(record, venv):
-        raise HeadroomError(
-            "The managed headroom venv exists without an ownership receipt; "
-            "inspect it before retrying."
-        )
-    if not _installed_release(venv):
-        raise HeadroomError(
-            "The owned headroom venv is incomplete or changed; inspect it before retrying."
-        )
-    return True
+def _compress_script(run_id: str = "standalone") -> str:
+    """Run the reviewed local-only fixture and expose upstream token measurements."""
+    return f"""# stackwinnow-headroom-compress
+import json, sys
+SW_RUN_ID = {run_id!r}
+try:
+    from headroom import compress
+    from tiktoken.model import encoding_name_for_model
+    messages = json.loads({_FIXTURE_INPUT!r})
+    result = compress(messages, model={_MODEL_TARGET!r}, kompress_model="disabled")
+    system_ok = any(m.get("role") == "system" and m.get("content") == "You are a helpful assistant."
+                    for m in result.messages if isinstance(m, dict))
+    failure_ok = any("FAIL test_timeout: AssertionError: expected 0.5s got 10.2s" in str(m.get("content", ""))
+                     for m in result.messages if isinstance(m, dict))
+    print(json.dumps({{"run_id": SW_RUN_ID, "fixture_sha256": {_FIXTURE_SHA256!r},
+        "model_target": {_MODEL_TARGET!r}, "tokenizer": encoding_name_for_model({_MODEL_TARGET!r}),
+        "messages_in": len(messages), "messages_out": len(result.messages),
+        "tokens_before": result.tokens_before, "tokens_after": result.tokens_after,
+        "tokens_saved": result.tokens_saved, "system_preserved": system_ok,
+        "failure_preserved": failure_ok}}))
+except Exception:
+    print("Headroom fixture execution failed.", file=sys.stderr)
+    sys.exit(1)
+"""
 
 
 def _record(root: Path) -> ExecutionRecord:
     try:
-        return load_record(str(root))
-    except InstallerError as exc:
-        raise HeadroomError(
-            "Existing receipts need recovery; inspect .stackwinnow/receipts.json."
-        ) from exc
+        return record_for(root)
+    except (OSError, ValueError, RuntimeError) as exc:
+        raise HeadroomError("Existing receipts need inspection before execution.") from exc
+
+
+def _check_installation(root: Path, record: ExecutionRecord | None = None) -> bool:
+    try:
+        # Preserve explicit path diagnostics before using the bounded inventory.
+        venv = python_env_path(str(root), _TOOL_ID)
+        _reject_link(venv.parent, "tool directory")
+        _reject_link(venv, "managed venv")
+        return state.inspect_installation(root) is not None
+    except (OSError, ValueError, RuntimeError, EnvironmentBoundaryError) as exc:
+        raise HeadroomError(str(exc)) from exc
 
 
 def _installation(root: Path, run_id: str) -> InstallPlan:
-    actions = [
-        ("install", f"Create Python venv and install {_PACKAGE_NAME}@{VERSION}."),
-        ("compress", "Run fixture compression to verify library mode."),
-    ]
     return InstallPlan(
         project_root=str(root),
         tool_ids=[_TOOL_ID],
         steps=[
             PlanStep(
-                step_id=f"{_TOOL_ID}-{run_id}-{action}",
+                step_id=f"headroom-{run_id}-install",
                 tool_id=_TOOL_ID,
-                description=description,
-            )
-            for action, description in actions
+                description=f"Create Python venv and install {_PACKAGE_NAME}@{VERSION}.",
+            ),
+            PlanStep(
+                step_id=f"headroom-{run_id}-compress",
+                tool_id=_TOOL_ID,
+                description="Run fixture compression to verify library mode.",
+            ),
         ],
     )
 
@@ -303,250 +280,224 @@ def _validate_plan(root: Path, plan: HeadroomPlan) -> None:
     record = _record(root)
     if any(record.receipt_for(step.step_id) is not None for step in plan.installation.steps):
         raise HeadroomError("This plan was already attempted. Create a new plan for a fresh run.")
-    if plan.fixture_sha256 != _FIXTURE_SHA256:
-        raise HeadroomError("The fixture changed; recreate the plan.")
-    expected = _build_plan(root, run_id=plan.run_id)
-    if expected != plan:
-        raise HeadroomError(
-            "The plan or its input configuration changed; create and review a new plan."
-        )
-
-
-@contextmanager
-def _operation_lock(root: Path) -> Iterator[None]:
-    managed = root / ".stackwinnow"
-    managed.mkdir(mode=0o700, exist_ok=True)
-    lock_path = managed / "headroom.lock"
-    try:
-        descriptor = os.open(lock_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY | os.O_NOFOLLOW, 0o600)
-    except FileExistsError as exc:
-        raise HeadroomError(
-            "Another headroom operation may be active. Inspect the lock before retrying."
-        ) from exc
-    try:
-        os.close(descriptor)
-        yield
-    finally:
-        lock_path.unlink(missing_ok=True)
+    if _build_plan(root, run_id=plan.run_id) != plan:
+        raise HeadroomError("The reviewed plan or fixed fixture changed; create a new plan.")
+    _check_installation(root)
 
 
 def _default_runner() -> CommandRunner | None:
-    try:
-        from stackwinnow.runner import run_command
-    except ModuleNotFoundError as exc:
-        if exc.name != "stackwinnow.runner":
-            raise
-        return None
+    from stackwinnow.runner import run_command
+
     return run_command
 
 
 def plan_headroom(project_root: str | Path) -> HeadroomPlan:
-    """Preview the headroom library installation without commands, network, or writes."""
+    """Read-only preview; no subprocesses, downloads, or writes."""
     root = _root(project_root)
     _check_catalog_eligibility()
-    record = _record(root)
-    _check_installation(root, record)
+    _check_installation(root)
     return _build_plan(root, run_id=uuid4().hex)
 
 
-def apply_headroom(
-    plan: HeadroomPlan,
-    *,
-    dry_run: bool = False,
-    command_runner: CommandRunner | None = None,
-) -> HeadroomResult:
-    """Apply a reviewed headroom plan.
-
-    Installs headroom-ai in an isolated venv and verifies library-mode
-    compression against a fixed fixture.  Dry-run leaves the filesystem
-    unchanged; a real run requires the shared command runner.
-    """
-    checked = HeadroomPlan.model_validate_json(plan.model_dump_json())
-
-    def blocked(message: str) -> HeadroomResult:
-        return HeadroomResult(
-            plan=checked,
-            status=OperationStatus.BLOCKED,
-            message=message,
-            dry_run=dry_run,
+def _install_step(root: Path, step: PlanStep, runner: CommandRunner) -> RunnerOutcome:
+    owned: list[str] = []
+    label = "installation validation"
+    try:
+        existing = state.inspect_installation(root)
+        if existing is not None:
+            return RunnerOutcome(
+                status=OperationStatus.SUCCEEDED,
+                message=f"headroom-ai {VERSION} reused (current inventory verified).",
+                owned_paths=state.owned_paths(root),
+                evidence=[EvidenceRef(source=state.MANIFEST, detail="sha256:" + existing[1])],
+            )
+        venv = root / state.ENV
+        directories(root, ".stackwinnow/envs/headroom", create=True)
+        venv.mkdir(mode=0o700)
+        owned.append(str(venv))
+        state.journal_paths(root, step.step_id, owned)
+        (root / state.STATE).mkdir(mode=0o700)
+        owned.append(state.STATE)
+        state.journal_paths(root, step.step_id, owned)
+        state.prepare_private_paths(root)
+        creation = create_venv_args(venv)
+        creation.insert(-1, "--copies")
+        for args, timeout, label in (
+            (_isolated_args(creation), 60, "venv creation"),
+            (_isolated_args(bootstrap_pip_args(venv)), 60, "pip bootstrap"),
+            (
+                _isolated_args(pip_install_args(venv, _PACKAGE_NAME, VERSION)),
+                600,
+                "headroom-ai installation",
+            ),
+        ):
+            outcome = runner(args, cwd=root, timeout=timeout, extra_env=state.environment(root))
+            if not outcome.succeeded:
+                return RunnerOutcome(
+                    status=OperationStatus.FAILED,
+                    message=label + (" timed out." if outcome.timed_out else " failed."),
+                    owned_paths=owned,
+                )
+        label = "installation health check"
+        outcome = runner(
+            [str(python_executable(venv)), "-I", "-B", "-c", state.health_script()],
+            cwd=root,
+            timeout=60,
+            extra_env=state.environment(root),
+        )
+        if not outcome.succeeded or len(outcome.stdout.encode()) > 256 * 1024:
+            raise HeadroomError("Headroom health check failed.")
+        health = _json(outcome.stdout.encode())
+        digest = state.write_manifest(root, health)
+        return RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message=f"headroom-ai {VERSION} installed; environment/imports/inventory verified.",
+            owned_paths=owned,
+            evidence=[EvidenceRef(source=state.MANIFEST, detail="sha256:" + digest)],
+        )
+    except (OSError, ValueError, RuntimeError, InstallerError, EnvironmentBoundaryError):
+        return RunnerOutcome(
+            status=OperationStatus.FAILED,
+            message=f"Headroom {label} failed; inspect retained ownership before retrying.",
+            owned_paths=owned,
         )
 
+
+def run_headroom_compression(
+    root: Path, step_id: str, runner: CommandRunner, *, scenario: str = "pass"
+) -> tuple[RunnerOutcome, CompressionEvidence | None]:
+    """Run under the shared executor lock; persist a fresh measured report."""
+    measurement = None
+    message = "Headroom compression failed; no fresh successful result was established."
+    status = OperationStatus.FAILED
+    report = {
+        "schema_version": 1,
+        "run_id": step_id,
+        "fixture_sha256": _FIXTURE_SHA256,
+        "model_target": _MODEL_TARGET,
+        "tokenizer": "o200k_base",
+        "scenario": scenario,
+    }
+    try:
+        before = state.inspect_installation(root)
+        if before is None:
+            raise HeadroomError("Headroom is not installed.")
+        state.prepare_private_paths(root)
+        outcome = runner(
+            [str(root / state.ENV / "bin/python"), "-I", "-B", "-c", _compress_script(step_id)],
+            cwd=root,
+            timeout=90,
+            extra_env=state.environment(root),
+        )
+        if not outcome.succeeded:
+            message = (
+                "Compression script timed out."
+                if outcome.timed_out
+                else "Compression script failed."
+            )
+            raise HeadroomError(message)
+        if len(outcome.stdout.encode()) > 64 * 1024:
+            raise HeadroomError("Compression output exceeds its bound.")
+        try:
+            parsed = CompressionRun.model_validate(_json(outcome.stdout.encode()))
+        except ValueError as exc:
+            message = "Could not parse compression output; invalid counts, fixture mismatch or missing evidence."
+            raise HeadroomError(message) from exc
+        if parsed.run_id != step_id:
+            raise HeadroomError("Compression output belongs to an earlier run.")
+        after = state.inspect_installation(root)
+        if after is None or before[1] != after[1]:
+            raise HeadroomError("Headroom runtime changed during compression.")
+        if scenario == "fail":
+            message = "Negative control rejected the fresh compression result as requested."
+            raise HeadroomError(message)
+        measurement = CompressionEvidence.model_validate(
+            {key: getattr(parsed, key) for key in CompressionEvidence.model_fields}
+        )
+        report["measurement"] = parsed.model_dump(mode="json")
+        report["installation_sha256"] = after[1]
+        status = OperationStatus.SUCCEEDED
+        message = (
+            f"Fixture compression succeeded ({measurement.tokens_before} tokens before, "
+            f"{measurement.tokens_after} after, {measurement.tokens_saved} saved)."
+        )
+    except (OSError, ValueError, RuntimeError, InstallerError, EnvironmentBoundaryError):
+        measurement = None
+    report.update(status=status.value, message=message)
+    relative = state.REPORTS + "/" + step_id + ".json"
+    try:
+        directories(root, state.REPORTS, create=True)
+        if os.path.lexists(root / relative):
+            raise HeadroomError("Refusing to replace an existing compression report.")
+        raw = json.dumps(report, indent=2).encode()
+        _publish(root, relative, raw)
+        return RunnerOutcome(
+            status=status,
+            message=message,
+            owned_paths=[relative],
+            evidence=[EvidenceRef(source=relative, detail="sha256:" + _digest(raw))],
+        ), measurement
+    except (OSError, ValueError, RuntimeError):
+        return RunnerOutcome(
+            status=OperationStatus.FAILED,
+            message="Cannot persist the fresh compression report; inspect recorded intent.",
+        ), None
+
+
+def apply_headroom(
+    plan: HeadroomPlan, *, dry_run: bool = False, command_runner: CommandRunner | None = None
+) -> HeadroomResult:
+    """Apply a reviewed plan using the shared project lock and durable receipts."""
+    checked = HeadroomPlan.model_validate(plan.model_dump())
     try:
         root = _root(checked.project_root)
         _validate_plan(root, checked)
-        if dry_run:
-            record, results = execute_plan(checked.installation, dry_run=True)
-            return HeadroomResult(
-                plan=checked,
-                status=OperationStatus.SKIPPED,
-                message="Dry run; no commands or files were created.",
-                dry_run=True,
-                record=record,
-                results=results,
-            )
         runner = command_runner or _default_runner()
-        if runner is None:
-            return blocked(
-                "headroom execution requires the shared command runner, which is unavailable "
-                "in this build. Use a dry run or a build that includes the runner."
+        if not dry_run and runner is None:
+            raise HeadroomError(
+                "Headroom requires the shared command runner, which is unavailable."
             )
-        if platform.system() != "Darwin" or platform.machine() != "arm64":
-            return blocked(
-                "The initial headroom adapter is validated on macOS arm64; "
-                "other environments remain unverified."
-            )
+        if not dry_run and (platform.system() != "Darwin" or platform.machine() != "arm64"):
+            raise HeadroomError("Headroom library mode currently requires macOS arm64.")
+        compression = None
 
-        compression: CompressionEvidence | None = None
-
-        def run_step(step: PlanStep) -> RunnerOutcome:
+        def run_step(step):
             nonlocal compression
-            venv = python_env_path(str(root), _TOOL_ID)
-            owned_paths = [str(venv)]
-
             if step.step_id.endswith("-install"):
-                already_installed = _check_installation(root, load_record(str(root)))
-                if not already_installed:
-                    _reject_link(venv.parent, "tool directory")
-                    _reject_link(venv, "managed venv")
-                    if venv.exists():
-                        return RunnerOutcome(
-                            status=OperationStatus.BLOCKED,
-                            message=(
-                                "The venv appeared or changed between plan and apply; "
-                                "inspect it before retrying."
-                            ),
-                        )
-                    # Create venv without pip, then bootstrap pip, then install.
-                    # Use -I on every bootstrap command so project-local venv.py / pip.py
-                    # cannot shadow the stdlib modules when cwd=root.
-                    for args, timeout, label in [
-                        (_isolated_args(create_venv_args(venv)), 60, "venv creation"),
-                        (_isolated_args(bootstrap_pip_args(venv)), 60, "pip bootstrap"),
-                        (
-                            _isolated_args(pip_install_args(venv, _PACKAGE_NAME, VERSION)),
-                            600,
-                            f"{_PACKAGE_NAME} installation",
-                        ),
-                    ]:
-                        outcome = runner(args, cwd=root, timeout=timeout)
-                        if not outcome.succeeded:
-                            return RunnerOutcome(
-                                status=(
-                                    OperationStatus.BLOCKED
-                                    if outcome.timed_out
-                                    else OperationStatus.FAILED
-                                ),
-                                message=(
-                                    f"{label} timed out."
-                                    if outcome.timed_out
-                                    else f"{label} failed: {outcome.stderr[:200]}"
-                                ),
-                                owned_paths=owned_paths,
-                            )
-                if not _installed_release(venv):
-                    return RunnerOutcome(
-                        status=OperationStatus.FAILED,
-                        message=(
-                            f"The installed package does not match {_PACKAGE_NAME}=={VERSION}."
-                        ),
-                        owned_paths=owned_paths,
-                    )
-                return RunnerOutcome(
-                    status=OperationStatus.SUCCEEDED,
-                    message=(
-                        f"{_PACKAGE_NAME} {VERSION} "
-                        + ("reused (already installed)." if already_installed else "installed.")
-                    ),
-                    owned_paths=owned_paths,
-                )
+                return _install_step(root, step, runner)
+            result, compression = run_headroom_compression(root, step.step_id, runner)
+            return result
 
-            # compress step: run the fixture through headroom.compress in the venv.
-            tiktoken_cache = venv / "tiktoken-cache"
-            tiktoken_cache.mkdir(mode=0o700, exist_ok=True)
-            script = _compress_script()
-            outcome = runner(
-                [str(python_executable(venv)), "-I", "-c", script],
-                cwd=root,
-                timeout=60,
-                extra_env={"TIKTOKEN_CACHE_DIR": str(tiktoken_cache)},
-            )
-            if not outcome.succeeded:
-                raw_err = outcome.stderr.strip()[:300]
-                return RunnerOutcome(
-                    status=OperationStatus.FAILED,
-                    message=(
-                        "Compression script timed out."
-                        if outcome.timed_out
-                        else f"Compression script failed: {raw_err}"
-                    ),
-                )
-            try:
-                data = json.loads(outcome.stdout.strip())
-                if "error" in data:
-                    return RunnerOutcome(
-                        status=OperationStatus.FAILED,
-                        message=f"headroom.compress raised an exception: {data['error'][:200]}",
-                    )
-                if data.get("messages_in") != len(_FIXTURE_MESSAGES):
-                    return RunnerOutcome(
-                        status=OperationStatus.FAILED,
-                        message=(
-                            f"Fixture input count mismatch: "
-                            f"expected {len(_FIXTURE_MESSAGES)}, got {data.get('messages_in')}."
-                        ),
-                    )
-                compression = CompressionEvidence(
-                    messages_in=data["messages_in"],
-                    messages_out=data["messages_out"],
-                    tokens_saved=data.get("tokens_saved"),
-                )
-            except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                return RunnerOutcome(
-                    status=OperationStatus.FAILED,
-                    message=f"Could not parse compression output: {exc}",
-                )
-            detail = f"{compression.messages_in} messages in, {compression.messages_out} out" + (
-                f", {compression.tokens_saved} tokens saved"
-                if compression.tokens_saved is not None
-                else ""
-            )
-            return RunnerOutcome(
-                status=OperationStatus.SUCCEEDED,
-                message=f"Fixture compression succeeded ({detail}).",
-                evidence=[EvidenceRef(source="headroom.compress", detail=detail)],
-            )
-
-        with _operation_lock(root):
-            _validate_plan(root, checked)
-            record, results = execute_plan(checked.installation, step_runner=run_step)
-
+        record, results = execute_plan(
+            checked.installation,
+            dry_run=dry_run,
+            step_runner=run_step,
+            before_execute=lambda: _validate_plan(root, checked),
+        )
         failures = [
             r for r in results if r.status in (OperationStatus.FAILED, OperationStatus.BLOCKED)
         ]
-        if failures:
+        if dry_run:
+            status, message = OperationStatus.SKIPPED, "Dry run; no commands or files were created."
+        elif failures:
             status, message = failures[0].status, failures[0].message
-        elif compression is None or not any(
-            r.step_id == checked.installation.steps[-1].step_id
-            and r.status == OperationStatus.SUCCEEDED
-            for r in results
-        ):
-            status = OperationStatus.BLOCKED
-            message = "No fresh successful compression was recorded. Create a new plan."
+        elif compression is None:
+            status, message = OperationStatus.BLOCKED, "No fresh compression result was recorded."
         else:
-            status = OperationStatus.SUCCEEDED
-            message = "headroom is installed and library-mode compression passed."
+            status, message = (
+                OperationStatus.SUCCEEDED,
+                "Headroom library-mode fixture compression passed.",
+            )
         return HeadroomResult(
             plan=checked,
             status=status,
             message=message,
+            dry_run=dry_run,
             results=results,
             record=record,
             compression=compression,
         )
     except (HeadroomError, InstallerError, OSError, EnvironmentBoundaryError) as exc:
-        message = (
-            str(exc)
-            if isinstance(exc, HeadroomError)
-            else "Project state changed; inspect the managed receipts and create a new plan."
+        return HeadroomResult(
+            plan=checked, status=OperationStatus.BLOCKED, message=str(exc), dry_run=dry_run
         )
-        return blocked(message)

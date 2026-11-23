@@ -68,7 +68,9 @@ def _make_result(plan: HeadroomPlan, *, status=OperationStatus.SUCCEEDED) -> Hea
             ),
         ],
         record=ExecutionRecord(project_root=plan.project_root),
-        compression=CompressionEvidence(messages_in=2, messages_out=2, tokens_saved=10)
+        compression=CompressionEvidence(
+            messages_in=2, messages_out=2, tokens_before=100, tokens_after=90, tokens_saved=10
+        )
         if status == OperationStatus.SUCCEEDED
         else None,
     )

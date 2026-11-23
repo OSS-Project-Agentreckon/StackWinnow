@@ -4,6 +4,30 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A01 foundation repair — Headroom current state and shared verification
+
+Implemented on feat/a01-headroom-verification, stacked on Graphify client PR
+#33. Code commit c6b7e8a adds immutable runtime inventory/import health,
+immediate created-root journaling, private process/cache state and shared
+locking. Passive checks inspect current ownership; explicit functional checks
+produce fresh strict measurements and exact system/failure preservation proof.
+Standalone connectivity remains not applicable. Mutable Headroom data is
+retained by removal planning even before a report exists.
+
+Validation: the rebuilt package passed 1098 default tests with warnings as
+errors and 13 opt-in skips. The final focused verifier selection passed 35,
+including 2 added fixture-preservation regressions; Python 3.14 passed 104 focused
+tests. The real managed plan/dry-run/apply/passive/fresh/negative/reapply/replay
+lifecycle passed in 429.32 seconds. Three successful reports each measured 282
+before / 282 after / 0 saved. Seventy installed distributions and candidate license
+artifacts were captured for the later release audit. Build/lint/format/pip/diff
+checks passed. See [guide](integrations/headroom.md) and
+[measured evidence](evidence/headroom-library.md).
+
+No token-cost benefit, provider connection, dependency-lock closure, merge,
+hosted CI or complete foundation handoff is claimed. Next: coordinated safe
+removal, then real foundation acceptance and handoff before A02 product work.
+
 ## A01 foundation repair — Graphify Codex bridge and client verification
 
 Implemented on feat/a01-graphify-codex-bridge, stacked on PR #32. Replaces the
@@ -20,14 +44,14 @@ without functional success. Prior reports cannot make passive checks ready.
 
 Validation: 1065 rebuilt-package tests passed with warnings as errors and 13
 opt-in skips. Two focused selections passed 83 tests each; the bridge/config/
-client selection also passed 83 on Python3.14.4. Real managed installation,
+client selection also passed 83 on Python 3.14.4. Real managed installation,
 indexing, configuration, positive/negative/repeat Codex queries and reuse passed
 (1 integration case, 91.44 seconds). The final package additionally reused the
 earlier real installation plan after advisory wording changes and passed a fresh
 Codex query. Lint, formatting, dependency and diff checks passed. See
 [client guide](graphify-codex.md) and [evidence](evidence/graphify-codex.md).
 
-The inherited Python3.14 removal symlink-loop CI failure was fixed separately
+The inherited Python 3.14 removal symlink-loop CI failure was fixed separately
 as a2000bc and sent back to PR #32. All40 removal tests pass on Python3.11.14
 and3.14.4. No merge, complete foundation handoff or hosted client validation is
 claimed. Headroom verification and coordinated removal remain next.

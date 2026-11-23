@@ -53,6 +53,7 @@ _RETAINED_DATA_ROOTS = tuple(
     Path(relative)
     for relative in (
         "graphify",
+        "headroom",
         "promptfoo/results",
         "promptfoo/cache",
         "cache",

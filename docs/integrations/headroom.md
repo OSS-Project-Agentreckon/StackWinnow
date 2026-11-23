@@ -1,121 +1,103 @@
-# Headroom integration
+# Headroom library integration
 
-**Package**: `headroom-ai`  
-**Version**: `0.44.0`  
-**License**: Apache-2.0 (reviewed)  
-**Repository**: <https://github.com/headroomlabs-ai/headroom>  
-**Category**: context compression  
-**Implemented mode**: library
+StackWinnow installs `headroom-ai==0.44.0` (Apache-2.0) in a project-local
+Python environment. The supported request path is local Python library
+compression on macOS arm64. It does not configure an assistant proxy or send
+requests to a model provider.
 
----
+Upstream: <https://github.com/headroomlabs-ai/headroom>
 
-## What headroom-ai does
+## Install and verify
 
-headroom-ai compresses tool outputs, logs, JSON, and chat history before each
-LLM call.  Compression runs locally using NLP algorithms; no data is sent to
-any external service and no model API key is required.  The `model` parameter
-selects a tokenizer (via tiktoken) to count tokens against a specific context
-window; it does not route requests to an LLM.
+```sh
+stackwinnow headroom plan /path/to/project --json > /tmp/headroom-plan.json
+stackwinnow headroom apply /tmp/headroom-plan.json --dry-run
+stackwinnow headroom apply /tmp/headroom-plan.json
+stackwinnow check /path/to/project --tool headroom
+stackwinnow check /path/to/project --tool headroom --run-functional --json
+```
 
----
+Planning and dry-run do not download packages, start subprocesses, or create
+project files. Review and apply the serialized plan. To run the complete
+adapter again, create a new plan: a previously attempted plan cannot be replayed.
+A current owned environment is reused without reinstalling it.
 
-## Implemented mode: library
+The shared passive check validates current installation receipts, import health
+record and the entire immutable runtime inventory. It reports installed and
+configured separately. Connected is `not_applicable` for standalone library
+mode. Functionality is `not_run` until explicitly requested; old successful
+reports do not establish current readiness.
 
-The StackWinnow adapter uses the Python library mode:
+`--run-functional` runs fresh compression under the shared project lock,
+revalidates the runtime afterward, and saves a unique report bound to the run,
+installation digest, fixture digest, model target and tokenizer. It never
+installs missing packages. `--scenario fail` runs the same fresh command, then
+deliberately rejects its result as a deterministic negative validation control;
+it does not simulate an upstream failure or claim token savings.
+
+## What the fixture proves
+
+The reviewed call is:
 
 ```python
 from headroom import compress
 
-result = compress(messages, model="gpt-4o")
-print(result.messages)  # compressed message list
-print(result.tokens_saved)  # integer (may be 0 for short inputs)
+result = compress(messages, model="gpt-4o", kompress_model="disabled")
 ```
 
-The adapter installs `headroom-ai` in an isolated Python virtualenv under
-`.stackwinnow/envs/headroom/python/` and runs the compression in a subprocess
-using the venv interpreter (`-I` mode to prevent path manipulation).
+`gpt-4o` selects the `o200k_base` tokenizer; it does not make a GPT API request.
+The fixture includes a system instruction and a user message with repetitive
+passing tests and a critical timeout failure. Success requires the exact system
+instruction and full timeout/expected/actual failure text to survive. Reports
+include actual upstream `tokens_before`, `tokens_after`, `tokens_saved` and
+message counts. Boolean, string, negative, inconsistent or stale measurements
+are rejected. Zero savings is valid. This narrow fixture demonstrates execution
+and preservation of required content; it does not establish cost reduction for
+arbitrary projects or provider bills.
 
-### Acceptance check
+## Isolation and ownership
 
-A fixed two-message fixture with known repetitive content is compressed on
-every fresh run.  The step records `messages_in`, `messages_out`, and
-`tokens_saved`.  Compression reducing tokens to zero is not asserted — the
-acceptance check verifies that the library imported and ran without error, not
-that the fixture exceeds a minimum compression ratio.
+Python 3.11+ with `venv`/`ensurepip` is required. First installation needs access
+to PyPI; the first tokenizer use may download its vocabulary from Azure CDN.
+The adapter supplies private HOME, XDG and temporary directories, an explicit
+PyPI index and disabled user pip configuration. Python runs in isolated mode;
+health and compression also disable bytecode writes with `-B`, so imports do
+not alter the runtime inventory. Kompress model downloading is disabled.
 
----
+| Managed path | Purpose and removal policy |
+| --- | --- |
+| `.stackwinnow/envs/headroom/python/` | Copied interpreter, packages and immutable inventory; eligible for runtime removal only with valid exclusive ownership |
+| `.stackwinnow/headroom/cache/tiktoken/` | Mutable tokenizer vocabulary; retained project data |
+| `.stackwinnow/headroom/reports/` | Fresh success/failure evidence; retained project data |
+| `.stackwinnow/headroom/home/`, `tmp/` | Private runtime state beneath the retained Headroom data root |
+| `.stackwinnow/receipts.json` | Shared operation journal; retained |
+| `.stackwinnow/operation.lock` | Shared lock during execution; released afterward |
 
-## Modes not implemented
+Every newly created root is journaled immediately. Failed or interrupted installs
+remain available for inspection. Existing unowned roots, missing runtime files,
+unsafe aliases, changed inventory and old metadata-only installations block
+reuse; the adapter does not silently adopt or overwrite them. The removal
+planner retains the whole `.stackwinnow/headroom` data root, including a cache
+that has no report yet. Coordinated deletion/reinstallation after removal is a
+separate lifecycle milestone.
 
-| Mode | Description | Why not implemented here |
-|------|-------------|--------------------------|
-| **Proxy** | HTTP proxy between your code and an LLM API | Requires a running process and routing evidence from an active request |
-| **Client-wrapper** | CLI wrapper that runs `claude`, `cursor`, etc. | Requires an active assistant session to verify routing |
+The upstream version is pinned, but transitive dependencies currently resolve
+at installation time. The manifest records the actual installed versions and
+file hashes. This is current-environment validation, not a claim of a locked
+cross-machine dependency resolution. Dependency license closure belongs to the
+release audit.
 
-Add a separate adapter step for either mode if live-routing evidence is
-required.  Do not infer savings or connectivity from a running process.
+## Acceptance evidence
 
----
-
-## Prerequisites
-
-- Python 3.11+ (the venv uses the interpreter running StackWinnow)
-- pip or ensurepip (the adapter bootstraps pip via `ensurepip`)
-- Internet access on first run — tiktoken downloads vocab files from Azure CDN
-  and caches them in `<venv>/tiktoken-cache/`
-- macOS arm64 (initial verified platform; Linux support can be added after
-  independent testing)
-
----
-
-## Managed paths
-
-| Path | Purpose | Owned by |
-|------|---------|----------|
-| `.stackwinnow/envs/headroom/python/` | Isolated venv with headroom-ai and dependencies | StackWinnow |
-| `.stackwinnow/envs/headroom/python/tiktoken-cache/` | Tokenizer vocab cache | StackWinnow |
-| `.stackwinnow/headroom.lock` | Operation lock (removed after apply) | StackWinnow |
-
-Removal is scoped to these paths.  External Python installations and project
-source files are never modified.
-
----
-
-## Running the integration check
+Run the opt-in real check with:
 
 ```sh
-pytest tests/integration/test_headroom.py --run-integration -v
+python -m pytest tests/integration/test_headroom.py --run-integration -q
 ```
 
-The first run downloads tiktoken vocab files (~2 MB) and installs
-`headroom-ai` and its dependencies (~150 MB) into the fixture project venv.
-Subsequent runs reuse the installed venv and the tiktoken cache.
-
----
-
-## Known limitations
-
-- **Compression benefit is input-dependent**: a short fixture may show
-  `tokens_saved = 0`; this does not indicate a failure.
-- **litellm dependency**: `headroom-ai` depends on LiteLLM, a large package
-  (~150 MB with its transitive dependencies).  The venv install may take
-  several minutes on first run.
-- **tiktoken network access**: The first compression call downloads tokenizer
-  vocab files.  CI jobs without internet access will block at this point.
-- **Platform**: Only macOS arm64 is verified in the initial adapter; support
-  for Linux requires a separate testing pass.
-
----
-
-## Real findings from initial integration
-
-The following was recorded during acceptance testing on macOS arm64 with
-Python 3.11 and headroom-ai 0.44.0:
-
-- `compress(messages, model="gpt-4o")` completes locally without API keys.
-- The two-message fixture (system + 41-line repetitive log) compressed
-  successfully.  Token savings varied between 0 and ~15 depending on the
-  algorithm selected.
-- The tiktoken `cl100k_base` vocab file is downloaded on first call and cached;
-  subsequent calls are fully offline.
-- The venv install took approximately 90–180 seconds on a cold cache.
+It exercises missing installation, dry-run, installation, passive inspection,
+fresh shared verification, negative control, repeat setup and replay rejection
+while preserving a user file. See [Headroom evidence](../evidence/headroom-library.md)
+for the measured environment and results. Offline tests exercise state
+corruption, command failures, unsafe cache aliases, locking and strict reports;
+they do not substitute for the real upstream acceptance run.
