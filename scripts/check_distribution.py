@@ -5,10 +5,11 @@ Usage (from the repo root):
 
 The script:
   1. Builds a wheel (and sdist) using the ``build`` package.
-  2. Installs the wheel into a temporary venv (no index, no deps reuse).
-  3. Checks that ``stackwinnow --version`` exits 0 and prints a version string.
-  4. Checks that the catalog data file is present in the installed package.
-  5. Checks that the declared entry point resolves to the installed package tree.
+  2. Installs the wheel with its declared dependencies into a fresh venv.
+  3. Runs ``pip check`` to confirm no broken dependency requirements.
+  4. Checks that ``stackwinnow --version`` exits 0 and prints a version string.
+  5. Loads and validates the tool catalog via ``stackwinnow.catalog.load_catalog``.
+  6. Checks that the declared entry point resolves to the installed package tree.
 
 Exit 0 on success; non-zero (with a summary of failures) otherwise.
 """
@@ -17,8 +18,6 @@ from __future__ import annotations
 
 import argparse
 import hashlib
-import json
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -74,13 +73,22 @@ def create_venv(venv_dir: Path) -> Path:
 
 
 def install_wheel(python: Path, wheel: Path) -> None:
+    """Install the wheel and its declared runtime dependencies from PyPI."""
     result = subprocess.run(
-        [str(python), "-m", "pip", "install", "--no-index", "--no-deps", str(wheel)],
+        [str(python), "-m", "pip", "install", str(wheel)],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
         raise RuntimeError(f"pip install failed:\n{result.stderr}")
+    # Confirm all declared requirements resolve correctly.
+    check = subprocess.run(
+        [str(python), "-m", "pip", "check"],
+        capture_output=True,
+        text=True,
+    )
+    if check.returncode != 0:
+        raise RuntimeError(f"pip check failed after install:\n{check.stdout}{check.stderr}")
 
 
 def check_version(python: Path) -> str:
@@ -107,24 +115,27 @@ def check_version(python: Path) -> str:
 
 
 def check_catalog(python: Path) -> None:
-    """Confirm catalog data is accessible from the installed package."""
+    """Load and validate the tool catalog from the installed package.
+
+    Exercises ``stackwinnow.catalog.load_catalog`` directly so that a missing
+    or empty catalog.json causes a failure, even when other JSON data files
+    (e.g. graphify-lock.json) are present.
+    """
     result = subprocess.run(
         [
             str(python),
             "-c",
             (
-                "from importlib.resources import files; "
-                "data = files('stackwinnow').joinpath('data'); "
-                "names = [r.name for r in data.iterdir()]; "
-                "assert any(n.endswith('.json') for n in names), "
-                f"f'No JSON in catalog data: {{names}}'"
+                "from stackwinnow.catalog import load_catalog; "
+                "cat = load_catalog(); "
+                "assert cat.tools, 'Catalog has no tools'"
             ),
         ],
         capture_output=True,
         text=True,
     )
     if result.returncode != 0:
-        raise RuntimeError(f"catalog data check failed:\n{result.stderr or result.stdout}")
+        raise RuntimeError(f"catalog check failed:\n{result.stderr or result.stdout}")
 
 
 def check_entry_point(python: Path) -> None:
@@ -183,7 +194,7 @@ def main(argv: list[str] | None = None) -> int:
             _report(failures)
             return 1
 
-        print("Installing wheel into clean venv…")
+        print("Installing wheel with dependencies…")
         try:
             install_wheel(python, wheel)
         except RuntimeError as exc:
@@ -208,12 +219,12 @@ def main(argv: list[str] | None = None) -> int:
             failures.append(f"--version: {exc}")
             print(f"FAIL  {failures[-1]}")
 
-        print("Checking catalog data…")
+        print("Checking catalog…")
         try:
             check_catalog(python)
             print("  OK")
         except RuntimeError as exc:
-            failures.append(f"catalog data: {exc}")
+            failures.append(f"catalog: {exc}")
             print(f"FAIL  {failures[-1]}")
 
     return _report(failures)

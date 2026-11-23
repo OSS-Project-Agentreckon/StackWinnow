@@ -11,10 +11,8 @@ All tests are skipped by default; run with ``--run-packaging`` to enable.
 
 from __future__ import annotations
 
-import importlib
 import subprocess
 import sys
-import tempfile
 import venv
 from pathlib import Path
 
@@ -53,7 +51,7 @@ def _create_venv(venv_dir: Path) -> Path:
 
 def _install(python: Path, wheel: Path) -> None:
     result = subprocess.run(
-        [str(python), "-m", "pip", "install", "--no-index", "--no-deps", str(wheel)],
+        [str(python), "-m", "pip", "install", str(wheel)],
         capture_output=True,
         text=True,
     )
@@ -109,23 +107,25 @@ def test_version_flag_exits_zero(installed_venv):
 
 @pytest.mark.packaging
 def test_catalog_data_accessible(installed_venv):
-    """The catalog JSON data files must be accessible from the installed package."""
+    """The tool catalog must be loadable and non-empty from the installed package.
+
+    Uses ``load_catalog()`` rather than a filename glob so that the check fails
+    when catalog.json is absent even if other JSON data files remain.
+    """
     result = subprocess.run(
         [
             str(installed_venv),
             "-c",
             (
-                "from importlib.resources import files; "
-                "data = files('stackwinnow').joinpath('data'); "
-                "names = [r.name for r in data.iterdir()]; "
-                "assert any(n.endswith('.json') for n in names), "
-                "f'No JSON in catalog data: {names}'"
+                "from stackwinnow.catalog import load_catalog; "
+                "cat = load_catalog(); "
+                "assert cat.tools, 'Catalog has no tools'"
             ),
         ],
         capture_output=True,
         text=True,
     )
-    assert result.returncode == 0, f"catalog data check failed:\n{result.stderr or result.stdout}"
+    assert result.returncode == 0, f"catalog check failed:\n{result.stderr or result.stdout}"
 
 
 @pytest.mark.packaging
