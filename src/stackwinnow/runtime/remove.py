@@ -107,6 +107,12 @@ def _normalise(raw: str, project_root: Path) -> str:
     """
     abs_p = _resolve(raw, project_root)
     try:
+        # Python 3.14 resolve(strict=False) can leave a symlink loop unresolved.
+        # stat still reports ELOOP; allow missing paths, never ambiguous aliases.
+        try:
+            abs_p.stat()
+        except FileNotFoundError:
+            pass
         return str(abs_p.resolve())
     except (OSError, RuntimeError, ValueError) as exc:
         from stackwinnow.installer import InstallerError
