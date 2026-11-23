@@ -210,12 +210,15 @@ def inspect_setup(root: Path, node: str) -> tuple[bool, bool]:
     record = record_for(root)
     state = root / STATE
     exists = state.exists()
-    if exists and not _owns(record, state):
+    retired = record.retained_path("playwright-mcp", STATE) and not _owns(record, state)
+    if exists and not _owns(record, state) and not retired:
         raise PlaywrightError(
             "Playwright state exists without a real ownership receipt; inspect it."
         )
     ready = exists and installed(root)
-    if exists and not ready:
+    if retired and any(os.path.lexists(root / STATE / p) for p in ("node", "browsers")):
+        raise PlaywrightError("Runtime paths appeared after removal; refusing to adopt them.")
+    if exists and not ready and not retired:
         raise PlaywrightError(
             "Owned Playwright installation is incomplete or changed; inspect it before retrying."
         )
@@ -386,7 +389,11 @@ def apply_playwright(
                         directories(root, str(Path(STATE).parent), create=True)
                         # Exclusive creation prevents adopting a directory that appeared
                         # after inspection. Only a successful mkdir establishes ownership.
-                        (root / STATE).mkdir(mode=0o700)
+                        retired = record_for(root).retained_path("playwright-mcp", STATE)
+                        if retired:
+                            directories(root, STATE, create=True)
+                        else:
+                            (root / STATE).mkdir(mode=0o700)
                         owned.append(str(root / STATE))
                         for part in (
                             "node",
@@ -399,8 +406,15 @@ def apply_playwright(
                         ):
                             directories(root, STATE + "/" + part, create=True)
                         for name in ("user.npmrc", "global.npmrc"):
-                            with (root / STATE / name).open("xb"):
-                                pass
+                            path = root / STATE / name
+                            if retired and path.exists():
+                                if read_file(path) != b"":
+                                    raise PlaywrightError(
+                                        "Retained npm settings changed; inspect them."
+                                    )
+                            else:
+                                with path.open("xb"):
+                                    pass
                         commands = [
                             [
                                 npm,

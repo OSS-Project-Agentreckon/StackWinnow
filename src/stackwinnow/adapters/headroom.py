@@ -316,7 +316,10 @@ def _install_step(root: Path, step: PlanStep, runner: CommandRunner) -> RunnerOu
         venv.mkdir(mode=0o700)
         owned.append(str(venv))
         state.journal_paths(root, step.step_id, owned)
-        (root / state.STATE).mkdir(mode=0o700)
+        if not record_for(root).retained_path("headroom", state.STATE):
+            (root / state.STATE).mkdir(mode=0o700)
+        else:
+            directories(root, state.STATE, create=True)
         owned.append(state.STATE)
         state.journal_paths(root, step.step_id, owned)
         state.prepare_private_paths(root)

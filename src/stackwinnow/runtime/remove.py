@@ -28,7 +28,7 @@ from pydantic import Field
 from stackwinnow.contracts import Contract, Identifier, NonEmptyText, UntrimmedText
 
 if TYPE_CHECKING:
-    from stackwinnow.installer import StepReceipt
+    from stackwinnow.installer import ExecutionRecord, StepReceipt
 
 _MANAGED_PREFIX = ".stackwinnow"
 _RECEIPTS_FILE = "receipts.json"
@@ -178,6 +178,8 @@ def _is_project_data(norm_path: str, project_root: Path) -> bool:
 def plan_removal(
     project_root: str,
     tool_ids: list[str] | None = None,
+    *,
+    _record: ExecutionRecord | None = None,
 ) -> RemovalPlan:
     """Build a removal plan for the managed resources of a project.
 
@@ -198,7 +200,7 @@ def plan_removal(
     """
     from stackwinnow.installer import OperationStatus, load_record
 
-    record = load_record(project_root)
+    record = _record if _record is not None else load_record(project_root)
     root = Path(project_root)
 
     target_ids: set[str] | None = set(tool_ids) if tool_ids is not None else None

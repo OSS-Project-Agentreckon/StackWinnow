@@ -17,6 +17,7 @@ from typing import Literal
 from pydantic import Field
 
 from stackwinnow.contracts import (
+    ConfigFileState,
     ConfigPatch,
     Contract,
     EvidenceRef,
@@ -69,12 +70,67 @@ class StepReceipt(Contract):
     evidence: list[EvidenceRef] = Field(default_factory=list)
 
 
+class ConfigurationRelease(Contract):
+    """Published cleanup proof retained across partial removal attempts."""
+
+    operation_id: Identifier
+    ownership: ConfigPatch
+    released_keys: list[tuple[str, ...]]
+    restored_file: ConfigFileState | None
+
+
+class RuntimeRelease(Contract):
+    """A deleted runtime tied to the exact active owners, for partial continuation."""
+
+    operation_id: Identifier
+    tool_id: Identifier
+    path: UntrimmedText
+    owners_sha256: str
+
+
+class ToolRetirement(Contract):
+    """Completed intentional removal, preserving the original evidence and data."""
+
+    operation_id: Identifier
+    tool_id: Identifier
+    timestamp: NonEmptyText
+    original_steps: list[StepReceipt]
+    retained_paths: list[UntrimmedText] = Field(default_factory=list)
+    retained_identities: dict[str, tuple[int, int]] = Field(default_factory=dict)
+    restored_files: dict[str, ConfigFileState] = Field(default_factory=dict)
+
+
 class ExecutionRecord(Contract):
     """All step receipts for one project root."""
 
     schema_version: Literal[1] = 1
     project_root: UntrimmedText
     steps: list[StepReceipt] = Field(default_factory=list)
+    retirements: list[ToolRetirement] = Field(default_factory=list)
+    runtime_releases: list[RuntimeRelease] = Field(default_factory=list)
+    configuration_releases: list[ConfigurationRelease] = Field(default_factory=list)
+
+    def retained_path(self, tool_id: str, relative: str) -> bool:
+        """Explicit data ownership after a completed removal; never runtime adoption."""
+        try:
+            path = Path(self.project_root) / relative
+            info = path.lstat()
+            if path.is_symlink() or not path.is_dir():
+                return False
+        except OSError:
+            return False
+        return any(
+            r.tool_id == tool_id
+            and relative in r.retained_paths
+            and r.retained_identities.get(relative) == (info.st_dev, info.st_ino)
+            for r in self.retirements
+        )
+
+    def restored_file(self, tool_id: str, relative: str, state: ConfigFileState) -> bool:
+        return any(
+            r.tool_id == tool_id and r.restored_files.get(relative) == state
+            for r in self.retirements
+        )
 
     def receipt_for(self, step_id: str) -> StepReceipt | None:
         for step in self.steps:

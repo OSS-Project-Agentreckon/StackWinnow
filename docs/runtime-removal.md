@@ -1,5 +1,9 @@
 # Runtime removal classification
 
+For the explicit user-facing plan/apply lifecycle, see
+[coordinated removal](coordinated-removal.md). This page describes its lower-level
+read-only classifier.
+
 The plan_removal(project_root, tool_ids=None) function in
 stackwinnow.runtime.remove is a read-only preview over receipt-owned resources.
 It does not delete files, change receipts, run tools, or grant permission for
@@ -22,6 +26,7 @@ receipt for every output:
 | Location under .stackwinnow/ | Policy |
 | --- | --- |
 | graphify/ | Retain graphs, index state and its isolated caches |
+| headroom/ | Retain compression reports, tokenizer cache and private mutable state |
 | promptfoo/results/, promptfoo/cache/ | Retain evaluation results and cached responses |
 | cache/, caches/ | Retain designated shared caches |
 | Path components named results, reports, graphs, output, checks | Retain project output and verification history |
@@ -33,11 +38,10 @@ an installation manifest or package health observation does not permanently
 protect an otherwise removable runtime. Retention rules never establish
 ownership of an unrecorded resource.
 
-This preview does not yet reconcile retained configuration references with
-runtime ownership. B03 will define that interface, and B07 will coordinate
-configuration cleanup, locked revalidation, deletion and partial-failure
-recovery. A serialized candidate must not be deleted merely because it was
-eligible at preview time.
+This classifier does not reconcile configuration references or authorize
+deletion. The coordinated lifecycle adds those checks, fixed runtime scopes,
+locked revalidation and durable recovery. A serialized classifier candidate
+must not be deleted merely because it was eligible at preview time.
 
 Python 3.14 can leave symlink loops unresolved in Path.resolve(strict=False).
 Ownership normalization also checks stat() so ELOOP remains a blocking error

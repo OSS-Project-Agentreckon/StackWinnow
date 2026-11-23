@@ -12,13 +12,15 @@ project inspection with explicit goals/preferences, explainable recommendations,
 runtime inspection, a command runner, setup preflight, execution receipts, owned
 JSON configuration edits, and pinned promptfoo and Playwright MCP adapters with
 plan/apply commands. Playwright adds an owned Codex project TOML registration.
-Graphify provides a recipe preview, locked install-only execution, and local
-relationship-evidence checks.
+Graphify provides locked installation, managed indexing/reindexing, owned Codex
+configuration and actual client relationship checks. Headroom exposes managed
+library compression and fresh token/preservation measurements.
 `check` reports installation, configuration, connection, and fresh functionality
-for selected tools; promptfoo and Playwright MCP have verification adapters. The `inspect` command reads
+for selected tools; all four narrow modes have verification adapters. The `inspect` command reads
 project declarations; host runtime inspection and setup preflight remain Python
-APIs. Managed Graphify indexing/client setup, the unified guided journey, and
-removal remain planned.
+APIs. Explicit [removal plans and apply](docs/coordinated-removal.md) restore clean
+owned settings, remove unreferenced runtime scopes and retain project data.
+The assembled real foundation handoff and unified guided journey remain next.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog

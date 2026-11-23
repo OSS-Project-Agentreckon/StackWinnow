@@ -107,7 +107,9 @@ def inspect_installation(root: Path) -> tuple[dict, str] | None:
         if str(root / ENV) in receipt.owned_paths or ENV in receipt.owned_paths
     ]
     if not os.path.lexists(root / ENV):
-        if receipts or os.path.lexists(root / STATE):
+        if receipts or (
+            os.path.lexists(root / STATE) and not record.retained_path("headroom", STATE)
+        ):
             raise HeadroomStateError("Headroom runtime is missing or partial; inspect owned state.")
         return None
     if not receipts:
