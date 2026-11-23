@@ -1,0 +1,15 @@
+include LICENSE THIRD_PARTY_NOTICES.md
+include docs/releasing.md docs/support-matrix.md
+recursive-include licenses *.json *.md *.txt
+include scripts/build_release.py scripts/check_distribution.py
+prune docs/superpowers
+exclude AGENTS.md docs/person-a-progress-plan.md
+prune .stackwinnow
+prune node_modules
+prune .venv
+prune venv
+prune build
+prune dist
+global-exclude __pycache__ *.py[cod] .DS_Store
+recursive-include examples/profiles *.json
+recursive-include tests *
