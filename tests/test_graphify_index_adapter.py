@@ -471,7 +471,8 @@ def test_shared_verifier_reads_current_evidence_and_runs_fresh_query(project, in
     before = (project / ".stackwinnow/receipts.json").read_bytes()
     report = check_project(project, tool_ids=["graphify"], command_runner=runner)
     checks = {check.kind: check for check in report.tools[0].checks}
-    assert checks["installed"].status == checks["configured"].status == "succeeded"
+    assert checks["installed"].status == "succeeded"
+    assert checks["configured"].status == "blocked"
     assert checks["functional"].status == "not_run" and checks["connected"].status == "blocked"
     assert not report.ready and len(runner.calls) == 2
     assert (project / ".stackwinnow/receipts.json").read_bytes() == before

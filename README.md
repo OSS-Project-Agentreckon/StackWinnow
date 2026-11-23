@@ -27,8 +27,9 @@ coding assistant, and tool versions must be agreed and tested before any
 integration is advertised as supported. The initial promptfoo execution scope
 is macOS arm64 with Node 24. The runner is integrated; its remaining reviewed
 limitations are recorded in [implementation progress](docs/implementation-progress.md).
-Graphify's local indexing/query probe was verified on macOS arm64; actual Codex
-connectivity remains pending. Playwright MCP is validated with Codex CLI 0.169.0
+Graphify's managed index and manager-owned MCP bridge are verified with actual
+Codex CLI 0.169.0 calls on macOS arm64; see the [Graphify client guide](docs/graphify-codex.md).
+Playwright MCP is validated with Codex CLI 0.169.0
 on macOS arm64 / Node 24 using an isolated client and scripted local provider.
 See the [Playwright guide](docs/integrations/playwright-mcp.md) for setup, real
 client evidence and its limits.

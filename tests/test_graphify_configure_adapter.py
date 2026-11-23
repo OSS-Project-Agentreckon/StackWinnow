@@ -1,298 +1,175 @@
-"""Failing tests for B05 — Graphify Codex configuration integration.
-
-Written before implementation; all must fail initially.
-Once graphify_configure.py exists and graphify_plan.py drops the Codex
-config blocker, all tests must pass.
-"""
-
-from __future__ import annotations
-
-import sys
+import json
 import tomllib
-from pathlib import Path
 
 import pytest
+from test_graphify_bridge import indexed as _indexed_fixture
+from test_graphify_index_adapter import project as _project_fixture
 
-from stackwinnow.adapters import graphify_plan as preparation
-from stackwinnow.adapters.graphify import (
-    GRAPH_PATH,
-    STATE_PATH,
-    GraphifyError,
-    RelationshipExpectation,
+from stackwinnow.adapters import graphify_configure as adapter
+from stackwinnow.adapters.graphify import GraphifyError
+from stackwinnow.adapters.graphify_index import GRAPH_PATH
+from stackwinnow.adapters.graphify_install import MANIFEST, graphify_server_settings
+from stackwinnow.configure.codex import (
+    GRAPHIFY_SERVER,
+    apply_graphify_codex_server,
+    plan_graphify_codex_server,
 )
-from stackwinnow.adapters.graphify_index import INDEX_STEP_ID
-from stackwinnow.configure.codex import GRAPHIFY_SERVER
-from stackwinnow.contracts import EvidenceRef, OperationStatus
-from stackwinnow.installer import ExecutionRecord, StepReceipt
+from stackwinnow.installer import load_record
 
-# ---------------------------------------------------------------------------
-# Fixtures
-# ---------------------------------------------------------------------------
+project = _project_fixture
+indexed = _indexed_fixture
 
 
-@pytest.fixture
-def project(tmp_path, monkeypatch):
-    root = tmp_path / "graphify-project"
-    root.mkdir()
-    (root / "caller.py").write_text("from callee import answer\ndef call(): return answer()\n")
-    (root / "callee.py").write_text("def answer(): return 42\n")
-    runtime = preparation.RuntimeSnapshot(
-        executable=sys.executable,
-        implementation="CPython",
-        version="3.11.14",
-        system="Darwin",
-        machine="arm64",
-        macos_version="14.0",
-    )
-    monkeypatch.setattr(preparation, "_runtime", lambda: runtime)
-    return root
-
-
-@pytest.fixture
-def plan(project):
-    return preparation.plan_graphify_execution(
-        project,
-        expectation=RelationshipExpectation(
-            caller_file="caller.py",
-            caller_label="call()",
-            callee_file="callee.py",
-            callee_label="answer()",
-        ),
-    )
-
-
-def _seed_install(root: Path) -> None:
-    import json as _json
-
-    from stackwinnow.adapters.graphify_install import INSTALL_ROOT, MANIFEST, STEP_ID
-    from stackwinnow.adapters.graphify_plan import _digest
-
-    managed = root / ".stackwinnow"
-    managed.mkdir(exist_ok=True)
-
-    # Create the actual MANIFEST file so evidence digest checks pass in _check_prereqs.
-    manifest_data = _json.dumps(
-        {"schema_version": 1, "plan_sha256": "fake", "files": {}}, sort_keys=True
-    ).encode()
-    manifest_path = root / MANIFEST
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_bytes(manifest_data)
-
-    record = ExecutionRecord(project_root=str(root))
-    record.steps.append(
-        StepReceipt(
-            step_id=STEP_ID,
-            tool_id="graphify",
-            status="succeeded",
-            message="fake install",
-            owned_paths=[INSTALL_ROOT],
-            evidence=[EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(manifest_data)}")],
-            timestamp="2026-01-01T00:00:00",
-        )
-    )
-    (managed / "receipts.json").write_text(record.model_dump_json())
-
-
-def _seed_index(root: Path) -> None:
-    import json as _json
-
-    from stackwinnow.adapters.graphify_plan import _digest
-
-    managed = root / ".stackwinnow"
-    managed.mkdir(exist_ok=True)
-
-    # Create the actual GRAPH_PATH file so evidence digest checks pass in _check_prereqs.
-    graph_data = _json.dumps({"nodes": [], "edges": []}, sort_keys=True).encode()
-    graph_path = root / GRAPH_PATH
-    graph_path.parent.mkdir(parents=True, exist_ok=True)
-    graph_path.write_bytes(graph_data)
-
-    record = ExecutionRecord.model_validate_json((managed / "receipts.json").read_text())
-    record.steps.append(
-        StepReceipt(
-            step_id=INDEX_STEP_ID,
-            tool_id="graphify",
-            status="succeeded",
-            message="fake index",
-            owned_paths=[STATE_PATH],
-            evidence=[EvidenceRef(source=GRAPH_PATH, detail=f"sha256:{_digest(graph_data)}")],
-            timestamp="2026-01-01T00:00:01",
-        )
-    )
-    (managed / "receipts.json").write_text(record.model_dump_json())
-
-
-def _seed_install_and_index(root: Path) -> None:
-    _seed_install(root)
-    _seed_index(root)
-
-
-# ---------------------------------------------------------------------------
-# 1. Module constant
-# ---------------------------------------------------------------------------
-
-
-def test_configure_step_id_is_graphify_configure():
-    """CONFIGURE_STEP_ID must match the 'configure' step name pattern."""
-    from stackwinnow.adapters.graphify_configure import CONFIGURE_STEP_ID
-
-    assert CONFIGURE_STEP_ID == "graphify-configure"
-
-
-# ---------------------------------------------------------------------------
-# 2. Prerequisite guard
-# ---------------------------------------------------------------------------
-
-
-def test_configure_raises_without_any_receipts(project, plan):
-    """apply_graphify_configure must raise when no install or index receipts exist."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    with pytest.raises(GraphifyError, match="install|index"):
-        apply_graphify_configure(plan)
-
-
-def test_configure_raises_without_index_receipt(project, plan):
-    """apply_graphify_configure must raise when install succeeded but index has not run."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    _seed_install(project)
-
-    with pytest.raises(GraphifyError, match="index"):
-        apply_graphify_configure(plan)
-
-
-# ---------------------------------------------------------------------------
-# 3. Dry run
-# ---------------------------------------------------------------------------
-
-
-def test_dry_run_no_writes(project, plan, monkeypatch):
-    """Dry run must not write any files."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    _seed_install_and_index(project)
-    (project / ".codex").mkdir()
-
-    before = {str(p): p.read_bytes() for p in project.rglob("*") if p.is_file()}
-
-    result = apply_graphify_configure(plan, dry_run=True)
-
-    assert result.dry_run
-    assert {str(p): p.read_bytes() for p in project.rglob("*") if p.is_file()} == before
-
-
-# ---------------------------------------------------------------------------
-# 4. Successful configure
-# ---------------------------------------------------------------------------
-
-
-def test_configure_creates_codex_config_entry(project, plan):
-    """apply_graphify_configure must write the Graphify server entry in .codex/config.toml."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    _seed_install_and_index(project)
-    (project / ".codex").mkdir()
-
-    result = apply_graphify_configure(plan)
-
-    assert result.configured
-    toml = tomllib.loads((project / ".codex/config.toml").read_text())
-    assert GRAPHIFY_SERVER in toml.get("mcp_servers", {})
-
-
-def test_configure_records_configuration_ownership(project, plan):
-    """The configure receipt must carry configuration_ownership with the Graphify patch."""
-    from stackwinnow.adapters.graphify_configure import CONFIGURE_STEP_ID, apply_graphify_configure
-
-    _seed_install_and_index(project)
-    (project / ".codex").mkdir()
-
-    result = apply_graphify_configure(plan)
-
-    receipt = result.record.receipt_for(CONFIGURE_STEP_ID)
-    assert receipt is not None
-    assert receipt.configuration_ownership
-    patch = receipt.configuration_ownership[0]
-    assert patch.tool_id == "graphify"
-    assert patch.relative_path == ".codex/config.toml"
-
-
-def test_configure_blocked_when_codex_parent_absent(project, plan):
-    """When .codex/ does not exist, configure must return blocked without creating files."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    _seed_install_and_index(project)
-
-    result = apply_graphify_configure(plan)
-
-    assert not result.configured
-    assert result.results and result.results[0].status == OperationStatus.BLOCKED
+def test_configuration_requires_real_runtime_and_index(project):
+    with pytest.raises(GraphifyError):
+        adapter.plan_graphify_configure(project)
     assert not (project / ".codex").exists()
 
 
-def test_configure_no_op_when_already_configured(project, plan):
-    """Calling configure a second time when entry already matches must skip without error."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-
-    _seed_install_and_index(project)
-    (project / ".codex").mkdir()
-
-    first = apply_graphify_configure(plan)
+def test_configure_preview_dry_run_create_repeat_preserves_ownership(indexed):
+    before = {p: p.read_bytes() for p in indexed.rglob("*") if p.is_file()}
+    plan = adapter.plan_graphify_configure(indexed)
+    dry = adapter.apply_graphify_configure(plan, dry_run=True)
+    assert dry.dry_run and not dry.configured
+    assert all(p.read_bytes() == raw for p, raw in before.items())
+    assert not (indexed / ".codex").exists()
+    first = adapter.apply_graphify_configure(plan)
     assert first.configured
-
-    second = apply_graphify_configure(plan)
-    assert not second.configured or second.results[0].status in (
-        OperationStatus.SKIPPED,
-        OperationStatus.SUCCEEDED,
-    )
-
-
-# ---------------------------------------------------------------------------
-# 5. graphify_plan no longer has the Codex config blocker
-# ---------------------------------------------------------------------------
-
-
-def test_graphify_plan_does_not_include_codex_config_blocker(plan):
-    """After B05, the execution plan must not list Codex configuration as not implemented."""
-    for blocker in plan.blockers:
-        assert (
-            "codex configuration" not in blocker.lower() or "not implemented" not in blocker.lower()
-        ), f"Unexpected Codex config blocker: {blocker!r}"
+    path = indexed / ".codex/config.toml"
+    original = path.read_bytes()
+    assert tomllib.loads(original.decode())["mcp_servers"][
+        GRAPHIFY_SERVER
+    ] == graphify_server_settings(indexed)
+    receipt = first.record.receipt_for(adapter.CONFIGURE_STEP_ID)
+    assert receipt.configuration_ownership == [plan.configuration]
+    assert receipt.owned_paths == [str(indexed / ".codex")]
+    repeated = adapter.apply_graphify_configure(plan)
+    assert repeated.configured and repeated.results[0].status == "skipped"
+    assert path.read_bytes() == original
+    assert repeated.record.receipt_for(adapter.CONFIGURE_STEP_ID) == receipt
 
 
-# ---------------------------------------------------------------------------
-# 6. Stale artifact regression — _check_prereqs must gate on real files
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize("artifact", ["manifest", "graph"])
-def test_missing_artifacts_block_configure(project, plan, artifact):
-    """Deleting a seeded artifact must block configure before any step runs."""
-    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
-    from stackwinnow.adapters.graphify_install import MANIFEST
-
-    _seed_install_and_index(project)
-    (project / ".codex").mkdir()
-
-    if artifact == "manifest":
-        (project / MANIFEST).unlink()
-        match = "manifest|installation"
+@pytest.mark.parametrize("change", ["source", "graph", "manifest", "recipe", "config-before-apply"])
+def test_changed_inputs_block_before_configuration_writes(indexed, change):
+    plan = adapter.plan_graphify_configure(indexed)
+    if change == "source":
+        (indexed / "caller.py").write_text("changed")
+    elif change == "graph":
+        (indexed / GRAPH_PATH).unlink()
+    elif change == "manifest":
+        (indexed / MANIFEST).write_text("{}")
+    elif change == "recipe":
+        plan = plan.model_copy(update={"bridge_sha256": "0" * 64})
     else:
-        (project / GRAPH_PATH).unlink()
-        match = "graph|index"
-
-    with pytest.raises(GraphifyError, match=match):
-        apply_graphify_configure(plan)
-
-
-# ---------------------------------------------------------------------------
-# 7. Client-verification blocker must remain in the execution plan
-# ---------------------------------------------------------------------------
+        (indexed / ".codex").mkdir()
+        (indexed / ".codex/config.toml").write_text("# newly added\n")
+    before = (indexed / ".stackwinnow/receipts.json").read_bytes()
+    with pytest.raises(GraphifyError):
+        adapter.apply_graphify_configure(plan)
+    assert (indexed / ".stackwinnow/receipts.json").read_bytes() == before
 
 
-def test_graphify_plan_includes_client_verification_blocker(plan):
-    """After B05, the execution plan must list client verification as still pending."""
-    assert any("client verification" in b.lower() for b in plan.blockers), (
-        f"Expected a client-verification blocker, got: {plan.blockers!r}"
+@pytest.mark.parametrize("change", ["edited", "removed", "malformed", "symlink"])
+def test_user_configuration_changes_are_preserved_on_reapply(indexed, change):
+    plan = adapter.plan_graphify_configure(indexed)
+    assert adapter.apply_graphify_configure(plan).configured
+    path = indexed / ".codex/config.toml"
+    if change == "edited":
+        path.write_text(path.read_text().replace("query_relationship", "different_tool"))
+    elif change == "removed":
+        path.unlink()
+    elif change == "malformed":
+        path.write_text("[invalid")
+    else:
+        path.unlink()
+        path.symlink_to(indexed / "caller.py")
+    before = path.read_bytes() if path.exists() else None
+    receipt_before = (indexed / ".stackwinnow/receipts.json").read_bytes()
+    with pytest.raises(GraphifyError):
+        adapter.apply_graphify_configure(plan)
+    assert (path.read_bytes() if path.exists() else None) == before
+    assert (indexed / ".stackwinnow/receipts.json").read_bytes() == receipt_before
+
+
+def test_unrelated_toml_edits_and_other_tool_survive_reapply(indexed):
+    plan = adapter.plan_graphify_configure(indexed)
+    assert adapter.apply_graphify_configure(plan).configured
+    path = indexed / ".codex/config.toml"
+    path.write_text(
+        path.read_text() + '\n# user notes\n[mcp_servers.other]\ncommand = "other-tool"\n'
     )
+    preserved = path.read_bytes()
+    for candidate in (plan, adapter.plan_graphify_configure(indexed)):
+        result = adapter.apply_graphify_configure(candidate)
+        assert result.configured
+        assert result.record.receipt_for(adapter.CONFIGURE_STEP_ID).configuration_ownership == [
+            plan.configuration
+        ]
+        assert result.record.receipt_for(adapter.CONFIGURE_STEP_ID).owned_paths == [
+            str(indexed / ".codex")
+        ]
+        assert path.read_bytes() == preserved
+
+
+def test_matching_foreign_registration_is_not_adopted(indexed):
+    (indexed / ".codex").mkdir()
+    assert (
+        apply_graphify_codex_server(
+            plan_graphify_codex_server(indexed, graphify_server_settings(indexed))
+        ).result.status
+        == "succeeded"
+    )
+    before = (indexed / ".stackwinnow/receipts.json").read_bytes()
+    with pytest.raises(GraphifyError, match="foreign"):
+        adapter.plan_graphify_configure(indexed)
+    assert (indexed / ".stackwinnow/receipts.json").read_bytes() == before
+
+
+def test_unsafe_parent_cannot_redirect_configuration(indexed, tmp_path):
+    plan = adapter.plan_graphify_configure(indexed)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (indexed / ".codex").symlink_to(outside, target_is_directory=True)
+    with pytest.raises(GraphifyError):
+        adapter.apply_graphify_configure(plan)
+    assert not list(outside.iterdir())
+
+
+def test_write_failure_keeps_intent_and_created_parent(indexed, monkeypatch):
+    plan = adapter.plan_graphify_configure(indexed)
+
+    def fail(patch):
+        assert (indexed / ".stackwinnow/operation.lock").exists()
+        record = load_record(str(indexed))
+        assert record.receipt_for(adapter.CONFIGURE_STEP_ID).configuration_intents == [
+            plan.configuration
+        ]
+        raise OSError("simulated write failure")
+
+    monkeypatch.setattr(adapter, "apply_graphify_codex_server", fail)
+    result = adapter.apply_graphify_configure(plan)
+    assert not result.configured
+    receipt = result.record.receipt_for(adapter.CONFIGURE_STEP_ID)
+    assert receipt.status == "failed" and receipt.configuration_intents == [plan.configuration]
+    assert receipt.owned_paths == [str(indexed / ".codex")]
+    with pytest.raises(GraphifyError):
+        adapter.plan_graphify_configure(indexed)
+
+
+def test_configuration_cli_preview_apply_and_repeat(indexed, tmp_path, capsys):
+    from stackwinnow.cli import main
+
+    assert main(["graphify", "configure-plan", str(indexed), "--json"]) == 0
+    plan = json.loads(capsys.readouterr().out)
+    source = tmp_path / "configure.json"
+    source.write_text(json.dumps(plan))
+    assert main(["graphify", "configure", str(source), "--dry-run", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["dry_run"]
+    assert main(["graphify", "configure", str(source), "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["configured"]
+
+
+def test_bridge_registration_never_uses_nonexistent_upstream_mcp_command(indexed):
+    settings = graphify_server_settings(indexed)
+    assert "stackwinnow.graphify_bridge" in settings["args"]
+    assert "mcp" not in settings["args"]

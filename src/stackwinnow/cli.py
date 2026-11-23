@@ -114,6 +114,8 @@ def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
 
 def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.graphify_command in ("configure-plan", "configure"):
+        return _graphify_configure(args, parser)
     if args.graphify_command in ("index-plan", "index"):
         return _graphify_index(args, parser)
     if args.graphify_command == "apply":
@@ -168,6 +170,32 @@ def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
             print(note)
         print("Use --json to inspect command arguments. No project files were changed.")
     return 0
+
+
+def _graphify_configure(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.graphify_configure import (
+        apply_graphify_configure,
+        load_graphify_configure_plan,
+        plan_graphify_configure,
+    )
+
+    try:
+        if args.graphify_command == "configure-plan":
+            print(plan_graphify_configure(args.project_root).model_dump_json(indent=2))
+            return 0
+        result = apply_graphify_configure(
+            load_graphify_configure_plan(args.plan_file), dry_run=args.dry_run
+        )
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            for operation in result.results:
+                print(f"[{operation.status}] {operation.message}")
+            print("Run check --tool graphify --run-functional to verify an actual Codex call.")
+        return 0 if result.dry_run or result.configured else 1
+    except GraphifyError as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
 
 
 def _graphify_index(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -572,6 +600,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     index_apply.add_argument("plan_file")
     index_apply.add_argument("--dry-run", action="store_true")
     index_apply.add_argument("--json", action="store_true")
+    configure_plan = graphify_commands.add_parser(
+        "configure-plan",
+        allow_abbrev=False,
+        help="Preview owned project Codex settings for the Graphify bridge.",
+    )
+    configure_plan.add_argument("project_root")
+    configure_plan.add_argument(
+        "--json", action="store_true", help="Emit the reviewable JSON plan (default)."
+    )
+    configure_apply = graphify_commands.add_parser(
+        "configure",
+        allow_abbrev=False,
+        help="Apply reviewed Graphify bridge settings, preserving foreign and edited entries.",
+    )
+    configure_apply.add_argument("plan_file")
+    configure_apply.add_argument("--dry-run", action="store_true")
+    configure_apply.add_argument("--json", action="store_true")
     checking = commands.add_parser(
         "check",
         help="Verify selected tools without installing or changing their configuration.",

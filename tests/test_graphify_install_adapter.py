@@ -50,6 +50,23 @@ def snapshot(root):
     return {p.relative_to(root).as_posix(): p.read_bytes() for p in root.rglob("*") if p.is_file()}
 
 
+def test_historical_client_advisory_preserves_reviewed_install_identity(project, plan):
+    legacy = plan.model_copy(
+        update={
+            "blockers": tuple(
+                preparation._OLD_CLIENT_ADVISORY if b == preparation._CLIENT_ADVISORY else b
+                for b in plan.blockers
+            )
+        }
+    )
+    assert preparation.validate_graphify_execution_plan(legacy) == legacy
+    runner = FakeInstall()
+    assert adapter.apply_graphify_install(legacy, command_runner=runner).installed
+    assert adapter.apply_graphify_install(legacy, command_runner=runner).installed
+    assert len(runner.calls) == 4
+    assert adapter.validate_graphify_installation(project)[0] == legacy
+
+
 class FakeInstall:
     def __init__(self, *, fail=None, raises=False, mutation=None):
         self.calls = []

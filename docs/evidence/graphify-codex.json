@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "source_commit": "384b0b7dc9265de6d71189c012f4d6edc8e2a2d0",
+  "environment": {
+    "os": "Darwin",
+    "macos": "27.2.1",
+    "architecture": "arm64",
+    "python": "3.11.14",
+    "node": "24.13.1",
+    "codex": "0.169.0"
+  },
+  "wheel_sha256": "6066ad3fb3a2f645b3e5092b25a3b8280a43d0fb91725e298715f471e97e5958",
+  "scope": "Real managed installation/index/configuration; actual isolated Codex calls using scripted loopback provider; original user files preserved",
+  "full_suite": {
+    "passed": 1065,
+    "skipped": 13,
+    "warnings_as_errors": true
+  },
+  "integration": {
+    "passed": 1,
+    "seconds": 91.44,
+    "sequence": [
+      "pass",
+      "fail",
+      "pass"
+    ],
+    "followup": "Final-package reuse of the original installed recipe plus fresh actual Codex query passed"
+  },
+  "reports": [
+    {
+      "schema_version": 1,
+      "client": "codex",
+      "client_version": "0.169.0",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "pass",
+      "connected": true,
+      "functional": true,
+      "returncode": 0,
+      "timed_out": false,
+      "registration_sha256": "ed983a925ad48e0a7a17c9b4502bc3abd7138ad30349fe00a08e806446202a18",
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_graphify",
+          "tool": "query_relationship",
+          "arguments": {
+            "caller_file": "sample_app/greetings.py",
+            "caller_label": "greet()",
+            "callee_file": "sample_app/names.py",
+            "callee_label": "normalize_name()"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"relationship_found\": true, \"expectation\": {\"caller_file\": \"sample_app/greetings.py\", \"caller_label\": \"greet()\", \"callee_file\": \"sample_app/names.py\", \"callee_label\": \"normalize_name()\"}, \"source_node_id\": \"sample_app_greetings_greet\", \"target_node_id\": \"sample_app_names_normalize_name\", \"graph_sha256\": \"4b831fc180b5fba667d09d0a8bb7fcc40efaddbc9d371d4846acd110c6629650\", \"provenance_sha256\": \"100874d29d8586e6ada9ceef09d8303d95c7e7dcfd1c00b02b258ab037685959\", \"query_returncode\": 0}"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ],
+      "provider_requests": 2,
+      "check_id": "97ad36b17573438592863f46503bea1c",
+      "inputs_current": true
+    },
+    {
+      "schema_version": 1,
+      "client": "codex",
+      "client_version": "0.169.0",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "fail",
+      "connected": true,
+      "functional": false,
+      "returncode": 0,
+      "timed_out": false,
+      "registration_sha256": "ed983a925ad48e0a7a17c9b4502bc3abd7138ad30349fe00a08e806446202a18",
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_graphify",
+          "tool": "query_relationship",
+          "arguments": {
+            "caller_file": "sample_app/greetings.py",
+            "caller_label": "greet()",
+            "callee_file": "sample_app/names.py",
+            "callee_label": "normalize_name()__missing_da64337c592349279b358e2adea01b22"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "Graphify relationship check failed; inspect current inputs and ownership."
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "failed"
+        }
+      ],
+      "provider_requests": 2,
+      "check_id": "da64337c592349279b358e2adea01b22",
+      "inputs_current": true
+    },
+    {
+      "schema_version": 1,
+      "client": "codex",
+      "client_version": "0.169.0",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "pass",
+      "connected": true,
+      "functional": true,
+      "returncode": 0,
+      "timed_out": false,
+      "registration_sha256": "ed983a925ad48e0a7a17c9b4502bc3abd7138ad30349fe00a08e806446202a18",
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_graphify",
+          "tool": "query_relationship",
+          "arguments": {
+            "caller_file": "sample_app/greetings.py",
+            "caller_label": "greet()",
+            "callee_file": "sample_app/names.py",
+            "callee_label": "normalize_name()"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"relationship_found\": true, \"expectation\": {\"caller_file\": \"sample_app/greetings.py\", \"caller_label\": \"greet()\", \"callee_file\": \"sample_app/names.py\", \"callee_label\": \"normalize_name()\"}, \"source_node_id\": \"sample_app_greetings_greet\", \"target_node_id\": \"sample_app_names_normalize_name\", \"graph_sha256\": \"4b831fc180b5fba667d09d0a8bb7fcc40efaddbc9d371d4846acd110c6629650\", \"provenance_sha256\": \"100874d29d8586e6ada9ceef09d8303d95c7e7dcfd1c00b02b258ab037685959\", \"query_returncode\": 0}"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ],
+      "provider_requests": 2,
+      "check_id": "163a8d0da79b4bae9ee0ca08637bc849",
+      "inputs_current": true
+    },
+    {
+      "schema_version": 1,
+      "client": "codex",
+      "client_version": "0.169.0",
+      "scope": "isolated-client-selected-registration",
+      "provider": "scripted-loopback",
+      "scenario": "pass",
+      "connected": true,
+      "functional": true,
+      "returncode": 0,
+      "timed_out": false,
+      "registration_sha256": "ed983a925ad48e0a7a17c9b4502bc3abd7138ad30349fe00a08e806446202a18",
+      "calls": [
+        {
+          "id": "item_2",
+          "type": "mcp_tool_call",
+          "server": "stackwinnow_graphify",
+          "tool": "query_relationship",
+          "arguments": {
+            "caller_file": "sample_app/greetings.py",
+            "caller_label": "greet()",
+            "callee_file": "sample_app/names.py",
+            "callee_label": "normalize_name()"
+          },
+          "result": {
+            "content": [
+              {
+                "type": "text",
+                "text": "{\"relationship_found\": true, \"expectation\": {\"caller_file\": \"sample_app/greetings.py\", \"caller_label\": \"greet()\", \"callee_file\": \"sample_app/names.py\", \"callee_label\": \"normalize_name()\"}, \"source_node_id\": \"sample_app_greetings_greet\", \"target_node_id\": \"sample_app_names_normalize_name\", \"graph_sha256\": \"4b831fc180b5fba667d09d0a8bb7fcc40efaddbc9d371d4846acd110c6629650\", \"provenance_sha256\": \"100874d29d8586e6ada9ceef09d8303d95c7e7dcfd1c00b02b258ab037685959\", \"query_returncode\": 0}"
+              }
+            ],
+            "structured_content": null
+          },
+          "error": null,
+          "status": "completed"
+        }
+      ],
+      "provider_requests": 2,
+      "check_id": "07d26f4fd42d409da0978a82b18ca594",
+      "inputs_current": true
+    }
+  ]
+}

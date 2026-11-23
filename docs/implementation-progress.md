@@ -4,6 +4,34 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A01 foundation repair — Graphify Codex bridge and client verification
+
+Implemented on feat/a01-graphify-codex-bridge, stacked on PR #32. Replaces the
+unsupported upstream MCP command with a manager-owned stdio bridge that calls
+the actual pinned Graphify query commands. Each call verifies current runtime,
+source and graph evidence under the shared lock. Adds reviewable owned Codex
+configuration, repeat handling that preserves unrelated TOML edits, and actual
+Codex0.169.0 client checks through an isolated scripted loopback provider.
+
+The verifier journals intent before launching Codex, releases the lock for the
+child bridge, then reacquires it and rechecks configuration/index/intent before
+recording success. Terminal calls returning tool errors establish connection
+without functional success. Prior reports cannot make passive checks ready.
+
+Validation: 1065 rebuilt-package tests passed with warnings as errors and 13
+opt-in skips. Two focused selections passed 83 tests each; the bridge/config/
+client selection also passed 83 on Python3.14.4. Real managed installation,
+indexing, configuration, positive/negative/repeat Codex queries and reuse passed
+(1 integration case, 91.44 seconds). The final package additionally reused the
+earlier real installation plan after advisory wording changes and passed a fresh
+Codex query. Lint, formatting, dependency and diff checks passed. See
+[client guide](graphify-codex.md) and [evidence](evidence/graphify-codex.md).
+
+The inherited Python3.14 removal symlink-loop CI failure was fixed separately
+as a2000bc and sent back to PR #32. All40 removal tests pass on Python3.11.14
+and3.14.4. No merge, complete foundation handoff or hosted client validation is
+claimed. Headroom verification and coordinated removal remain next.
+
 ## A01 foundation repair — Graphify indexing and shared verification
 
 Implemented on feat/a01-graphify-freshness, stacked on PR #31: complete reviewed
