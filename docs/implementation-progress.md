@@ -4,6 +4,32 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A06 manager distribution, notices and CI
+
+Implemented on build/a06-release-tooling, stacked on A04 PR #39. A04's single
+stale CLI label expectation is separately repaired and pushed as 97a74f5.
+A06 adds historical license evidence (d5b2a22), committed-source build/verification
+(a802747), original notice byte preservation and profile-resource closure
+(6e5f4ff, c569154). Packaging CI and explicit opt-in macOS no-paid-provider
+integration are prepared; community/security guidance and an unreleased changelog
+are included. Manager version remains 0.1.0.dev0; no tag/release/publication.
+
+Minimal validation: the A04 editable CLI sanity passed 1 case; an initial run
+against the stale installed A03 wheel failed and is not current-code evidence.
+Ruff lint/format and syntax checks passed. Static wheel/sdist build and manifest
+verification passed at c569154: 63 wheel files, 158 source-archive files. Required
+source/resources/notices match the exact commit. The data-package discovery
+warning is resolved; harmless MANIFEST exclusion warnings remain. A first build
+caught a missing profile README, and Git notice newline conversion was corrected.
+No clean-install checks, full suites, integrations or benchmarks were run locally.
+Those checks and fresh transitive inventory reconciliation remain deferred; existing
+GitHub CI stays enabled. Source hashes do not certify downloaded runtime versions.
+
+Next: A07 user/recovery/demo/report documentation using prior bounded evidence,
+then A08 artifact preparation and a clear deferred-testing backlog. A05 exhaustive
+acceptance is deferred, not completed. Publish through the stacked PR without
+merging, tagging, releasing or submitting to faculty.
+
 ## A04 recommendations and preliminary setup checks
 
 A04 is implemented on `feat/a04-recommendation-acceptance`, stacked on A03 PR #38.
