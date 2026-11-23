@@ -1,0 +1,3 @@
+
+# Preserve content-addressed upstream notice bytes, including original line endings.
+licenses/reference-*/texts/*.txt -text

@@ -1,0 +1,17 @@
+{
+  "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30": "graphifyy 0.9.114: graphifyy-0.9.114.dist-info/licenses/LICENSE",
+  "36ecff6bbb97aca1be64e95f42538cf796adde5864edac583e620643c096931a": "graphifyy 0.9.114: graphifyy-0.9.114.dist-info/licenses/LICENSE-MIT",
+  "3448ea175bba09f6fed8a743000139fb4c7112de83f164355b5540b158576621": "graphifyy 0.9.114: graphifyy-0.9.114.dist-info/licenses/NOTICE",
+  "f14dd440c8e3152b4d4d324615de8251ddb011dc81f484daad0b6902093539cc": "headroom-ai 0.44.0: headroom_ai-0.44.0.dist-info/licenses/LICENSE",
+  "88dc0f4a90a8742dcdd1c61e19050b73a9dba7e45ec9ac41a62ba0ae005aa6aa": "headroom-ai 0.44.0: headroom_ai-0.44.0.dist-info/licenses/NOTICE",
+  "bf813686553f451e1b833fbd827488aee49b60b189626915bf3108d10b754e44": "promptfoo 0.125.1: LICENSE",
+  "9a7110fc2d2f964038e5dc49128f908f29f47a574c961cba16085914e879cbda": "@playwright/mcp 0.0.86: LICENSE",
+  "a9e186f3ca16b5eef84318e7a701721351a00cb7b8ae3a4394b67b49e3529ef3": "pydantic 2.14.4: pydantic-2.14.4.dist-info/licenses/LICENSE",
+  "cad1ef5bd340d73e074ba614d26f7deaca5c7940c3d8c34852e65c4909686c48": "packaging 26.3: packaging-26.3.dist-info/licenses/LICENSE",
+  "0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594": "packaging 26.3: packaging-26.3.dist-info/licenses/LICENSE.APACHE",
+  "b70e7e9b742f1cc6f948b34c16aa39ffece94196364bc88ff0d2180f0028fac5": "packaging 26.3: packaging-26.3.dist-info/licenses/LICENSE.BSD",
+  "2afdd30d54b4d62b6f488a6bcc1546e84ec5061f13f4209c03d012348783795a": "pydantic_core 2.50.5: pydantic_core-2.50.5.dist-info/licenses/LICENSE",
+  "fe1049884b1a0d9342901e88e07f32925d24b3121d9972b6a6805fb9824b095d": "annotated-types 0.8.0: annotated_types-0.8.0.dist-info/licenses/LICENSE",
+  "3b2f81fe21d181c499c59a256c8e1968455d6689d269aa85373bfb6af41da3bf": "typing_extensions 4.16.0: typing_extensions-4.16.0.dist-info/licenses/LICENSE",
+  "804b59b25f2c31bd278f9202a19ae49a3945aa2664387e2d0a128c7cacc61ec3": "typing-inspection 0.4.5: typing_inspection-0.4.5.dist-info/licenses/LICENSE"
+}
