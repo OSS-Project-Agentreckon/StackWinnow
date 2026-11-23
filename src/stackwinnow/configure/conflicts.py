@@ -24,6 +24,27 @@ from stackwinnow.contracts import (
 _MISSING = object()
 
 
+def _supported(patch: ConfigPatch) -> bool:
+    return patch.format == "json" or patch.relative_path == ".codex/config.toml"
+
+
+def _document(patch: ConfigPatch, raw: bytes | None) -> dict:
+    if patch.format == "toml":
+        from stackwinnow.configure.codex import document
+
+        return document(raw)
+    return patches._document(raw)
+
+
+def _same_value(current: object, written: object) -> bool:
+    try:
+        return patches._json(current) == patches._json(written)
+    except (TypeError, ValueError):
+        # TOML dates/times and non-finite numbers are valid user values, but
+        # cannot equal a value stored in the JSON-only ownership contract.
+        return False
+
+
 def _leaf(document: dict[str, JsonValue], key_path: Sequence[str]) -> object:
     """Return the value at ``key_path`` or ``_MISSING`` if any step is absent.
 
@@ -44,7 +65,7 @@ def _classify_owned(document: dict[str, JsonValue], patch: ConfigPatch) -> list[
         current = _leaf(document, edit.key_path)
         if current is _MISSING:
             kind = ConflictKind.USER_REMOVED
-        elif patches._json(current) == patches._json(edit.written):
+        elif _same_value(current, edit.written):
             kind = ConflictKind.CLEAN
         else:
             kind = ConflictKind.USER_MODIFIED
@@ -107,12 +128,12 @@ def reconcile_config_patch(
             keys=keys,
         )
 
-    if patch.format != "json":
+    if not _supported(patch):
         return report(FileState.UNSUPPORTED)
 
     try:
         with patches._parent(patch.project_root, patch.relative_path) as (parent, name):
-            raw, state = patches._read(parent, name)
+            raw, state = patches._read(parent, name, limit=4 * 1024 * 1024)
     except patches.ConfigurationConflict:
         # Unsupported shape, symlinked file, or a parent that is not a real
         # directory. Read-only: tell the caller, do not raise.
@@ -126,7 +147,7 @@ def reconcile_config_patch(
         return report(FileState.MISSING)
 
     try:
-        document = patches._document(raw)
+        document = _document(patch, raw)
     except patches.ConfigurationConflict:
         return report(FileState.UNREADABLE)
 

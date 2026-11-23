@@ -241,7 +241,7 @@ class FileState(StrEnum):
     READABLE = "readable"  # parsed and still matches the state we wrote
     MISSING = "missing"  # an expected-existing file is now absent
     UNREADABLE = "unreadable"  # malformed, non-regular, or a symlink; not parsed
-    UNSUPPORTED = "unsupported"  # the patch format is not JSON; not read
+    UNSUPPORTED = "unsupported"  # format/path has no supported lifecycle reader
     STALE = "stale"  # digest, existence, or permissions differ from what we wrote
 
 
