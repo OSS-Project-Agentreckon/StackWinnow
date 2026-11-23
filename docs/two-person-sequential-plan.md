@@ -14,7 +14,16 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
-Active branch: feat/a01-coordinated-removal, stacked on Headroom PR #34.
+Current accepted handoff: test/a01-foundation-handoff at engineering commit
+2a4f3b8 (production fix 188e155), stacked on removal PR #35. All four real narrow
+CLI lifecycles passed through install, fresh/negative check, removal and reinstall;
+shared Codex/source-change cases passed. Final rebuilt default + wheel packaging:
+1142 passed / 12 opt-in skips. Clean sdist/resource smoke and actual failure
+controls passed separately. See foundation-handoff.md and evidence/foundation-cli.json
+for exact evidence, assertion audit and support limits. Next is A02 unified
+workflow; A02–A08 remain unfinished. No merge or published release is claimed.
+
+Previous branch: feat/a01-coordinated-removal, stacked on Headroom PR #34.
 Coordinated configuration/runtime cleanup and deliberate reinstall are implemented
 through commits 7c56cfb, 1df0f9c and 1c22568. The rebuilt package passed 1137
 tests with warnings as errors / 13 opt-in skips; Python 3.14 focused selection
@@ -70,7 +79,7 @@ hosted validation result is claimed here.
 | B05 — Graphify Codex integration | Implemented: manager-owned stdio bridge, owned Codex settings and actual Codex0.169.0 tool calls with positive/repeat/negative evidence; connection and functionality remain separate |
 | B06 — Headroom CLI and shared verification | Implemented in c6b7e8a: current inventory/import health, fresh shared compression reports, strict token/preservation checks and retained mutable data; real full library lifecycle passed, with 282 before/after and 0 saved; 70 dependency versions/license candidates captured, release audit still pending |
 | B07 — Coordinated safe removal | Implemented through 1c22568: reviewed cleanup, bounded runtime snapshots, durable release/retirement, preserved references/data and repeat/reinstall; 1137 default tests and 97 focused Python 3.14 tests passed; real assembled acceptance remains B08 |
-| B08 — Foundation acceptance and handoff | Pending: all four narrow lifecycles, negative/mixed-tool cases, clean distribution acceptance, operational/API documentation and exact handoff revision |
+| B08 — Foundation acceptance and handoff | Accepted at 2a4f3b8: actual four-tool CLI lifecycles, negative/shared-Codex/source-change cases, clean distributions and documented narrow handoff; see foundation-handoff.md |
 
 Packaging/release work does not replace B07 or B08. Do not mark these complete
 from merged PR titles, receipts, fixture doubles, or skipped integration tests.
