@@ -26,6 +26,8 @@ from stackwinnow.contracts import (
 RELATIVE_PATH = ".codex/config.toml"
 SERVER = "stackwinnow_playwright"
 KEY = ("mcp_servers", SERVER)
+GRAPHIFY_SERVER = "stackwinnow_graphify"
+GRAPHIFY_KEY = ("mcp_servers", GRAPHIFY_SERVER)
 
 
 def document(raw: bytes | None) -> dict:
@@ -98,6 +100,85 @@ def _prepare(root, relative, tool_id, requests, raw, state):
         edits=tuple(changes),
         created_objects=tuple(created),
     ), rendered
+
+
+def _graphify_prepare(root, relative, tool_id, requests, raw, state):
+    if relative != RELATIVE_PATH or tool_id != "graphify":
+        raise ConfigurationConflict("This writer only supports the Graphify Codex registration.")
+    parsed = document(raw)
+    servers = parsed.get("mcp_servers", {})
+    if not isinstance(servers, dict):
+        raise ConfigurationConflict("mcp_servers must be a TOML table.")
+    changes = []
+    created = []
+    rendered = raw
+    written = state
+    if len(requests) > 1:
+        raise ConfigurationConflict("Only one managed server table can be appended.")
+    for request in requests:
+        if request.key_path != GRAPHIFY_KEY or not isinstance(request.value, dict):
+            raise ConfigurationConflict("Expected one complete Graphify MCP table.")
+        if GRAPHIFY_SERVER in servers:
+            if _json(servers[GRAPHIFY_SERVER]) != _json(request.value):
+                raise ConfigurationConflict("The Graphify MCP table already exists and differs.")
+            continue
+        suffix = "\n[mcp_servers." + GRAPHIFY_SERVER + "]\n"
+        suffix += "".join(
+            json.dumps(k) + " = " + _value(v) + "\n" for k, v in sorted(request.value.items())
+        )
+        rendered = (raw or b"") + suffix.encode("utf-8")
+        expected = dict(parsed)
+        expected["mcp_servers"] = dict(servers, **{GRAPHIFY_SERVER: request.value})
+        if document(rendered) != expected:
+            raise ConfigurationConflict("Cannot append this server without changing existing TOML.")
+        changes.append(
+            OwnedConfigEdit(
+                key_path=GRAPHIFY_KEY,
+                original=ConfigValue(exists=False),
+                written=request.value,
+            )
+        )
+        if "mcp_servers" not in parsed:
+            created.append(("mcp_servers",))
+        written = ConfigFileState(
+            exists=True,
+            sha256=hashlib.sha256(rendered).hexdigest(),
+            mode=state.mode if state.exists else 0o600,
+        )
+    return ConfigPatch(
+        format="toml",
+        project_root=root,
+        relative_path=relative,
+        tool_id=tool_id,
+        expected_file=state,
+        written_file=written,
+        edits=tuple(changes),
+        created_objects=tuple(created),
+    ), rendered
+
+
+def plan_graphify_codex_server(project_root: str | Path, settings: dict) -> ConfigPatch:
+    """Preview registering the Graphify MCP server in .codex/config.toml (read-only)."""
+    root = _resolve_project_root(project_root)
+    try:
+        with _parent(root, RELATIVE_PATH) as (parent, name):
+            raw, state = _read(parent, name, limit=4 * 1024 * 1024)
+    except FileNotFoundError:
+        raw, state = None, ConfigFileState(exists=False)
+    patch, _ = _graphify_prepare(
+        root,
+        RELATIVE_PATH,
+        "graphify",
+        [JsonConfigEdit(key_path=GRAPHIFY_KEY, value=settings)],
+        raw,
+        state,
+    )
+    return patch
+
+
+def apply_graphify_codex_server(patch: ConfigPatch):
+    """Parents must exist; shared atomic writer preserves mode and retains ownership."""
+    return _apply_edits(patch, prepare=_graphify_prepare, format="toml")
 
 
 def plan_codex_server(project_root: str | Path, settings: dict) -> ConfigPatch:

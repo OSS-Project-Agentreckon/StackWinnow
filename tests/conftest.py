@@ -25,11 +25,17 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     group.addoption(
         "--run-provider", action="store_true", help="Also allow checks using a model provider."
     )
+    group.addoption(
+        "--run-packaging", action="store_true", help="Run distribution packaging checks (slow)."
+    )
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line("markers", "integration: requires an actual upstream tool/client")
     config.addinivalue_line("markers", "requires_provider: requires model-provider access")
+    config.addinivalue_line(
+        "markers", "packaging: builds and installs the distribution (slow; requires --run-packaging)"
+    )
     if config.getoption("--run-provider") and not config.getoption("--run-integration"):
         raise pytest.UsageError("--run-provider also requires --run-integration")
 
@@ -38,10 +44,13 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
     for item in items:
         provider = item.get_closest_marker("requires_provider") is not None
         integration = provider or item.get_closest_marker("integration") is not None
+        packaging = item.get_closest_marker("packaging") is not None
         if integration and not config.getoption("--run-integration"):
             item.add_marker(pytest.mark.skip(reason="real tool checks require --run-integration"))
         elif provider and not config.getoption("--run-provider"):
             item.add_marker(pytest.mark.skip(reason="model-provider checks require --run-provider"))
+        elif packaging and not config.getoption("--run-packaging"):
+            item.add_marker(pytest.mark.skip(reason="packaging checks require --run-packaging"))
 
 
 @pytest.fixture(autouse=True)

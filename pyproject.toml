@@ -13,7 +13,7 @@ license-files = ["LICENSE"]
 dependencies = ["pydantic>=2.10,<3", "packaging>=24,<27"]
 
 [project.optional-dependencies]
-dev = ["pytest>=8,<10", "ruff>=0.9,<1"]
+dev = ["build>=1.2,<2", "pytest>=8,<10", "ruff>=0.9,<1"]
 
 [project.scripts]
 stackwinnow = "stackwinnow.cli:main"
