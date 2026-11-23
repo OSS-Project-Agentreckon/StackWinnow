@@ -400,6 +400,7 @@ def apply_graphify_index(
     *,
     dry_run: bool = False,
     command_runner: CommandRunner = run_command,
+    before_execute: Callable[[], None] | None = None,
 ) -> GraphifyIndexResult:
     """Apply a reviewed index plan under the shared lock; repeat only fresh success."""
     try:
@@ -435,6 +436,8 @@ def apply_graphify_index(
                 ],
             )
         with project_lock(str(root)):
+            if before_execute is not None:
+                before_execute()
             if _validate(plan):
                 _, check = inspect_graphify_index(root)
                 return GraphifyIndexResult(

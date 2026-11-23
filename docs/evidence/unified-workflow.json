@@ -1,0 +1,166 @@
+{
+  "schema_version": 1,
+  "engineering_commit": "e7959c0",
+  "environment": {
+    "platform": "macOS 27.2.1 arm64",
+    "python": "3.11.14",
+    "node": "24.13.1",
+    "codex": "0.169.0",
+    "manager": "0.1.0.dev0"
+  },
+  "unit_and_packaging": {
+    "passed": 1182,
+    "skipped_explicit_opt_in": 14,
+    "elapsed_seconds": 97.8,
+    "warnings_as_errors": true
+  },
+  "python314_focused": {
+    "passed": 40,
+    "elapsed_seconds": 4.83
+  },
+  "scope": "Two actual installed CLI workflow smokes; final combinations/profiles remain A05.",
+  "cases": [
+    {
+      "tools": [
+        {
+          "tool_id": "promptfoo",
+          "checks": {
+            "installed": "succeeded",
+            "configured": "succeeded",
+            "connected": "not_applicable",
+            "functional": "succeeded"
+          },
+          "functional_evidence": [
+            {
+              "sha256": "e8fa22df02839cec6f1f74f15204d06a62739cf5ecb863ca4e64d7552405781a",
+              "bytes": 11043
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "command": "workflow inspect",
+          "dry_run": null,
+          "returncode": 0,
+          "elapsed_seconds": 0.382,
+          "ready": null,
+          "status": null
+        },
+        {
+          "command": "workflow plan",
+          "dry_run": null,
+          "returncode": 0,
+          "elapsed_seconds": 0.279,
+          "ready": null,
+          "status": null
+        },
+        {
+          "command": "workflow apply",
+          "dry_run": true,
+          "returncode": 0,
+          "elapsed_seconds": 0.265,
+          "ready": false,
+          "status": "skipped"
+        },
+        {
+          "command": "workflow apply",
+          "dry_run": false,
+          "returncode": 0,
+          "elapsed_seconds": 93.732,
+          "ready": true,
+          "status": "succeeded"
+        },
+        {
+          "command": "workflow status",
+          "dry_run": null,
+          "returncode": 1,
+          "elapsed_seconds": 0.357,
+          "ready": false,
+          "status": "not_run"
+        }
+      ],
+      "phases": [
+        {
+          "phase": "promptfoo",
+          "status": "succeeded",
+          "message": "Reviewed phase completed; ownership and inputs validated."
+        },
+        {
+          "phase": "verify",
+          "status": "succeeded",
+          "message": "Every selected tool passed fresh verification."
+        }
+      ],
+      "final_ready": true,
+      "passive_ready": false,
+      "passive_run_functional": false
+    },
+    {
+      "tools": [
+        {
+          "tool_id": "graphify",
+          "checks": {
+            "installed": "succeeded",
+            "configured": "succeeded",
+            "connected": "succeeded",
+            "functional": "succeeded"
+          },
+          "functional_evidence": [
+            {
+              "sha256": "3987bfe14b7c8625edfed3e3431957f729cc3c7dcb5b1af2390ed8ef183d28da",
+              "bytes": 1569,
+              "provider": "scripted-loopback",
+              "calls": [
+                "query_relationship"
+              ]
+            }
+          ]
+        }
+      ],
+      "commands": [
+        {
+          "command": "workflow plan",
+          "dry_run": null,
+          "returncode": 0,
+          "elapsed_seconds": 0.302,
+          "ready": null,
+          "status": null
+        },
+        {
+          "command": "workflow apply",
+          "dry_run": false,
+          "returncode": 0,
+          "elapsed_seconds": 94.638,
+          "ready": true,
+          "status": "succeeded"
+        }
+      ],
+      "phases": [
+        {
+          "phase": "graphify-runtime",
+          "status": "succeeded",
+          "message": "Reviewed phase completed; ownership and inputs validated."
+        },
+        {
+          "phase": "graphify-index",
+          "status": "succeeded",
+          "message": "Reviewed phase completed; ownership and inputs validated."
+        },
+        {
+          "phase": "graphify-configure",
+          "status": "succeeded",
+          "message": "Reviewed phase completed; ownership and inputs validated."
+        },
+        {
+          "phase": "verify",
+          "status": "succeeded",
+          "message": "Every selected tool passed fresh verification."
+        }
+      ],
+      "final_ready": true,
+      "passive_ready": false,
+      "passive_run_functional": false
+    }
+  ]
+}

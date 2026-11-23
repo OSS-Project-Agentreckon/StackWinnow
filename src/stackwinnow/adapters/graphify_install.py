@@ -18,6 +18,7 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 from pydantic import Field
 
+from stackwinnow.adapters._composition import validate_and_guard
 from stackwinnow.adapters._managed import ManagedStateError, directories, record_for
 from stackwinnow.adapters.graphify import STATE_PATH, GraphifyError, _root
 from stackwinnow.adapters.graphify_plan import (
@@ -430,6 +431,7 @@ def apply_graphify_install(
     *,
     dry_run: bool = False,
     command_runner: CommandRunner = run_command,
+    before_execute: Callable[[], None] | None = None,
 ) -> GraphifyInstallResult:
     """Install only; invoking this API explicitly requests the limited scope."""
     try:
@@ -450,7 +452,7 @@ def apply_graphify_install(
         record, results = execute_plan(
             installation,
             dry_run=dry_run,
-            before_execute=lambda: _validate(plan),
+            before_execute=lambda: validate_and_guard(lambda: _validate(plan), before_execute),
             step_runner=lambda step: _install(plan, command_runner),
         )
         return GraphifyInstallResult(

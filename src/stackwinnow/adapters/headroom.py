@@ -17,6 +17,7 @@ import hashlib
 import json
 import os
 import platform
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal, Protocol
 from uuid import uuid4
@@ -24,6 +25,7 @@ from uuid import uuid4
 from pydantic import Field, StrictBool, StrictInt, model_validator
 
 from stackwinnow.adapters import headroom_state as state
+from stackwinnow.adapters._composition import validate_and_guard
 from stackwinnow.adapters._managed import directories, record_for
 from stackwinnow.adapters.graphify_index import _publish
 from stackwinnow.adapters.graphify_plan import _digest, _json
@@ -448,7 +450,11 @@ def run_headroom_compression(
 
 
 def apply_headroom(
-    plan: HeadroomPlan, *, dry_run: bool = False, command_runner: CommandRunner | None = None
+    plan: HeadroomPlan,
+    *,
+    dry_run: bool = False,
+    command_runner: CommandRunner | None = None,
+    before_execute: Callable[[], None] | None = None,
 ) -> HeadroomResult:
     """Apply a reviewed plan using the shared project lock and durable receipts."""
     checked = HeadroomPlan.model_validate(plan.model_dump())
@@ -475,7 +481,9 @@ def apply_headroom(
             checked.installation,
             dry_run=dry_run,
             step_runner=run_step,
-            before_execute=lambda: _validate_plan(root, checked),
+            before_execute=lambda: validate_and_guard(
+                lambda: _validate_plan(root, checked), before_execute
+            ),
         )
         failures = [
             r for r in results if r.status in (OperationStatus.FAILED, OperationStatus.BLOCKED)
