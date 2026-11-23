@@ -194,6 +194,43 @@ def _graphify_execution_plan(args: argparse.Namespace, parser: argparse.Argument
     return 0
 
 
+def _headroom(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.headroom import (
+        HeadroomError,
+        HeadroomPlan,
+        apply_headroom,
+        plan_headroom,
+    )
+
+    try:
+        if args.headroom_command == "plan":
+            plan = plan_headroom(args.project_root)
+            if args.json:
+                print(plan.model_dump_json(indent=2))
+            else:
+                print(f"Project: {plan.project_root}")
+                print(f"headroom {plan.version} (Apache-2.0); mode: {plan.mode}")
+                for step in plan.installation.steps:
+                    print(f"  {step.description}")
+                print("Use --json to save a reviewable plan; 'headroom apply PLAN.json' applies it.")
+            return 0
+        plan = HeadroomPlan.model_validate_json(open(args.plan_file).read())
+        result = apply_headroom(plan, dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            print(f"{result.status}: {result.message}")
+            for operation in result.results:
+                print(f"  [{operation.status}] {operation.message}")
+        return 0 if result.status in ("succeeded", "skipped") else 1
+    except HeadroomError as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    except (OSError, ValueError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+
+
 def _promptfoo(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     try:
         if args.promptfoo_command == "plan":
@@ -520,6 +557,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     playwright_apply.add_argument("plan_file")
     playwright_apply.add_argument("--dry-run", action="store_true")
     playwright_apply.add_argument("--json", action="store_true")
+    headroom = commands.add_parser(
+        "headroom",
+        help="Plan/apply headroom-ai library installation and compression verification.",
+        allow_abbrev=False,
+    )
+    headroom_commands = headroom.add_subparsers(dest="headroom_command", required=True)
+    headroom_plan = headroom_commands.add_parser("plan", allow_abbrev=False)
+    headroom_plan.add_argument("project_root", help="Existing project directory.")
+    headroom_plan.add_argument("--json", action="store_true", help="Emit a reviewable plan.")
+    headroom_apply = headroom_commands.add_parser("apply", allow_abbrev=False)
+    headroom_apply.add_argument("plan_file", help="Saved JSON plan from 'headroom plan --json'.")
+    headroom_apply.add_argument(
+        "--dry-run", action="store_true", help="Revalidate without installing or running."
+    )
+    headroom_apply.add_argument("--json", action="store_true", help="Emit structured results.")
     promptfoo = commands.add_parser(
         "promptfoo", help="Preview and apply a pinned project evaluation.", allow_abbrev=False
     )
@@ -591,6 +643,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _recommend(args, parser)
     if args.command == "playwright-mcp":
         return _playwright(args, parser)
+    if args.command == "headroom":
+        return _headroom(args, parser)
     if args.command == "promptfoo":
         return _promptfoo(args, parser)
     if args.command == "graphify":
