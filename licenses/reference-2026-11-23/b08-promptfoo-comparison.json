@@ -1,0 +1,54 @@
+{
+  "comparison": "earlier actual npm metadata paths against B08 actual hidden npm package lock",
+  "before_count": 625,
+  "after_count": 623,
+  "removed": [
+    {
+      "path": "node_modules/engine.io/node_modules/ws",
+      "version": "8.21.3"
+    },
+    {
+      "path": "node_modules/socket.io-adapter/node_modules/ws",
+      "version": "8.21.3"
+    }
+  ],
+  "added": [],
+  "changed": [
+    {
+      "path": "node_modules/complex.js",
+      "before": "2.4.3",
+      "after": "2.4.2",
+      "integrity_changed": true
+    },
+    {
+      "path": "node_modules/engine.io",
+      "before": "6.6.12",
+      "after": "6.6.13",
+      "integrity_changed": true
+    },
+    {
+      "path": "node_modules/fraction.js",
+      "before": "5.3.4",
+      "after": "5.2.1",
+      "integrity_changed": true
+    },
+    {
+      "path": "node_modules/mathjs",
+      "before": "15.2.0",
+      "after": "15.3.0",
+      "integrity_changed": true
+    },
+    {
+      "path": "node_modules/socket.io-adapter",
+      "before": "2.5.8",
+      "after": "2.5.9",
+      "integrity_changed": true
+    },
+    {
+      "path": "node_modules/typed-function",
+      "before": "4.2.2",
+      "after": "4.2.1",
+      "integrity_changed": true
+    }
+  ]
+}

@@ -1,0 +1,40 @@
+[
+  {
+    "package": "tokenizers",
+    "evidence_kind": "same-version source distribution, not installed wheel",
+    "source": "https://files.pythonhosted.org/packages/e0/7c/2cabb2174e772636683008f2c5621949b645da7d303c596589e84516a184/tokenizers-0.23.3.tar.gz",
+    "archive_sha256": "cded33237c77caeef62944d32aa9a7ef42bdce2b3497e18d137e072a8c4be438",
+    "path": "tokenizers-0.23.3/tokenizers/LICENSE",
+    "sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+  },
+  {
+    "package": "server-filesystem",
+    "evidence_kind": "release source reference, not installed artifact",
+    "source": "https://raw.githubusercontent.com/modelcontextprotocol/servers/a40bc270fb5ece62673f8a1196f57116d885c5eb/LICENSE",
+    "sha256": "0382b0057770ca05e9c350a50aa3b1c1fea84da0bc81d723bf00b9aa841be58a"
+  },
+  {
+    "package": "codex",
+    "evidence_kind": "release source reference, not installed artifact",
+    "source": "https://raw.githubusercontent.com/openai/codex/rust-v0.169.0/LICENSE",
+    "sha256": "d17f227e4df5da1600391338865ce0f3055211760a36688f816941d58232d8dc"
+  },
+  {
+    "package": "tree-sitter-groovy",
+    "evidence_kind": "release source reference, not installed artifact",
+    "source": "https://api.github.com/repos/amaanq/tree-sitter-groovy/git/ref/tags/v0.1.2",
+    "sha256": "70d8cfee2aa7133c58184db4c0ea0c7f70105b968b34e45aa7cbaa26a9d1634d"
+  },
+  {
+    "package": "sharp-libvips",
+    "evidence_kind": "release source reference, not installed artifact",
+    "source": "https://raw.githubusercontent.com/lovell/sharp-libvips/ebb95f8add54eee8bed840e3fb587e4cbec857d7/LICENSE",
+    "sha256": "b40930bbcf80744c86c46a12bc9da056641d722716c378f5659b9e555ef833e1"
+  },
+  {
+    "package": "sharp-libvips",
+    "evidence_kind": "release source reference, not installed artifact",
+    "source": "https://raw.githubusercontent.com/lovell/sharp-libvips/ebb95f8add54eee8bed840e3fb587e4cbec857d7/README.md",
+    "sha256": "52f8b2931fa6d496c792a2ed808177414ac24f2f87b667bb13fbc21bf1d99758"
+  }
+]

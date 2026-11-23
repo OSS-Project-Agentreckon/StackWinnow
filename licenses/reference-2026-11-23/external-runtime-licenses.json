@@ -1,0 +1,28 @@
+[
+  {
+    "name": "node24",
+    "path": "LICENSE",
+    "sha256": "9ef8d3fa97d90d93543ee9e2b71394de59c09d8057625fd355d45303243527a3",
+    "bytes": 145496,
+    "source_kind": "actual previously tested installed artifact",
+    "version": "24.13.1",
+    "target": "darwin-arm64",
+    "official_archive_sha256": "8c039d59f2fec6195e4281ad5b0d02b9a940897b4df7b849c6fb48be6787bba6",
+    "archive_evidence": "Parent verified official Node SHASUMS256 before extraction; this audit inspected LICENSE in extracted artifact."
+  },
+  {
+    "name": "chromium-headless-shell",
+    "path": "LICENSE.headless_shell",
+    "sha256": "59cde70a5aa243f853cb971782b72121b8656b5ed9705c230ce07253fb8038ce",
+    "bytes": 2081858,
+    "source_kind": "actual previously tested installed artifact",
+    "browser_registry_entry": {
+      "name": "chromium-headless-shell",
+      "revision": "1255",
+      "installByDefault": true,
+      "browserVersion": "159.0.8154.6",
+      "title": "Chrome Headless Shell"
+    },
+    "distribution_scope": "Playwright-downloaded binary, separate from manager wheel/sdist"
+  }
+]
