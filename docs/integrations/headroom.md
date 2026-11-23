@@ -41,6 +41,7 @@ The reviewed call is:
 
 ```python
 from headroom import compress
+
 result = compress(messages, model="gpt-4o", kompress_model="disabled")
 ```
 
