@@ -45,6 +45,7 @@ def check_project(
     command_runner: CommandRunner | None = None,
 ) -> VerificationReport:
     """Inspect without commands/writes unless a fresh functional check is requested."""
+    from stackwinnow.verify.graphify import check_graphify
     from stackwinnow.verify.playwright_mcp import check_playwright
     from stackwinnow.verify.promptfoo import check_promptfoo
 
@@ -74,6 +75,8 @@ def check_project(
     for tool_id in options.tool_ids:
         if tool_id == "promptfoo":
             results.append(check_promptfoo(root, options, command_runner=command_runner))
+        elif tool_id == "graphify":
+            results.append(check_graphify(root, options, command_runner=command_runner))
         elif tool_id == "playwright-mcp":
             results.append(check_playwright(root, options, command_runner=command_runner))
         else:

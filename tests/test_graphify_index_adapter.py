@@ -21,7 +21,6 @@ from stackwinnow.adapters.graphify import (
     RelationshipExpectation,
 )
 from stackwinnow.contracts import OperationStatus
-from stackwinnow.installer import ExecutionRecord, StepReceipt
 from stackwinnow.runner import CommandResult
 
 # ---------------------------------------------------------------------------
@@ -71,27 +70,18 @@ EXPECTATION = RelationshipExpectation(
 
 
 def _seed_install(root: Path) -> None:
-    """Write a succeeded install receipt so the index adapter's prereq check passes."""
-    from stackwinnow.adapters.graphify_install import INSTALL_ROOT, STEP_ID
-    from stackwinnow.contracts import EvidenceRef
+    """Run the installer with a controlled runtime, including real ownership evidence."""
+    from stackwinnow.adapters.graphify_install import apply_graphify_install
 
-    managed = root / ".stackwinnow"
-    managed.mkdir(exist_ok=True)
+    def runner(argv, **kwargs):
+        if "venv" in argv:
+            python = root / preparation.ENV_PATH / "bin/python"
+            python.parent.mkdir(parents=True)
+            python.write_text("fixture interpreter")
+        return CommandResult(0, "verified", "")
 
-    record_path = managed / "receipts.json"
-    record = ExecutionRecord(project_root=str(root))
-    record.steps.append(
-        StepReceipt(
-            step_id=STEP_ID,
-            tool_id="graphify",
-            status="succeeded",
-            message="fake install",
-            owned_paths=[INSTALL_ROOT],
-            evidence=[EvidenceRef(source=f"{INSTALL_ROOT}/installation.json", detail="sha256:abc")],
-            timestamp="2026-01-01T00:00:00",
-        )
-    )
-    record_path.write_text(record.model_dump_json())
+    candidate = preparation.plan_graphify_execution(root, expectation=EXPECTATION)
+    assert apply_graphify_install(candidate, command_runner=runner).installed
 
 
 def _fake_graph(root: Path, expectation: RelationshipExpectation) -> bytes:
@@ -137,9 +127,12 @@ class FakeIndex:
         self.calls.append((argv, kwargs))
         if self.fail:
             return CommandResult(1, "", "controlled failure")
-        root = Path(kwargs["cwd"])
-        if self.graph_factory:
-            self.graph_factory(root)
+        if "extract" in argv and self.graph_factory:
+            source = Path(argv[argv.index("extract") + 1])
+            self.graph_factory(source)
+            output = Path(argv[argv.index("--out") + 1]) / "graphify-out/graph.json"
+            output.parent.mkdir(parents=True)
+            output.write_bytes((source / GRAPH_PATH).read_bytes())
         return CommandResult(0, "indexed ok", "")
 
 
@@ -283,3 +276,295 @@ def test_graphify_plan_does_not_include_index_pending_blocker(plan):
         assert "index" not in blocker.lower() or "pending" not in blocker.lower(), (
             f"Unexpected index blocker: {blocker!r}"
         )
+
+
+@pytest.fixture
+def index_plan(project):
+    from stackwinnow.adapters.graphify_index import plan_graphify_index
+
+    _seed_install(project)
+    return plan_graphify_index(project, expectation=EXPECTATION)
+
+
+def _good_runner():
+    return FakeIndex(graph_factory=lambda root: _fake_graph(root, EXPECTATION))
+
+
+def test_reviewed_plan_repeat_reuses_only_current_evidence(project, index_plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+
+    runner = _good_runner()
+    first = apply_graphify_index(index_plan, command_runner=runner)
+    assert first.indexed and len(runner.calls) == 2
+    before = (project / ".stackwinnow/receipts.json").read_bytes()
+    again = apply_graphify_index(index_plan, command_runner=runner)
+    assert again.indexed and again.results[0].status == "skipped"
+    assert len(runner.calls) == 2
+    assert (project / ".stackwinnow/receipts.json").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "change", ["source", "additional-source", "deleted-graph", "changed-graph", "runtime"]
+)
+def test_current_state_is_required_before_reuse(project, index_plan, change):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+
+    runner = _good_runner()
+    assert apply_graphify_index(index_plan, command_runner=runner).indexed
+    if change == "source":
+        (project / "callee.py").write_text("def answer(): return 7\n")
+    elif change == "additional-source":
+        (project / "other.py").write_text("def other(): return 1\n")
+    elif change == "deleted-graph":
+        (project / GRAPH_PATH).unlink()
+    elif change == "changed-graph":
+        (project / GRAPH_PATH).write_text("{}")
+    else:
+        (project / preparation.ENV_PATH / "bin/python").write_text("modified runtime")
+    before = (project / ".stackwinnow/receipts.json").read_bytes()
+    with pytest.raises(GraphifyError):
+        apply_graphify_index(index_plan, command_runner=runner)
+    assert len(runner.calls) == 2
+    assert (project / ".stackwinnow/receipts.json").read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "change", ["source", "additional-source", "deleted-graph", "changed-graph"]
+)
+def test_deliberate_replan_stages_new_graph(project, index_plan, change):
+    from stackwinnow.adapters.graphify_index import (
+        apply_graphify_index,
+        inspect_graphify_index,
+        plan_graphify_index,
+    )
+
+    runner = _good_runner()
+    assert apply_graphify_index(index_plan, command_runner=runner).indexed
+    if change == "source":
+        (project / "callee.py").write_text("def answer(): return 7\n")
+    elif change == "additional-source":
+        (project / "other.py").write_text("def other(): return 1\n")
+    elif change == "deleted-graph":
+        (project / GRAPH_PATH).unlink()
+    else:
+        (project / GRAPH_PATH).write_text("{}")
+    revised = plan_graphify_index(project, expectation=EXPECTATION)
+    assert revised != index_plan
+    assert apply_graphify_index(revised, command_runner=runner).indexed
+    assert len(runner.calls) == 4
+    proof, relationship = inspect_graphify_index(project)
+    assert proof.plan == revised and relationship.status == "succeeded"
+
+
+@pytest.mark.parametrize(
+    "failure", ["runner-raises", "malformed-json", "query-fails", "source-races", "publication"]
+)
+def test_failed_index_preserves_durable_ownership(project, index_plan, failure, monkeypatch):
+    from stackwinnow.adapters import graphify_index as adapter
+
+    runner = _good_runner()
+
+    def command(argv, **kwargs):
+        if failure == "runner-raises":
+            raise OSError("simulated command launch failure")
+        result = runner(argv, **kwargs)
+        if "extract" in argv:
+            if failure == "malformed-json":
+                (Path(argv[argv.index("--out") + 1]) / "graphify-out/graph.json").write_text("{")
+            if failure == "source-races":
+                (project / "callee.py").write_text("def answer(): return 0\n")
+        elif failure == "query-fails":
+            return CommandResult(4, "", "missing symbol")
+        return result
+
+    if failure == "publication":
+
+        def publish(*args):
+            raise OSError("simulated publication failure")
+
+        monkeypatch.setattr(adapter, "_publish", publish)
+    result = adapter.apply_graphify_index(index_plan, command_runner=command)
+    assert not result.indexed
+    receipt = result.record.receipt_for(adapter.INDEX_STEP_ID)
+    assert receipt.status == "failed" and receipt.owned_paths == [STATE_PATH]
+    assert (project / STATE_PATH).is_dir()
+    from stackwinnow.adapters._managed import record_for
+
+    assert record_for(project).receipt_for(adapter.INDEX_STEP_ID) == receipt
+    with pytest.raises(GraphifyError, match="inspection"):
+        adapter.plan_graphify_index(project, expectation=EXPECTATION)
+
+
+@pytest.mark.parametrize("change", ["install-receipt", "index-receipt", "provenance", "symlink"])
+def test_untrusted_ownership_never_allows_commands(project, index_plan, change, tmp_path):
+    from stackwinnow.adapters.graphify_index import PROVENANCE_PATH, apply_graphify_index
+
+    runner = _good_runner()
+    assert apply_graphify_index(index_plan, command_runner=runner).indexed
+    receipt_path = project / ".stackwinnow/receipts.json"
+    value = json.loads(receipt_path.read_text())
+    if change == "install-receipt":
+        value["steps"][0]["evidence"] = []
+        receipt_path.write_text(json.dumps(value))
+    elif change == "index-receipt":
+        value["steps"][1]["tool_id"] = "promptfoo"
+        receipt_path.write_text(json.dumps(value))
+    elif change == "provenance":
+        (project / PROVENANCE_PATH).write_text("{}")
+    else:
+        original = project / STATE_PATH
+        original.rename(tmp_path / "external-state")
+        original.symlink_to(tmp_path / "external-state", target_is_directory=True)
+    with pytest.raises(GraphifyError):
+        apply_graphify_index(index_plan, command_runner=runner)
+    assert len(runner.calls) == 2
+
+
+def test_install_reapply_after_index_keeps_runtime_and_graph(project, plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index, plan_graphify_index
+    from stackwinnow.adapters.graphify_install import apply_graphify_install
+
+    _seed_install(project)
+    candidate = plan_graphify_index(project, expectation=EXPECTATION)
+    assert apply_graphify_index(candidate, command_runner=_good_runner()).indexed
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("intact installation must be reused")
+
+    result = apply_graphify_install(plan, command_runner=forbidden)
+    assert result.installed and result.results[0].status == "skipped"
+    assert (project / GRAPH_PATH).is_file()
+
+
+def test_snapshot_rejects_aliases_and_reviews_all_included_files(project, index_plan, tmp_path):
+    from stackwinnow.adapters.graphify_index import plan_graphify_index
+
+    external = tmp_path / "foreign.py"
+    external.write_text("print(42)")
+    (project / "alias.py").symlink_to(external)
+    with pytest.raises(GraphifyError, match="regular files"):
+        plan_graphify_index(project, expectation=EXPECTATION)
+
+
+def test_index_validation_runs_under_shared_lock(project, index_plan, monkeypatch):
+    from stackwinnow.adapters import graphify_index as adapter
+    from stackwinnow.state.lock import ProjectLockError, project_lock
+
+    original = adapter._validate
+
+    def validate(candidate):
+        with pytest.raises(ProjectLockError):
+            with project_lock(str(project)):
+                pass
+        return original(candidate)
+
+    monkeypatch.setattr(adapter, "_validate", validate)
+    assert adapter.apply_graphify_index(index_plan, command_runner=_good_runner()).indexed
+
+
+def test_shared_verifier_reads_current_evidence_and_runs_fresh_query(project, index_plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+    from stackwinnow.verify import check_project
+
+    runner = _good_runner()
+    assert apply_graphify_index(index_plan, command_runner=runner).indexed
+    before = (project / ".stackwinnow/receipts.json").read_bytes()
+    report = check_project(project, tool_ids=["graphify"], command_runner=runner)
+    checks = {check.kind: check for check in report.tools[0].checks}
+    assert checks["installed"].status == checks["configured"].status == "succeeded"
+    assert checks["functional"].status == "not_run" and checks["connected"].status == "blocked"
+    assert not report.ready and len(runner.calls) == 2
+    assert (project / ".stackwinnow/receipts.json").read_bytes() == before
+    functional = check_project(
+        project, tool_ids=["graphify"], run_functional=True, command_runner=runner
+    )
+    assert (
+        next(c for c in functional.tools[0].checks if c.kind == "functional").status == "succeeded"
+    )
+    assert not functional.ready and len(runner.calls) == 3
+    (project / "callee.py").write_text("def answer(): return 3\n")
+    stale = check_project(
+        project, tool_ids=["graphify"], run_functional=True, command_runner=runner
+    )
+    assert next(c for c in stale.tools[0].checks if c.kind == "functional").status == "blocked"
+    assert len(runner.calls) == 3
+
+
+def test_shared_verifier_failed_query_cannot_reuse_old_success(project, index_plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+    from stackwinnow.verify import check_project
+
+    assert apply_graphify_index(index_plan, command_runner=_good_runner()).indexed
+    good = check_project(
+        project, tool_ids=["graphify"], run_functional=True, command_runner=_good_runner()
+    )
+    assert next(c for c in good.tools[0].checks if c.kind == "functional").status == "succeeded"
+    failed = check_project(
+        project, tool_ids=["graphify"], run_functional=True, command_runner=FakeIndex(fail=True)
+    )
+    assert next(c for c in failed.tools[0].checks if c.kind == "functional").status == "failed"
+
+
+def test_index_cli_plan_dry_run_and_stale_error(project, index_plan, tmp_path, capsys):
+    from stackwinnow.cli import main
+
+    expected = tmp_path / "expected.json"
+    expected.write_text(EXPECTATION.model_dump_json())
+    assert (
+        main(["graphify", "index-plan", str(project), "--expectation", str(expected), "--json"])
+        == 0
+    )
+    plan_file = tmp_path / "index-plan.json"
+    plan_file.write_text(capsys.readouterr().out)
+    assert main(["graphify", "index", str(plan_file), "--dry-run", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["dry_run"]
+    (project / "callee.py").write_text("changed")
+    with pytest.raises(SystemExit) as error:
+        main(["graphify", "index", str(plan_file)])
+    assert error.value.code == 2
+
+
+def test_install_reapply_after_changed_source_reindex(project, plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index, plan_graphify_index
+    from stackwinnow.adapters.graphify_install import apply_graphify_install
+
+    _seed_install(project)
+    original = plan_graphify_index(project, expectation=EXPECTATION)
+    assert apply_graphify_index(original, command_runner=_good_runner()).indexed
+    (project / "callee.py").write_text("def answer(): return 123\n")
+    revised = plan_graphify_index(project, expectation=EXPECTATION)
+    assert apply_graphify_index(revised, command_runner=_good_runner()).indexed
+
+    def forbidden(*args, **kwargs):
+        raise AssertionError("intact installation must be reused after source changes")
+
+    assert apply_graphify_install(plan, command_runner=forbidden).installed
+
+
+def test_legacy_manifest_requires_original_plan_and_preserves_runtime(project, plan):
+    from stackwinnow.adapters.graphify_index import apply_graphify_index, plan_graphify_index
+    from stackwinnow.adapters.graphify_install import MANIFEST, apply_graphify_install
+    from stackwinnow.verify import check_project
+
+    _seed_install(project)
+    # Reproduce the previously released schema rather than inventing ownership.
+    manifest_file = project / MANIFEST
+    manifest = json.loads(manifest_file.read_text())
+    manifest.pop("plan")
+    manifest["schema_version"] = 1
+    raw = json.dumps(manifest).encode()
+    manifest_file.write_bytes(raw)
+    receipt_file = project / ".stackwinnow/receipts.json"
+    record = json.loads(receipt_file.read_text())
+    record["steps"][0]["evidence"][0]["detail"] = "sha256:" + preparation._digest(raw)
+    receipt_file.write_text(json.dumps(record))
+    with pytest.raises(GraphifyError, match="--installation-plan"):
+        plan_graphify_index(project, expectation=EXPECTATION)
+    candidate = plan_graphify_index(project, expectation=EXPECTATION, installation_plan=plan)
+    assert apply_graphify_index(candidate, command_runner=_good_runner()).indexed
+    assert apply_graphify_install(plan, command_runner=_good_runner()).installed
+    report = check_project(
+        project, tool_ids=["graphify"], run_functional=True, command_runner=_good_runner()
+    )
+    assert next(c for c in report.tools[0].checks if c.kind == "functional").status == "succeeded"
+    assert manifest_file.read_bytes() == raw

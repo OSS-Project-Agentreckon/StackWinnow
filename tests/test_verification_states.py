@@ -558,7 +558,7 @@ def test_receipt_change_during_cli_probe_blocks_before_evaluation(
 
 def test_check_on_unsupported_tool_never_calls_the_runner(tmp_path, commands):
     report = check_project(
-        tmp_path, tool_ids=["graphify"], run_functional=True, command_runner=commands
+        tmp_path, tool_ids=["aider"], run_functional=True, command_runner=commands
     )
     assert report.status == "blocked" and not report.ready
     assert all(check.code == "verifier-unavailable" for check in report.tools[0].checks)

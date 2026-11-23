@@ -284,6 +284,7 @@ def _prepare_graphify_execution(
     *,
     expectation: RelationshipExpectation,
     require_fresh: bool,
+    sources_override: tuple[SourceSnapshot, ...] | None = None,
 ) -> GraphifyExecutionPlan:
     """Rebuild recipe inputs; the install adapter separately validates existing ownership."""
     try:
@@ -319,9 +320,13 @@ def _prepare_graphify_execution(
                 raise GraphifyError(
                     "Existing Graphify receipts require reconciliation before planning."
                 )
-        sources = tuple(
-            SourceSnapshot(path=path, sha256=_digest(_read_at(root, path)))
-            for path in sorted({expected.caller_file, expected.callee_file})
+        sources = (
+            sources_override
+            if sources_override is not None
+            else tuple(
+                SourceSnapshot(path=path, sha256=_digest(_read_at(root, path)))
+                for path in sorted({expected.caller_file, expected.callee_file})
+            )
         )
         runtime = _runtime()
         blockers = [
