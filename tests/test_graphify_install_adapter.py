@@ -280,6 +280,45 @@ def test_other_tool_receipts_survive_install(project, plan):
     assert result.installed and result.record.receipt_for(other.step_id) == other
 
 
+def test_install_after_index_succeeds(project, plan, tmp_path):
+    """A second apply_graphify_install must skip cleanly even when an index receipt exists."""
+    from stackwinnow.adapters.graphify import GRAPH_PATH, STATE_PATH
+    from stackwinnow.contracts import EvidenceRef
+    from stackwinnow.installer import ExecutionRecord, StepReceipt
+
+    # Save the plan before the install so load_graphify_install_plan can reload it later.
+    saved = tmp_path / "plan.json"
+    saved.write_text(plan.model_dump_json())
+
+    # Perform a real install first.
+    result = adapter.apply_graphify_install(plan, command_runner=FakeInstall())
+    assert result.installed
+
+    # Simulate a succeeded index by appending its receipt to the on-disk record.
+    receipts_file = project / ".stackwinnow" / "receipts.json"
+    record = ExecutionRecord.model_validate_json(receipts_file.read_text())
+    record.steps.append(
+        StepReceipt(
+            step_id="graphify-index-code",
+            tool_id="graphify",
+            status="succeeded",
+            message="indexed",
+            owned_paths=[STATE_PATH],
+            evidence=[EvidenceRef(source=GRAPH_PATH, detail="sha256:deadbeef" * 8)],
+            timestamp="2026-01-01T00:00:01",
+        )
+    )
+    receipts_file.write_text(record.model_dump_json())
+
+    # Reload via load_graphify_install_plan (uses require_fresh=False, tolerates occupied paths).
+    checked = adapter.load_graphify_install_plan(saved)
+    runner = FakeInstall()
+    repeat = adapter.apply_graphify_install(checked, command_runner=runner)
+
+    assert repeat.installed and repeat.results[0].status == "skipped"
+    assert not runner.calls
+
+
 def test_unsupported_host_dry_run_blocks_even_if_plan_matches(project, plan, monkeypatch):
     monkeypatch.setattr(
         preparation, "_runtime", lambda: plan.runtime.model_copy(update={"system": "Linux"})
