@@ -14,14 +14,14 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
-Active branch: feat/a01-graphify-codex-bridge, stacked on Graphify PR #32.
-The manager-owned MCP bridge, conservative Codex configuration and actual
-Codex client verification are implemented. The rebuilt package passed 1065
-tests with warnings as errors / 13 opt-in skips. Real installation, indexing,
-configuration, positive/negative/repeat Codex calls and reapply passed, followed
-by final-package reuse of the earlier install plan and another real client call.
-See graphify-codex.md and evidence/graphify-codex.md. Next: Headroom shared
-verification, then coordinated removal and full foundation handoff acceptance.
+Active branch: feat/a01-coordinated-removal, stacked on Headroom PR #34.
+Coordinated configuration/runtime cleanup and deliberate reinstall are implemented
+through commits 7c56cfb, 1df0f9c and 1c22568. The rebuilt package passed 1137
+tests with warnings as errors / 13 opt-in skips; Python 3.14 focused selection
+passed 97. Real filesystem and adapter command-double cases cover all four modes,
+partial failure, retained data/settings and repeat/reinstall. See
+coordinated-removal.md and evidence/coordinated-removal.md. Next: real assembled
+B08/A01 foundation acceptance and exact handoff before A02 product work.
 
 Previous indexing slice: feat/a01-graphify-freshness, stacked on configuration PR #31.
 Managed Graphify indexing/reindexing and shared local verification are now
@@ -69,7 +69,7 @@ hosted validation result is claimed here.
 | B04 — Graphify indexing and shared verification | Implemented: source/runtime validation under lock, staged extraction/query, deliberate reindex, failure ownership, index CLI and shared verifier; 1042 default tests and the real managed lifecycle passed |
 | B05 — Graphify Codex integration | Implemented: manager-owned stdio bridge, owned Codex settings and actual Codex0.169.0 tool calls with positive/repeat/negative evidence; connection and functionality remain separate |
 | B06 — Headroom CLI and shared verification | Implemented in c6b7e8a: current inventory/import health, fresh shared compression reports, strict token/preservation checks and retained mutable data; real full library lifecycle passed, with 282 before/after and 0 saved; 70 dependency versions/license candidates captured, release audit still pending |
-| B07 — Coordinated safe removal | Pending: preserve edits, clean owned configuration, revalidate/remove unreferenced runtimes under lock, journal partial progress, repeat harmlessly |
+| B07 — Coordinated safe removal | Implemented through 1c22568: reviewed cleanup, bounded runtime snapshots, durable release/retirement, preserved references/data and repeat/reinstall; 1137 default tests and 97 focused Python 3.14 tests passed; real assembled acceptance remains B08 |
 | B08 — Foundation acceptance and handoff | Pending: all four narrow lifecycles, negative/mixed-tool cases, clean distribution acceptance, operational/API documentation and exact handoff revision |
 
 Packaging/release work does not replace B07 or B08. Do not mark these complete

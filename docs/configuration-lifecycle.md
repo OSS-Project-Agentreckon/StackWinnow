@@ -63,10 +63,18 @@ not acquire another lock internally. A coordinated lifecycle operation must:
    published states whether a write occurred, even if temporary-file cleanup
    failed. Only released_keys may be removed from active ownership. Keep the
    intent and preserved ownership available for partial-failure recovery.
+   restored_file carries the exact published digest/mode (or known missing
+   state), allowing later removal attempts to distinguish a manager-restored
+   file from a subsequent user edit.
 5. Re-read references from every relevant known configuration file, including
    files recorded in configuration intents that skipped matching foreign entries.
 6. Revalidate runtime ownership and the proposed deletion separately before
    releasing any runtime. Configuration cleanup alone never authorizes deletion.
+
+The optional restorations argument projects the reviewed clean changes in
+memory for removal previews. It grants no ownership or deletion permission.
+Before deleting a runtime, call again without that argument to inspect the
+actual file after durably recorded restoration.
 
 RuntimeReferenceReport retains all supplied candidates when a configuration
 file is unreadable or unsupported. Missing files retain none. Readable files

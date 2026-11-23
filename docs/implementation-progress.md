@@ -4,6 +4,28 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A01 foundation repair — coordinated removal (B07)
+
+Implemented on feat/a01-coordinated-removal, stacked on Headroom PR #34.
+Commits 7c56cfb, 1df0f9c and 1c22568 add durable configuration/runtime releases,
+reviewed plan/apply removal, and deliberate reinstall support for all four
+narrow adapters. Removal preserves modified/foreign settings, retained project
+data and overlapping ownership; journals partial progress and archives completed
+tool receipts without leaving active installation claims. See
+[operating/recovery guide](coordinated-removal.md) and
+[validation evidence](evidence/coordinated-removal.md).
+
+Validation: rebuilt installed-package suite 1137 passed / 13 opt-in skips with
+warnings as errors; Python 3.14 focused selection 97 passed. Ruff lint/format,
+dependency and whitespace checks passed. Wheel/sdist build succeeded with the
+existing data-package discovery warning deferred to A06. These new lifecycle
+tests use real files and command doubles; real assembled tool acceptance is
+still B08/A01. The isolated inherited Headroom Markdown CI repair a9be655 was
+also pushed directly to PR #34. No merge or complete foundation handoff claimed.
+
+Next: independently rebuild and run the real four narrow lifecycles and
+interactions, record exact B08/A01 handoff revision, then A02 unified workflow.
+
 ## A01 foundation repair — Headroom current state and shared verification
 
 Implemented on feat/a01-headroom-verification, stacked on Graphify client PR
