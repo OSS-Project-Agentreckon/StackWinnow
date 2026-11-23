@@ -14,7 +14,16 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
-Active branch: feat/a01-graphify-freshness, stacked on configuration PR #31.
+Active branch: feat/a01-graphify-codex-bridge, stacked on Graphify PR #32.
+The manager-owned MCP bridge, conservative Codex configuration and actual
+Codex client verification are implemented. The rebuilt package passed 1065
+tests with warnings as errors / 13 opt-in skips. Real installation, indexing,
+configuration, positive/negative/repeat Codex calls and reapply passed, followed
+by final-package reuse of the earlier install plan and another real client call.
+See graphify-codex.md and evidence/graphify-codex.md. Next: Headroom shared
+verification, then coordinated removal and full foundation handoff acceptance.
+
+Previous indexing slice: feat/a01-graphify-freshness, stacked on configuration PR #31.
 Managed Graphify indexing/reindexing and shared local verification are now
 implemented and validated: 151 focused tests, 1042 rebuilt-package tests passed
 with warnings as errors / 12 opt-in skips, and 1 real managed Graphify lifecycle
@@ -58,7 +67,7 @@ hosted validation result is claimed here.
 | B02 — Runtime removal classification | Implemented and locally validated in the following branch commit; see runtime-removal.md; hosted CI pending |
 | B03 — Configuration/lifecycle ownership | Primitives implemented in A01 repair; coordinated removal must wire the documented lock/journal/reference contract |
 | B04 — Graphify indexing and shared verification | Implemented: source/runtime validation under lock, staged extraction/query, deliberate reindex, failure ownership, index CLI and shared verifier; 1042 default tests and the real managed lifecycle passed |
-| B05 — Graphify Codex integration | Pending: replace unsupported upstream MCP command with a supported integration; prove actual Codex invocation; keep connection and functionality separate |
+| B05 — Graphify Codex integration | Implemented: manager-owned stdio bridge, owned Codex settings and actual Codex0.169.0 tool calls with positive/repeat/negative evidence; connection and functionality remain separate |
 | B06 — Headroom CLI and shared verification | CLI exists; shared verifier, current real lifecycle evidence and dependency inventory remain |
 | B07 — Coordinated safe removal | Pending: preserve edits, clean owned configuration, revalidate/remove unreferenced runtimes under lock, journal partial progress, repeat harmlessly |
 | B08 — Foundation acceptance and handoff | Pending: all four narrow lifecycles, negative/mixed-tool cases, clean distribution acceptance, operational/API documentation and exact handoff revision |

@@ -2,8 +2,10 @@
 
 Managed locked installation, staged indexing/reindexing and fresh local
 relationship verification are implemented. See [the index lifecycle](../graphify-index-lifecycle.md)
-for current commands and recovery boundaries. Actual Codex connectivity and the
-complete lifecycle remain pending; catalog availability is unchanged.
+for current commands and recovery boundaries. The [manager bridge and actual
+Codex integration](../graphify-codex.md) are also implemented and verified.
+Coordinated removal and complete lifecycle acceptance remain pending; catalog
+availability is unchanged.
 The preview/probe history below describes earlier evidence and narrower interfaces.
 
 ## Preview a project
@@ -266,7 +268,11 @@ The test covers a real install/health check, no-write dry-run, unchanged reuse,
 changed-state rejection, and retained partial ownership after a controlled
 download failure. It does not establish indexing or Codex readiness.
 
-### Execution and client integration still pending
+### Historical execution and client integration backlog
+
+The following list records the earlier install-only handoff. Current indexing
+and client commands/evidence are in the linked lifecycle guides above. Scoped
+removal and overall handoff acceptance remain the subsequent tasks.
 
 1. Integrate with C's step 12 verification framework and distinguish package,
    configuration, client connectivity, and known-result functionality.

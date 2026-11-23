@@ -2,8 +2,8 @@
 
 After locked package installation, Graphify can index reviewed project inputs
 and answer a fresh local relationship query. This does not establish Codex
-connectivity. The shared report keeps its connection check blocked until the
-separate client integration is implemented and verified.
+connectivity. Configure the [owned Codex bridge](graphify-codex.md) and request
+a fresh actual client check to establish that separate observation.
 
 Save plan files outside the indexed project, so saving a plan does not change
 its inputs:

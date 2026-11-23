@@ -2,7 +2,8 @@
 
 `stackwinnow check` reports installation, configuration, connection, and
 functionality separately for explicitly selected catalog tools. Promptfoo and
-[Playwright MCP](integrations/playwright-mcp.md) have verification adapters.
+[Playwright MCP](integrations/playwright-mcp.md), and
+[Graphify](graphify-codex.md) have verification adapters.
 Other known tools return `blocked: verifier-unavailable`;
 unknown tool IDs are input errors. Catalog membership and preflight eligibility
 do not establish a working integration.
