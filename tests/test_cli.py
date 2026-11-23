@@ -449,7 +449,7 @@ def test_recommend_human_output_and_unmatched_goal(tmp_path: Path) -> None:
         "Graphify",
         "Serena",
         "Why:",
-        "Setup: unavailable",
+        "Catalog gates: not established",
         "Alternatives",
         "Matched capabilities:",
         "code-relationships",
