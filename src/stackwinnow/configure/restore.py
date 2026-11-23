@@ -8,6 +8,7 @@ before calling it. This matches the existing configuration apply primitives.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 from collections.abc import Sequence
@@ -52,6 +53,7 @@ class ConfigRestoreResult(Contract):
     plan: ConfigRestorePlan
     published: bool = False
     released_keys: tuple[JsonKeyPath, ...] = ()
+    restored_file: ConfigFileState | None = None
 
 
 class RuntimeReferenceReport(Contract):
@@ -199,6 +201,7 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
     plan = ConfigRestorePlan.model_validate(plan.model_dump(warnings=False))
     patch = plan.ownership
     published = False
+    restored_file = None
     released: tuple[tuple[str, ...], ...] = ()
     try:
         current = plan_config_restore(patch)
@@ -221,6 +224,7 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
                 )
                 if plan.file_state != FileState.MISSING
                 else tuple(e.key_path for e in patch.edits),
+                restored_file=plan.expected_file,
             )
         expected = patch.model_copy(update={"expected_file": plan.expected_file})
         with patches._parent(patch.project_root, patch.relative_path) as (parent, name):
@@ -242,6 +246,11 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
                 patches._check_current(expected, parent, name, limit=4 * 1024 * 1024)
                 os.replace(temporary, name, src_dir_fd=parent, dst_dir_fd=parent)
                 published = True
+                restored_file = ConfigFileState(
+                    exists=True,
+                    sha256=hashlib.sha256(rendered).hexdigest(),
+                    mode=plan.expected_file.mode,
+                )
                 released = plan.restore_keys + tuple(
                     key.key_path
                     for key in plan.retained_keys
@@ -269,12 +278,16 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
         plan=plan,
         published=published,
         released_keys=released,
+        restored_file=restored_file,
         result=OperationResult(status=status, tool_id=patch.tool_id, message=message),
     )
 
 
 def referenced_runtime_paths(
-    ownership: ConfigPatch, runtime_paths: Sequence[str]
+    ownership: ConfigPatch,
+    runtime_paths: Sequence[str],
+    *,
+    restorations: Sequence[ConfigRestorePlan] = (),
 ) -> RuntimeReferenceReport:
     """Read live JSON/Codex TOML, including foreign keys, for managed references.
 
@@ -282,6 +295,8 @@ def referenced_runtime_paths(
     Unreadable/unsupported documents retain every supplied path. Textual matches
     are deliberately conservative, including paths embedded in shell arguments.
     This is reference evidence only; it never establishes ownership/deletability.
+    restorations projects reviewed cleanup in memory for preview only. Deletion
+    must call again without restorations against the live, durably recorded result.
     """
     patch = ConfigPatch.model_validate(ownership.model_dump(warnings=False))
     candidates: dict[str, tuple[str, str]] = {}
@@ -304,6 +319,14 @@ def referenced_runtime_paths(
             raw = None
         if raw is None:
             return RuntimeReferenceReport(file_state=FileState.MISSING, retained_paths=())
+        for restoration in restorations:
+            if (
+                restoration.ownership.project_root == patch.project_root
+                and restoration.ownership.relative_path == patch.relative_path
+                and not restoration.blocked
+                and restoration.restore_keys
+            ):
+                raw = _render(raw, restoration.ownership, set(restoration.restore_keys))
         document = _document(patch, raw)
 
         def strings(value):

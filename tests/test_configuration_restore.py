@@ -1,5 +1,6 @@
 """Owned cleanup preserves user data and exposes live runtime dependencies."""
 
+import hashlib
 import json
 import os
 import tomllib
@@ -57,6 +58,8 @@ def test_json_restores_replaced_null_and_prunes_only_created_objects(tmp_path):
     with project_lock(tmp_path):
         result = apply_config_restore(plan)
     assert result.result.status == "succeeded" and result.published
+    assert result.restored_file.sha256 == hashlib.sha256(path.read_bytes()).hexdigest()
+    assert result.restored_file.mode == 0o640
     assert result.plan.ownership == patch
     assert json.loads(path.read_text()) == {"replace": None, "unrelated": {"keep": True}}
     assert path.stat().st_mode & 0o777 == 0o640
@@ -93,6 +96,7 @@ def test_missing_file_stays_missing_and_releases_owned_keys(tmp_path):
     assert result.result.status == "skipped"
     assert result.released_keys == tuple(edit.key_path for edit in patch.edits)
     assert not path.exists()
+    assert result.restored_file.exists is False
 
 
 @pytest.mark.parametrize("change", ["content", "mode", "symlink", "parent"])
