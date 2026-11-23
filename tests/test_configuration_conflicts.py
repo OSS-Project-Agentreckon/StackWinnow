@@ -180,6 +180,39 @@ def test_toml_format_patch_is_unsupported_without_reading(
     assert report.keys == ()
 
 
+def test_codex_toml_reconciliation_preserves_unrelated_comments(tmp_path):
+    from stackwinnow.configure.codex import apply_codex_server, plan_codex_server
+
+    (tmp_path / ".codex").mkdir()
+    path = tmp_path / ".codex/config.toml"
+    path.write_text('# user comment\nmodel = "user-model"\n')
+    patch = plan_codex_server(tmp_path, {"command": "managed-server", "args": []})
+    apply_codex_server(patch)
+    path.write_text(path.read_text() + "# new user comment\n")
+    before = path.read_bytes()
+
+    report = reconcile_config_patch(patch)
+
+    assert report.file_state is FileState.STALE
+    assert report.keys[0].kind is ConflictKind.CLEAN
+    assert path.read_bytes() == before
+
+
+def test_codex_toml_date_added_to_owned_table_is_user_modified(tmp_path):
+    from stackwinnow.configure.codex import apply_codex_server, plan_codex_server
+
+    (tmp_path / ".codex").mkdir()
+    path = tmp_path / ".codex/config.toml"
+    patch = plan_codex_server(tmp_path, {"command": "managed-server", "args": []})
+    apply_codex_server(patch)
+    path.write_text(path.read_text() + "last_used = 2026-11-23\n")
+
+    report = reconcile_config_patch(patch)
+
+    assert report.keys[0].kind is ConflictKind.USER_MODIFIED
+    assert "2026" not in report.model_dump_json()
+
+
 def test_symlinked_config_is_refused_as_unreadable(
     fixture_project: FixtureProject, tmp_path: Path
 ) -> None:
