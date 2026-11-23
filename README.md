@@ -17,8 +17,9 @@ relationship-evidence checks.
 `check` reports installation, configuration, connection, and fresh functionality
 for selected tools; promptfoo and Playwright MCP have verification adapters. The `inspect` command reads
 project declarations; host runtime inspection and setup preflight remain Python
-APIs. Managed Graphify indexing/client setup, the unified guided journey, and
-removal remain planned.
+APIs. Portable profiles export a project's tool selections and declared intent to
+a schema-versioned artifact and re-plan them in another project. Managed Graphify
+indexing/client setup, the unified guided journey, and removal remain planned.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -273,6 +274,24 @@ blocked, or was not run; **2** means invalid input. A prior successful report
 cannot make a new read-only check ready. See [verification](docs/verification.md)
 for states, evidence, repeatable tool selection, and explicitly gated OpenAI
 checks using an already-owned provider configuration.
+
+## Export and reuse a profile
+
+```sh
+stackwinnow profiles export . --goal "Evaluate answers" --tool promptfoo --platform macos --json > profile.json
+stackwinnow profiles import profile.json ./other-project --json
+```
+
+A portable profile records the project's explicit goals, assistant, model
+preference, and selected tools with catalog-derived compatibility. It is
+schema-versioned and deliberately excludes the project path, observed dependency
+facts, evidence, diagnostics, and any configuration values, so it is safe to
+share. `import` re-inspects the target project with the profile's intent and
+prints recommendations like `recommend`; `--platform` overrides the recorded
+target. Export and import run offline and write nothing to the inspected project.
+Exit **0** is a successful export or completed re-plan, **1** an incomplete
+re-inspection, and **2** invalid input or an incompatible profile. See
+[profiles](docs/profiles.md) and the [example](examples/profiles/README.md).
 
 ## Develop and check
 

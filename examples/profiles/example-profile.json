@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "stackwinnow_version": "0.1.0.dev0",
+  "goals": [
+    "Evaluate answers"
+  ],
+  "assistant": "codex",
+  "model_preference": "local",
+  "target_platform": "macos",
+  "tools": [
+    {
+      "tool_id": "promptfoo",
+      "name": "promptfoo",
+      "category": "evaluation",
+      "license": "MIT",
+      "availability": "catalog_only",
+      "version": null,
+      "supported_platforms": [],
+      "supported_assistants": []
+    }
+  ],
+  "notes": []
+}

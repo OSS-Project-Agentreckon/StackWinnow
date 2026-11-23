@@ -38,6 +38,13 @@ from stackwinnow.catalog import (
 from stackwinnow.configure import ConfigurationError
 from stackwinnow.detect import InspectionError, InspectionResult, inspect_project
 from stackwinnow.plan import PreflightError
+from stackwinnow.profiles import (
+    PortableProfile,
+    ProfileError,
+    export_profile,
+    import_profile,
+    replan_profile,
+)
 from stackwinnow.recommend import RecommendationError, RecommendationResult, recommend_tools
 from stackwinnow.verify import VerificationError, check_project
 
@@ -289,7 +296,12 @@ def _recommend(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
     except ValidationError:
         parser.exit(2, "error: Supply nonempty goals and valid assistant/tool IDs.\n")
         return 2
-    if args.json:
+    _print_recommendation(result, as_json=args.json)
+    return 0 if result.complete else 1
+
+
+def _print_recommendation(result: RecommendationResult, *, as_json: bool) -> None:
+    if as_json:
         payload = result.model_dump(
             mode="json",
             exclude={
@@ -303,7 +315,6 @@ def _recommend(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
         print(json.dumps({**payload, "complete": result.complete}, indent=2))
     else:
         _show_recommendations(result)
-    return 0 if result.complete else 1
 
 
 def _show_recommendations(result: RecommendationResult) -> None:
@@ -341,6 +352,53 @@ def _show_recommendations(result: RecommendationResult) -> None:
         print(note)
     if result.unmatched_goals:
         print("Unmatched goals: " + "; ".join(result.unmatched_goals))
+
+
+def _profiles(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    try:
+        catalog = load_catalog()
+        if args.profiles_command == "export":
+            profile = export_profile(
+                _read_inspection(args, catalog=catalog),
+                catalog=catalog,
+                platform=args.platform,
+            )
+            if args.json:
+                print(profile.model_dump_json(indent=2))
+            else:
+                _show_profile(profile)
+            return 0
+        with open(args.profile_file, "rb") as handle:
+            text = handle.read()
+        profile = import_profile(text)
+        result = replan_profile(profile, args.project_root, catalog=catalog, platform=args.platform)
+        _print_recommendation(result, as_json=args.json)
+        return 0 if result.complete else 1
+    except (ProfileError, InspectionError, CatalogError, RecommendationError) as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
+    except ValidationError:
+        # Validation errors may include input values. Do not echo arbitrary input.
+        parser.exit(2, "error: Invalid profile or tool selection.\n")
+        return 2
+    except OSError:
+        parser.exit(2, "error: Cannot read the project or profile file.\n")
+        return 2
+
+
+def _show_profile(profile: PortableProfile) -> None:
+    print(f"Producer: StackWinnow {profile.stackwinnow_version}")
+    print("Goals: " + ("; ".join(profile.goals) or "not supplied"))
+    print(f"Assistant: {profile.assistant or 'unknown'}")
+    print(f"Model preference: {profile.model_preference or 'not supplied'}")
+    print(f"Target platform: {profile.target_platform or 'unknown'}")
+    print("Selected tools:")
+    if not profile.tools:
+        print("  none")
+    for entry in profile.tools:
+        version = f" {entry.version}" if entry.version else ""
+        print(f"  {entry.name} ({entry.tool_id}){version} [{entry.category}, {entry.availability}]")
+    print("Portable profiles exclude project paths, observed facts, and credentials.")
 
 
 def _add_inspection_arguments(parser: argparse.ArgumentParser) -> None:
@@ -568,6 +626,30 @@ def main(argv: Sequence[str] | None = None) -> int:
         choices=[item.value for item in Platform],
         help="Declared target OS for eligibility; does not inspect the host.",
     )
+    profiles = commands.add_parser(
+        "profiles",
+        help="Export reproducible project selections and re-plan them elsewhere.",
+        allow_abbrev=False,
+    )
+    profiles_commands = profiles.add_subparsers(dest="profiles_command", required=True)
+    profiles_export = profiles_commands.add_parser("export", allow_abbrev=False)
+    _add_inspection_arguments(profiles_export)
+    profiles_export.add_argument(
+        "--platform",
+        choices=[item.value for item in Platform],
+        help="Declared target OS recorded as compatibility context; does not inspect the host.",
+    )
+    profiles_import = profiles_commands.add_parser("import", allow_abbrev=False)
+    profiles_import.add_argument("profile_file", help="Saved JSON profile from 'profiles export'.")
+    profiles_import.add_argument("project_root", help="Existing project directory to re-plan.")
+    profiles_import.add_argument(
+        "--platform",
+        choices=[item.value for item in Platform],
+        help="Override the profile's recorded target OS; does not inspect the host.",
+    )
+    profiles_import.add_argument(
+        "--json", action="store_true", help="Emit the re-planned recommendations as JSON."
+    )
     catalog_parser = commands.add_parser(
         "catalog", help="Browse the reviewed tool catalog.", allow_abbrev=False
     )
@@ -601,6 +683,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _graphify(args, parser)
     if args.command == "check":
         return _check_project(args, parser)
+    if args.command == "profiles":
+        return _profiles(args, parser)
     if args.catalog_command is None:
         catalog_parser.print_help()
         return 0
