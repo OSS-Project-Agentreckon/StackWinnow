@@ -23,6 +23,14 @@ from stackwinnow.contracts import OperationStatus
 from stackwinnow.environments import python_env_path
 from stackwinnow.installer import load_record
 
+
+@pytest.fixture(autouse=True)
+def declared_host(monkeypatch):
+    """Portable adapter logic under host facts; no real macOS integration is claimed."""
+    monkeypatch.setattr(adapter.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(adapter.platform, "machine", lambda: "arm64")
+
+
 # ---------------------------------------------------------------------------
 # Test double
 # ---------------------------------------------------------------------------
@@ -236,8 +244,6 @@ def test_apply_headroom_blocked_when_no_runner(fixture_project, monkeypatch):
     plan = plan_headroom(fixture_project.root)
     result = apply_headroom(plan, command_runner=None)
     assert result.status == OperationStatus.BLOCKED
-    # On macOS arm64 the runner check fires; on other platforms either the runner
-    # check or the platform guard can be the proximate cause of the block.
     assert any(
         kw in result.message.lower() for kw in ("runner", "unavailable", "unverified", "arm64")
     )
@@ -247,12 +253,6 @@ def test_apply_headroom_install_and_compress_succeed(fixture_project):
     runner = FakeCommands()
     plan = plan_headroom(fixture_project.root)
     result = apply_headroom(plan, command_runner=runner)
-
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        assert result.status == OperationStatus.BLOCKED
-        return
 
     assert result.status == OperationStatus.SUCCEEDED, result.message
     assert result.compression is not None
@@ -266,10 +266,6 @@ def test_apply_headroom_install_and_compress_succeed(fixture_project):
 
 
 def test_apply_headroom_venv_exit_failure(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before install step.")
     runner = FakeCommands()
     runner.venv_exit = 1
     plan = plan_headroom(fixture_project.root)
@@ -279,10 +275,6 @@ def test_apply_headroom_venv_exit_failure(fixture_project):
 
 
 def test_apply_headroom_pip_exit_failure(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before install step.")
     runner = FakeCommands()
     runner.pip_exit = 1
     plan = plan_headroom(fixture_project.root)
@@ -291,10 +283,6 @@ def test_apply_headroom_pip_exit_failure(fixture_project):
 
 
 def test_apply_headroom_compress_failure(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before compress step.")
     runner = FakeCommands()
     runner.compress_exit = 1
     plan = plan_headroom(fixture_project.root)
@@ -304,10 +292,6 @@ def test_apply_headroom_compress_failure(fixture_project):
 
 
 def test_apply_headroom_compress_timeout(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before compress step.")
     runner = FakeCommands()
     runner.compress_timed_out = True
     plan = plan_headroom(fixture_project.root)
@@ -317,11 +301,6 @@ def test_apply_headroom_compress_timeout(fixture_project):
 
 
 def test_apply_headroom_compress_bad_json(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before compress step.")
-
     class BadJsonRunner(FakeCommands):
         def __call__(self, args, *, cwd, timeout, extra_env=None):
             self.calls.append((args, Path(cwd), dict(extra_env or {})))
@@ -338,11 +317,6 @@ def test_apply_headroom_compress_bad_json(fixture_project):
 
 def test_apply_headroom_reuses_installed_venv(fixture_project):
     """Second apply with a NEW plan reuses the venv without reinstalling."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before install step.")
-
     runner = FakeCommands()
     plan1 = plan_headroom(fixture_project.root)
     result1 = apply_headroom(plan1, command_runner=runner)
@@ -360,11 +334,6 @@ def test_apply_headroom_reuses_installed_venv(fixture_project):
 
 
 def test_apply_headroom_plan_already_attempted_is_blocked(fixture_project):
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before first run.")
-
     runner = FakeCommands()
     plan = plan_headroom(fixture_project.root)
     result1 = apply_headroom(plan, command_runner=runner)
@@ -395,11 +364,6 @@ def test_plan_raises_when_tool_dir_is_symlink(fixture_project, tmp_path):
 
 def test_apply_raises_when_tool_dir_becomes_symlink_after_plan(fixture_project, tmp_path):
     """Symlink created between plan and apply is rejected at apply time."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Platform check skips before install step.")
-
     plan = plan_headroom(fixture_project.root)
     # Create symlink after planning but before applying.
     envs_dir = fixture_project.root / ".stackwinnow" / "envs"
@@ -417,11 +381,6 @@ def test_apply_raises_when_tool_dir_becomes_symlink_after_plan(fixture_project, 
 
 def test_bootstrap_commands_carry_isolation_flag(fixture_project):
     """Every bootstrap/install command passes -I to avoid project-local module shadowing."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Bootstrap commands only run on the supported platform.")
-
     runner = FakeCommands()
     plan = plan_headroom(fixture_project.root)
     result = apply_headroom(plan, command_runner=runner)
@@ -439,11 +398,6 @@ def test_bootstrap_commands_carry_isolation_flag(fixture_project):
 
 def test_apply_blocked_on_zero_messages_out(fixture_project):
     """Compression claiming zero messages_out is rejected as invalid evidence."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Compress step only reached on the supported platform.")
-
     runner = FakeCommands()
     runner.compress_output = {"messages_in": 2, "messages_out": 0, "tokens_saved": 10}
     plan = plan_headroom(fixture_project.root)
@@ -453,11 +407,6 @@ def test_apply_blocked_on_zero_messages_out(fixture_project):
 
 def test_apply_blocked_on_negative_tokens_saved(fixture_project):
     """Negative tokens_saved is rejected as an invalid compression result."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Compress step only reached on the supported platform.")
-
     runner = FakeCommands()
     runner.compress_output = {"messages_in": 2, "messages_out": 2, "tokens_saved": -50}
     plan = plan_headroom(fixture_project.root)
@@ -467,11 +416,6 @@ def test_apply_blocked_on_negative_tokens_saved(fixture_project):
 
 def test_apply_blocked_on_mismatched_messages_in(fixture_project):
     """messages_in count not matching the fixture length is rejected."""
-    import platform
-
-    if platform.system() != "Darwin" or platform.machine() != "arm64":
-        pytest.skip("Compress step only reached on the supported platform.")
-
     runner = FakeCommands()
     runner.compress_output = {"messages_in": 999, "messages_out": 2, "tokens_saved": 10}
     plan = plan_headroom(fixture_project.root)
@@ -494,3 +438,14 @@ def test_apply_blocked_when_catalog_becomes_unavailable_after_plan(fixture_proje
     result = apply_headroom(plan, command_runner=runner)
     assert result.status == OperationStatus.BLOCKED
     assert "catalog" in result.message.lower()
+
+
+@pytest.mark.parametrize("system,machine", [("Linux", "aarch64"), ("Darwin", "x86_64")])
+def test_unsupported_host_blocks_before_commands(fixture_project, monkeypatch, system, machine):
+    monkeypatch.setattr(adapter.platform, "system", lambda: system)
+    monkeypatch.setattr(adapter.platform, "machine", lambda: machine)
+    runner = FakeCommands()
+    result = apply_headroom(plan_headroom(fixture_project.root), command_runner=runner)
+    assert result.status == OperationStatus.BLOCKED
+    assert runner.calls == []
+    assert not (fixture_project.root / ".stackwinnow").exists()

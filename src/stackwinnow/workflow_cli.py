@@ -3,6 +3,7 @@
 import json
 
 from stackwinnow.adapters.graphify_plan import load_relationship_expectation
+from stackwinnow.detect import InspectionResult
 from stackwinnow.supported import select_tool, supported_modes
 from stackwinnow.verify import check_project
 from stackwinnow.workflow import (
@@ -65,6 +66,7 @@ def workflow_command(args, parser) -> int:
             payload = explain_workflow(
                 args.project_root, goals=args.goal, model_preference=args.model_preference
             )
+            code = 0 if InspectionResult.model_validate(payload["inspection"]).complete else 1
         elif action == "plan":
             request = WorkflowRequest(
                 selections=tuple(select_tool(name) for name in args.tool),
