@@ -20,7 +20,7 @@ for selected tools; all four narrow modes have verification adapters. The `inspe
 project declarations; host runtime inspection and setup preflight remain Python
 APIs. Explicit [removal plans and apply](docs/coordinated-removal.md) restore clean
 owned settings, remove unreferenced runtime scopes and retain project data.
-The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) now combines explicit selection, planning, apply, fresh verification and passive status. Portable profiles and final release acceptance remain next.
+The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) combines explicit selection, planning, apply, fresh verification and passive status. [Portable profiles](docs/portable-profiles.md) carry supported selections to a fresh destination review. Final combination and release acceptance remain next.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -81,6 +81,19 @@ and runs fresh verification; passive status does not claim fresh functionality.
 Each workflow plan permits one attempt. Review a new plan to repeat setup, or use
 remove plan / remove apply for owned cleanup. See the [workflow guide](docs/unified-workflow.md)
 for exact modes, state-change handling, exit codes and partial failures.
+
+To reuse those selections in another project:
+
+~~~sh
+stackwinnow profile export workflow-plan.json --json > selections.json
+stackwinnow profile import selections.json ./another-project --json > another-plan.json
+stackwinnow workflow apply another-plan.json --dry-run --json
+~~~
+
+Profiles contain supported selections and compatibility requirements. Import
+creates a new plan using the destination's state; it never transfers receipts,
+credentials or installation claims. See the [profile guide](docs/portable-profiles.md)
+and [examples](examples/profiles/README.md) before an explicit apply.
 
 ## Inspect a project
 

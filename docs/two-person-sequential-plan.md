@@ -14,6 +14,19 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
+A03 portable profiles are implemented on feat/a03-portable-profiles, based on
+published A02 PR #37 at 436992c. Core 9539895 and CLI 73e06e8 are committed
+and pushed. Versioned allowlist export/import, four example profiles, destination
+replanning and shared host validation are complete. Final installed package:
+1245 passed / 14 opt-in skips; Python 3.14 focused: 100 passed; actual installed
+CLI: four pure profile round-trips / 20 successful commands with unchanged
+project bytes and mtimes. See portable-profiles.md and evidence/portable-profiles.md.
+Publication uses a stacked PR on A02; no merge/release/submission is implied.
+Next: A04 recommendation/CLI acceptance, then A05 real profile combinations,
+A06 packaging/licenses/CI, A07 guides/measurements/report and A08 final readiness.
+
+### Previous A02 checkpoint
+
 A02 is implemented on feat/a02-unified-workflow, based on the accepted PR #36
 handoff. Guard commit fc39092 adds read-only composition checks inside adapter
 locks. The unified registry/inspect/plan/apply/check/status commands compose the
@@ -99,7 +112,7 @@ Known B implementation gaps must be finished before accepting the handoff.
 A01 reproduce and accept the foundations; A02 unified workflow; A03 portable
 profiles; A04 recommendation/CLI acceptance; A05 full lifecycle and combinations;
 A06 packaging/license closure and release CI; A07 guides/measurements/demo/report;
-A08 final release and submission. A02 implementation is recorded above; A03 is next.
+A08 final release and submission. A03 implementation is recorded above; A04 is next.
 
 After each implementation slice, update this checkpoint and
 implementation-progress.md with the actual tests, revision/publication state,
