@@ -2,17 +2,23 @@
 
 Classifies every receipt-owned path as either a removal candidate or a
 retained resource.  The plan is read-only — it never deletes anything.
-Actual deletion is performed by the remove command (see step 21).
+Actual deletion is performed by the remove command (B07).
 
 Classification rules, applied in order:
-  1. Path not present on disk  → RETAIN  (nothing to delete)
-  2. Path is outside the managed prefix (.stackwinnow/)  → RETAIN  (external install)
-  3. Path is also referenced by a tool not being removed  → RETAIN  (shared use)
-  4. Otherwise  → REMOVE  (exclusively owned managed resource)
+  1. Path not present on disk                      → RETAIN (nothing to delete)
+  2. Path is outside the managed prefix            → RETAIN (external installation)
+  3. Path is a symlink                             → RETAIN (unsafe alias)
+  4. Path is shared infrastructure                 → RETAIN (.stackwinnow dir, receipts, lock)
+  5. Path is designated project data               → RETAIN (results, graphs, reports, caches)
+  6. Path is shared with a retained tool           → RETAIN (normalised comparison)
+  7. Path is a directory containing retained files → RETAIN (containment)
+  8. Path owned by a failed or interrupted step    → RETAIN (partial state)
+  9. Otherwise                                     → REMOVE (exclusively owned managed resource)
 """
 
 from __future__ import annotations
 
+import os
 from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
@@ -25,8 +31,19 @@ if TYPE_CHECKING:
     from stackwinnow.installer import StepReceipt
 
 _MANAGED_PREFIX = ".stackwinnow"
-# The receipts file is shared state for the whole project; never a removal candidate.
 _RECEIPTS_FILE = "receipts.json"
+_LOCK_FILE = "operation.lock"
+
+# Directory name components within .stackwinnow/ that hold project data
+# (evaluation results, relationship graphs, verification evidence) rather than
+# installed software.  These survive tool removal so the user keeps their history.
+_RETAINED_DATA_NAMES: frozenset[str] = frozenset({
+    "results",
+    "reports",
+    "graphs",
+    "output",
+    "checks",
+})
 
 
 class RemovalAction(StrEnum):
@@ -67,20 +84,61 @@ def _resolve(raw: str, project_root: Path) -> Path:
     return p if p.is_absolute() else project_root / p
 
 
-def _is_managed(path: Path, project_root: Path) -> bool:
-    """True when path is strictly inside the managed .stackwinnow/ prefix."""
+def _normalise(raw: str, project_root: Path) -> str:
+    """Canonical resolved absolute string key for consistent path comparison.
+
+    Using raw strings directly misses aliases: an absolute and a relative path
+    can refer to the same resource and must compare equal.
+    """
+    abs_p = _resolve(raw, project_root)
     try:
-        path.resolve().relative_to((project_root / _MANAGED_PREFIX).resolve())
-        return True
-    except ValueError:
+        return str(abs_p.resolve())
+    except OSError:
+        return str(abs_p.absolute())
+
+
+def _is_managed(path: Path, project_root: Path) -> bool:
+    """True when path is lexically inside managed prefix with no symlinked ancestors.
+
+    Uses absolute (not resolved) paths so that a symlinked parent directory such
+    as external-alias -> .stackwinnow/envs/shared does not make a file look managed.
+    """
+    managed = (project_root / _MANAGED_PREFIX).absolute()
+    try:
+        abs_path = path.absolute()
+        rel = abs_path.relative_to(managed)
+    except (ValueError, OSError):
+        return False
+    # Reject any symlink component between managed/ and path
+    current = managed
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            return False
+    return True
+
+
+def _is_infrastructure(path: Path, project_root: Path) -> bool:
+    """True when path is shared infrastructure that must never be removed."""
+    managed = project_root / _MANAGED_PREFIX
+    try:
+        resolved = path.resolve()
+        return resolved in {
+            managed.resolve(),
+            (managed / _RECEIPTS_FILE).resolve(),
+            (managed / _LOCK_FILE).resolve(),
+        }
+    except OSError:
         return False
 
 
-def _is_receipts_file(path: Path, project_root: Path) -> bool:
-    receipts = (project_root / _MANAGED_PREFIX / _RECEIPTS_FILE).resolve()
+def _is_project_data(norm_path: str, project_root: Path) -> bool:
+    """True when path is project data (results, graphs) designated for retention."""
     try:
-        return path.resolve() == receipts
-    except OSError:
+        managed = (project_root / _MANAGED_PREFIX).resolve()
+        rel = Path(norm_path).relative_to(managed)
+        return any(part in _RETAINED_DATA_NAMES for part in rel.parts)
+    except (ValueError, OSError):
         return False
 
 
@@ -112,24 +170,52 @@ def plan_removal(
 
     target_ids: set[str] | None = set(tool_ids) if tool_ids is not None else None
 
-    # Collect receipts being removed and those being kept separately.
+    # Collect receipts being removed and build a set of normalised paths that
+    # must not be touched.  Retained paths come from two sources:
+    #   (a) tools that are NOT in scope — their files are still in active use;
+    #   (b) failed or interrupted steps — their partial state must not be removed.
     to_remove: list[StepReceipt] = []
-    retained_paths: set[str] = set()
+    retained_norm: set[str] = set()
 
     for step in record.steps:
-        if step.status != OperationStatus.SUCCEEDED or step.dry_run:
+        if step.dry_run:
             continue
-        if target_ids is None or step.tool_id in target_ids:
-            to_remove.append(step)
+        in_scope = target_ids is None or step.tool_id in target_ids
+        if step.status == OperationStatus.SUCCEEDED:
+            if in_scope:
+                to_remove.append(step)
+            else:
+                for raw in step.owned_paths:
+                    retained_norm.add(_normalise(raw, root))
         else:
-            # This tool is not being removed; its owned paths are "in use".
-            retained_paths.update(step.owned_paths)
+            # Failed/interrupted step: paths may be partial — protect them
+            # regardless of whether the tool is in scope.
+            for raw in step.owned_paths:
+                retained_norm.add(_normalise(raw, root))
+
+    # Pre-compute paths that will be RETAIN within the removal batch:
+    # (a) evidence-referenced outputs inside owned directories (e.g. graph.json),
+    # (b) owned paths that are themselves project data (e.g. results/).
+    # These are added to the containment check so a parent directory is not
+    # incorrectly marked REMOVE when it contains retained data.
+    batch_retain_norm: set[str] = set()
+    for receipt in to_remove:
+        for ev in receipt.evidence:
+            batch_retain_norm.add(_normalise(ev.source, root))
+        for raw in receipt.owned_paths:
+            norm = _normalise(raw, root)
+            if _is_project_data(norm, root):
+                batch_retain_norm.add(norm)
+
+    # Combined set used for the two-directional containment check.
+    all_retained_norm = retained_norm | batch_retain_norm
 
     items: list[RemovalItem] = []
 
     for receipt in to_remove:
         for raw in receipt.owned_paths:
             path = _resolve(raw, root)
+            norm_key = _normalise(raw, root)
 
             if not path.exists():
                 items.append(
@@ -143,15 +229,32 @@ def plan_removal(
                 )
                 continue
 
-            # Always keep the receipts file — it is shared project state.
-            if _is_receipts_file(path, root):
+            if path.is_symlink():
                 items.append(
                     RemovalItem(
                         path=raw,
                         tool_id=receipt.tool_id,
                         step_id=receipt.step_id,
                         action=RemovalAction.RETAIN,
-                        reason="Path is the shared receipts file; it must not be removed.",
+                        reason=(
+                            "Path is a symlink; removing it automatically is unsafe. "
+                            "Inspect and remove manually."
+                        ),
+                    )
+                )
+                continue
+
+            if _is_infrastructure(path, root):
+                items.append(
+                    RemovalItem(
+                        path=raw,
+                        tool_id=receipt.tool_id,
+                        step_id=receipt.step_id,
+                        action=RemovalAction.RETAIN,
+                        reason=(
+                            "Path is shared infrastructure (.stackwinnow prefix, "
+                            "receipts file, or operation lock); it must not be removed."
+                        ),
                     )
                 )
                 continue
@@ -171,7 +274,22 @@ def plan_removal(
                 )
                 continue
 
-            if raw in retained_paths:
+            if _is_project_data(norm_key, root):
+                items.append(
+                    RemovalItem(
+                        path=raw,
+                        tool_id=receipt.tool_id,
+                        step_id=receipt.step_id,
+                        action=RemovalAction.RETAIN,
+                        reason=(
+                            "Path holds project data (results, graphs, or reports) "
+                            "designated for retention."
+                        ),
+                    )
+                )
+                continue
+
+            if norm_key in retained_norm:
                 items.append(
                     RemovalItem(
                         path=raw,
@@ -181,6 +299,42 @@ def plan_removal(
                         reason=(
                             "Path is also referenced by a tool that is not being removed; "
                             "retaining for shared use."
+                        ),
+                    )
+                )
+                continue
+
+            # Inverse containment: retain a path that sits inside a retained directory.
+            if any(norm_key.startswith(rp + os.sep) for rp in retained_norm):
+                items.append(
+                    RemovalItem(
+                        path=raw,
+                        tool_id=receipt.tool_id,
+                        step_id=receipt.step_id,
+                        action=RemovalAction.RETAIN,
+                        reason=(
+                            "Path is inside a directory retained by another tool "
+                            "or a failed step; removing it would corrupt retained state."
+                        ),
+                    )
+                )
+                continue
+
+            # Containment: retain a directory that contains files owned by a
+            # retained tool, a failed step, or retained data (evidence/project data)
+            # within this removal batch.
+            if path.is_dir() and any(
+                rp.startswith(norm_key + os.sep) for rp in all_retained_norm
+            ):
+                items.append(
+                    RemovalItem(
+                        path=raw,
+                        tool_id=receipt.tool_id,
+                        step_id=receipt.step_id,
+                        action=RemovalAction.RETAIN,
+                        reason=(
+                            "Directory contains files referenced by a retained tool, "
+                            "a failed step, or retained project data."
                         ),
                     )
                 )
