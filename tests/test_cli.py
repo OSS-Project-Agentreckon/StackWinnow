@@ -131,7 +131,6 @@ def test_category_filter_and_show_json(tmp_path: Path) -> None:
     assert "schema_version" not in payload["tool"]
     assert payload["tool"]["license"] == "Apache-2.0"
     assert {reason["code"] for reason in payload["eligibility"]["reasons"]} == {
-        "adapter-unavailable",
         "prerequisites-unverified",
     }
 
@@ -171,7 +170,7 @@ def test_catalog_human_output_explains_limits(tmp_path: Path) -> None:
     assert result.returncode == 0
     for text in (
         "Graphify",
-        "Installation-ready: no",
+        "Catalog gates: not established",
         "Prerequisites:",
         "License scope:",
         "Sources:",
@@ -450,7 +449,7 @@ def test_recommend_human_output_and_unmatched_goal(tmp_path: Path) -> None:
         "Graphify",
         "Serena",
         "Why:",
-        "Setup: unavailable",
+        "Catalog gates: not established",
         "Alternatives",
         "Matched capabilities:",
         "code-relationships",

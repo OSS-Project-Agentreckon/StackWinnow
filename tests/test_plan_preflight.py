@@ -1,713 +1,401 @@
-"""Tests for pre-flight plan validation and existing-installation detection.
-
-No real tools are installed, no real environments are created, and no
-subprocess calls are made. External PATH detection is patched; managed
-environment directories are created as bare directories where needed.
-"""
-
-from __future__ import annotations
+"""Offline preliminary checks: no receipt, directory or PATH shortcut grants readiness."""
 
 import json
-from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 from stackwinnow.catalog import EligibilityContext, Platform, load_catalog
 from stackwinnow.contracts import InstallPlan, IntegrationAvailability, OperationStatus, PlanStep
-from stackwinnow.installer import _receipts_path
 from stackwinnow.plan import (
     PreflightCheck,
     PreflightError,
     PreflightReport,
     PreflightStatus,
     _find_external_executable,
-    _has_managed_env,
     check_plan,
 )
 
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
 
-_PROMPTFOO_STEP = PlanStep(
-    step_id="install-promptfoo",
-    tool_id="promptfoo",
-    description="Install promptfoo",
-)
+@pytest.fixture(autouse=True)
+def declared_host(monkeypatch):
+    """Exercise portable logic under explicit host facts, never actual upstream commands."""
+    monkeypatch.setattr("platform.system", lambda: "Darwin")
+    monkeypatch.setattr("platform.machine", lambda: "arm64")
+    monkeypatch.setattr("platform.python_implementation", lambda: "CPython")
+    monkeypatch.setattr("platform.python_version", lambda: "3.11.8")
+    monkeypatch.setattr("platform.mac_ver", lambda: ("14.7", (), "arm64"))
+    monkeypatch.setattr("shutil.which", lambda name: None)
 
-_HEADROOM_STEP = PlanStep(
-    step_id="install-headroom",
-    tool_id="headroom",
-    description="Install Headroom",
-)
+    def no_command(*args, **kwargs):
+        pytest.fail("Preflight must never execute commands.")
+
+    monkeypatch.setattr("subprocess.run", no_command)
+    monkeypatch.setattr("subprocess.Popen", no_command)
 
 
-def _plan(project_root: str, steps: list[PlanStep] | None = None) -> InstallPlan:
-    steps = steps or [_PROMPTFOO_STEP]
+def plan(root, *tools):
+    tools = tools or ("headroom",)
     return InstallPlan(
-        project_root=project_root,
-        tool_ids=[s.tool_id for s in steps],
-        steps=steps,
+        project_root=str(root),
+        assistant="codex",
+        tool_ids=list(tools),
+        steps=[
+            PlanStep(step_id=f"install-{t}", tool_id=t, description=f"Install {t}") for t in tools
+        ],
     )
 
 
-def _write_receipt(tmp_path: Path, step: PlanStep, status: str = "succeeded") -> None:
-    """Write a minimal receipt file recording one step outcome."""
-    receipts_dir = tmp_path / ".stackwinnow"
-    receipts_dir.mkdir(parents=True, exist_ok=True)
-    record = {
-        "schema_version": 1,
-        "project_root": str(tmp_path),
-        "steps": [
+def eligible(*tools):
+    """Supply catalog/prerequisite evidence independently from real mode support."""
+    catalog = load_catalog()
+    entries = tuple(
+        t.model_copy(
+            update={
+                "availability": IntegrationAvailability.ADAPTER_AVAILABLE,
+                "supported_platforms": [Platform.MACOS],
+                "supported_assistants": ["codex"],
+            }
+        )
+        if t.tool_id in tools
+        else t
+        for t in catalog.tools
+    )
+    return {
+        "catalog": catalog.model_copy(update={"tools": entries}),
+        "context": EligibilityContext(
+            platform=Platform.MACOS,
+            assistant="codex",
+            registered_adapters=list(tools),
+            prerequisite_checks={t: OperationStatus.SUCCEEDED for t in tools},
+        ),
+    }
+
+
+def receipt(root, *, tool="headroom", status="succeeded", step="install-headroom", dry_run=False):
+    state = root / ".stackwinnow"
+    state.mkdir(exist_ok=True)
+    path = state / "receipts.json"
+    path.write_text(
+        json.dumps(
             {
                 "schema_version": 1,
-                "step_id": step.step_id,
-                "tool_id": step.tool_id,
-                "status": status,
-                "message": f"Step {step.step_id}.",
-                "timestamp": "2026-11-19T00:00:00+00:00",
+                "project_root": str(root),
+                "steps": [
+                    {
+                        "schema_version": 1,
+                        "step_id": step,
+                        "tool_id": tool,
+                        "status": status,
+                        "message": "Past operation",
+                        "timestamp": "2026-11-19T00:00:00+00:00",
+                        "dry_run": dry_run,
+                    }
+                ],
             }
-        ],
+        )
+    )
+    return path
+
+
+def snapshot(root):
+    return {
+        str(p.relative_to(root)): p.read_bytes() if p.is_file() else None for p in root.rglob("*")
     }
-    (receipts_dir / "receipts.json").write_text(json.dumps(record), encoding="utf-8")
 
 
-def _make_managed_python_env(tmp_path: Path, tool_id: str) -> Path:
-    """Create the managed Python venv directory stub for tool_id."""
-    env_dir = tmp_path / ".stackwinnow" / "envs" / tool_id / "python"
-    env_dir.mkdir(parents=True, exist_ok=True)
-    return env_dir
-
-
-def _adapter_ready_catalog(*tool_ids: str) -> object:
-    """Return a catalog with the named tools set to adapter_available, macos, claude-code."""
-    catalog = load_catalog()
-    tools = []
-    for t in catalog.tools:
-        if t.tool_id in tool_ids:
-            tools.append(
-                t.model_copy(
-                    update={
-                        "availability": IntegrationAvailability.ADAPTER_AVAILABLE,
-                        "supported_platforms": [Platform.MACOS],
-                        "supported_assistants": ["claude-code"],
-                    },
-                    deep=True,
-                )
-            )
-        else:
-            tools.append(t)
-    return catalog.model_copy(update={"tools": tuple(tools)}, deep=True)
-
-
-def _ready_context(*tool_ids: str) -> EligibilityContext:
-    """Return a full eligibility context showing readiness for the named tools."""
-    return EligibilityContext(
-        platform=Platform.MACOS,
-        assistant="claude-code",
-        registered_adapters=list(tool_ids),
-        prerequisite_checks={tid: OperationStatus.SUCCEEDED for tid in tool_ids},
-    )
-
-
-# ---------------------------------------------------------------------------
-# PreflightReport properties
-# ---------------------------------------------------------------------------
-
-
-def test_report_is_ready_to_apply_when_all_ready(tmp_path: Path) -> None:
+@pytest.mark.parametrize("status", list(PreflightStatus))
+def test_only_explicit_ready_checks_grant_preliminary_readiness(tmp_path, status):
     report = PreflightReport(
         project_root=str(tmp_path),
         checks=[
             PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.READY,
-                message="ok",
-            )
-        ],
-    )
-    assert report.is_ready_to_apply
-
-
-def test_report_is_ready_to_apply_when_skip_managed(tmp_path: Path) -> None:
-    report = PreflightReport(
-        project_root=str(tmp_path),
-        checks=[
-            PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.SKIP_ALREADY_MANAGED,
-                message="skip",
-            )
-        ],
-    )
-    assert report.is_ready_to_apply
-
-
-def test_report_is_not_ready_when_blocked(tmp_path: Path) -> None:
-    report = PreflightReport(
-        project_root=str(tmp_path),
-        checks=[
-            PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.BLOCKED,
-                message="blocked",
-            )
-        ],
-    )
-    assert not report.is_ready_to_apply
-
-
-def test_report_is_not_ready_when_stale_receipt(tmp_path: Path) -> None:
-    report = PreflightReport(
-        project_root=str(tmp_path),
-        checks=[
-            PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.STALE_RECEIPT,
-                message="stale",
-            )
-        ],
-    )
-    assert not report.is_ready_to_apply
-
-
-def test_external_install_detected_does_not_block_apply(tmp_path: Path) -> None:
-    report = PreflightReport(
-        project_root=str(tmp_path),
-        checks=[
-            PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.EXTERNAL_INSTALL_DETECTED,
-                message="external",
-                external_path="/usr/local/bin/promptfoo",
-            )
-        ],
-    )
-    assert report.is_ready_to_apply
-
-
-def test_blocked_checks_returns_only_blocked(tmp_path: Path) -> None:
-    report = PreflightReport(
-        project_root=str(tmp_path),
-        checks=[
-            PreflightCheck(
-                step_id="s1",
-                tool_id="promptfoo",
-                status=PreflightStatus.READY,
-                message="ok",
-            ),
-            PreflightCheck(
-                step_id="s2",
+                step_id="install-headroom",
                 tool_id="headroom",
-                status=PreflightStatus.BLOCKED,
-                message="blocked",
-            ),
-        ],
-    )
-    blocked = report.blocked_checks
-    assert len(blocked) == 1
-    assert blocked[0].tool_id == "headroom"
-
-
-# ---------------------------------------------------------------------------
-# _has_managed_env
-# ---------------------------------------------------------------------------
-
-
-def test_has_managed_env_false_when_no_dirs(tmp_path: Path) -> None:
-    assert not _has_managed_env(str(tmp_path), "promptfoo")
-
-
-def test_has_managed_env_true_when_python_venv_exists(tmp_path: Path) -> None:
-    _make_managed_python_env(tmp_path, "headroom")
-    assert _has_managed_env(str(tmp_path), "headroom")
-
-
-def test_has_managed_env_false_for_different_tool(tmp_path: Path) -> None:
-    _make_managed_python_env(tmp_path, "headroom")
-    assert not _has_managed_env(str(tmp_path), "promptfoo")
-
-
-def test_has_managed_env_true_when_node_env_exists(tmp_path: Path) -> None:
-    node_dir = tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "node"
-    node_dir.mkdir(parents=True)
-    assert _has_managed_env(str(tmp_path), "promptfoo")
-
-
-def test_has_managed_env_false_when_regular_file_at_python_path(tmp_path: Path) -> None:
-    """A regular file at the env path must not be treated as a managed install."""
-    env_path = tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "python"
-    env_path.parent.mkdir(parents=True)
-    env_path.write_text("not a dir", encoding="utf-8")
-    assert not _has_managed_env(str(tmp_path), "promptfoo")
-
-
-def test_has_managed_env_false_when_symlink_at_python_path(tmp_path: Path) -> None:
-    """A symlink pointing at a directory must not be treated as a managed install."""
-    real_dir = tmp_path / "real-env"
-    real_dir.mkdir()
-    env_path = tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "python"
-    env_path.parent.mkdir(parents=True)
-    env_path.symlink_to(real_dir)
-    assert not _has_managed_env(str(tmp_path), "promptfoo")
-
-
-# ---------------------------------------------------------------------------
-# _find_external_executable
-# ---------------------------------------------------------------------------
-
-
-def test_find_external_returns_none_when_not_on_path(tmp_path: Path) -> None:
-    with patch("shutil.which", return_value=None):
-        assert _find_external_executable(str(tmp_path), "promptfoo") is None
-
-
-def test_find_external_returns_path_when_on_system_path(tmp_path: Path) -> None:
-    external = "/usr/local/bin/promptfoo"
-    with patch("shutil.which", return_value=external):
-        result = _find_external_executable(str(tmp_path), "promptfoo")
-    assert result == external
-
-
-def test_find_external_returns_none_when_inside_managed_root(tmp_path: Path) -> None:
-    managed_bin = str(
-        tmp_path / ".stackwinnow" / "envs" / "promptfoo" / "node" / ".bin" / "promptfoo"
-    )
-    with patch("shutil.which", return_value=managed_bin):
-        assert _find_external_executable(str(tmp_path), "promptfoo") is None
-
-
-def test_find_external_returns_path_for_sibling_managed_root(tmp_path: Path) -> None:
-    """A tool in .stackwinnow-backup (string-prefix sibling) must not be hidden."""
-    sibling_bin = str(
-        tmp_path / ".stackwinnow-backup" / "envs" / "promptfoo" / "node" / ".bin" / "promptfoo"
-    )
-    with patch("shutil.which", return_value=sibling_bin):
-        result = _find_external_executable(str(tmp_path), "promptfoo")
-    assert result == sibling_bin
-
-
-# ---------------------------------------------------------------------------
-# check_plan — READY path
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_ready_for_uninstalled_eligible_tool(tmp_path: Path) -> None:
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = _ready_context("promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert len(report.checks) == 1
-    assert report.checks[0].status == PreflightStatus.READY
-    assert report.is_ready_to_apply
-
-
-def test_check_plan_reports_project_root(tmp_path: Path) -> None:
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = _ready_context("promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert report.project_root == str(tmp_path)
-
-
-def test_check_plan_ready_carries_step_and_tool_ids(tmp_path: Path) -> None:
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = _ready_context("promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    check = report.checks[0]
-    assert check.step_id == "install-promptfoo"
-    assert check.tool_id == "promptfoo"
-
-
-def test_check_plan_produces_one_check_per_step(tmp_path: Path) -> None:
-    catalog = _adapter_ready_catalog("promptfoo", "headroom")
-    context = _ready_context("promptfoo", "headroom")
-    plan = _plan(str(tmp_path), steps=[_PROMPTFOO_STEP, _HEADROOM_STEP])
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan, catalog=catalog, context=context)
-    assert len(report.checks) == 2
-
-
-def test_check_plan_empty_plan_returns_empty_report(tmp_path: Path) -> None:
-    plan = InstallPlan(project_root=str(tmp_path), tool_ids=[], steps=[])
-    report = check_plan(plan)
-    assert report.checks == []
-    assert report.is_ready_to_apply
-
-
-# ---------------------------------------------------------------------------
-# check_plan — BLOCKED: tool not in catalog
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_blocked_when_tool_not_in_catalog(tmp_path: Path) -> None:
-    plan = InstallPlan(
-        project_root=str(tmp_path),
-        tool_ids=["no-such-tool"],
-        steps=[
-            PlanStep(
-                step_id="install-no-such-tool",
-                tool_id="no-such-tool",
-                description="Install something not in the catalog",
+                status=status,
+                message="Observation",
             )
         ],
     )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert not report.is_ready_to_apply
+    assert report.is_ready_to_apply == (status == PreflightStatus.READY)
+    assert bool(report.blocked_checks) == (status == PreflightStatus.BLOCKED)
+    assert PreflightReport.model_validate_json(report.model_dump_json()) == report
 
 
-def test_check_plan_blocked_message_names_missing_tool(tmp_path: Path) -> None:
-    plan = InstallPlan(
-        project_root=str(tmp_path),
-        tool_ids=["no-such-tool"],
-        steps=[
-            PlanStep(
-                step_id="install-no-such-tool",
-                tool_id="no-such-tool",
-                description="Install something not in the catalog",
-            )
-        ],
+def test_empty_plan_is_not_actionable(tmp_path):
+    report = check_plan(InstallPlan(project_root=str(tmp_path), tool_ids=[], steps=[]))
+    assert report.checks == [] and not report.is_ready_to_apply
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_fresh_eligible_plan_has_only_preliminary_readiness_and_is_pure(tmp_path):
+    before = snapshot(tmp_path)
+    report = check_plan(
+        plan(tmp_path, "headroom", "promptfoo"), **eligible("headroom", "promptfoo")
     )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan)
-    assert "no-such-tool" in report.checks[0].message
+    assert report.is_ready_to_apply
+    assert [c.step_id for c in report.checks] == ["install-headroom", "install-promptfoo"]
+    assert all("preliminary" in c.message for c in report.checks)
+    assert all("workflow plan" in c.reasons[0] for c in report.checks)
+    assert snapshot(tmp_path) == before
 
 
-# ---------------------------------------------------------------------------
-# check_plan — BLOCKED: unresolved license
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"platform": None},
+        {"platform": Platform.LINUX},
+        {"assistant": None},
+        {"prerequisite_checks": {}},
+        {"prerequisite_checks": {"headroom": OperationStatus.FAILED}},
+        {"registered_adapters": []},
+    ],
+)
+@pytest.mark.parametrize("existing", ["receipt", "external"])
+def test_existing_observations_never_bypass_eligibility(tmp_path, monkeypatch, override, existing):
+    args = eligible("headroom")
+    args["context"] = args["context"].model_copy(update=override)
+    if existing == "receipt":
+        receipt(tmp_path)
+        (tmp_path / ".stackwinnow/envs/headroom/python").mkdir(parents=True)
+    else:
+        monkeypatch.setattr("shutil.which", lambda name: "/usr/local/bin/headroom")
+    before = snapshot(tmp_path)
+    report = check_plan(plan(tmp_path), **args)
+    assert report.checks[0].status == "blocked" and not report.is_ready_to_apply
+    assert "eligible" in report.checks[0].message
+    assert snapshot(tmp_path) == before
 
 
-def test_check_plan_blocked_when_license_unresolved(tmp_path: Path) -> None:
-    catalog = load_catalog()
-    # Reuse a real entry but patch its license_review field via model_copy
-    patched = catalog.get("promptfoo").model_copy(
-        update={"license_review": "unresolved"}, deep=True
-    )
-    patched_catalog = catalog.model_copy(
-        update={"tools": tuple(patched if t.tool_id == "promptfoo" else t for t in catalog.tools)},
-        deep=True,
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=patched_catalog)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert any("license" in r.lower() for r in report.checks[0].reasons)
-
-
-# ---------------------------------------------------------------------------
-# check_plan — BLOCKED: missing eligibility evidence (P1 regressions)
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_blocked_when_prerequisites_failed(tmp_path: Path) -> None:
-    """Failed prerequisite check must block even when all other evidence is present."""
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = EligibilityContext(
-        platform=Platform.MACOS,
-        assistant="claude-code",
-        registered_adapters=["promptfoo"],
-        prerequisite_checks={"promptfoo": OperationStatus.FAILED},
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert any("prerequisite" in r.lower() for r in report.checks[0].reasons)
-
-
-def test_check_plan_blocked_when_adapter_unavailable(tmp_path: Path) -> None:
-    """catalog_only availability must block even with a full eligibility context."""
-    # promptfoo is catalog_only in the unpatched catalog
-    context = _ready_context("promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert any("adapter" in r.lower() for r in report.checks[0].reasons)
-
-
-def test_check_plan_blocked_when_platform_unknown(tmp_path: Path) -> None:
-    """No platform in the context must block — absent evidence is not readiness."""
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = EligibilityContext(
-        assistant="claude-code",
-        registered_adapters=["promptfoo"],
-        prerequisite_checks={"promptfoo": OperationStatus.SUCCEEDED},
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-
-
-# ---------------------------------------------------------------------------
-# check_plan — BLOCKED: platform mismatch
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_blocked_when_platform_unsupported(tmp_path: Path) -> None:
-    catalog = load_catalog()
-    # Pin promptfoo to only macos so we can test a linux mismatch
-    patched = catalog.get("promptfoo").model_copy(
-        update={"supported_platforms": [Platform.MACOS]}, deep=True
-    )
-    patched_catalog = catalog.model_copy(
-        update={"tools": tuple(patched if t.tool_id == "promptfoo" else t for t in catalog.tools)},
-        deep=True,
-    )
-    context = EligibilityContext(platform=Platform.LINUX)
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=patched_catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert not report.is_ready_to_apply
-
-
-def test_check_plan_ready_when_platform_matches(tmp_path: Path) -> None:
-    catalog = _adapter_ready_catalog("promptfoo")  # supported_platforms=[MACOS]
-    context = _ready_context("promptfoo")  # platform=MACOS
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.READY
-
-
-def test_check_plan_blocked_when_platform_unverified(tmp_path: Path) -> None:
-    """An empty supported_platforms list means 'unverified' — conservative gate blocks it."""
-    catalog = load_catalog()
-    # Patch promptfoo to be adapter_available but with no documented platforms
-    patched = catalog.get("promptfoo").model_copy(
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"license_review": "unresolved"},
+        {"availability": IntegrationAvailability.CATALOG_ONLY},
+    ],
+)
+def test_license_and_catalog_gates_survive_external_presence(tmp_path, monkeypatch, change):
+    args = eligible("headroom")
+    cat = args["catalog"]
+    args["catalog"] = cat.model_copy(
         update={
-            "availability": IntegrationAvailability.ADAPTER_AVAILABLE,
-            "supported_platforms": [],
-            "supported_assistants": ["claude-code"],
-        },
-        deep=True,
+            "tools": tuple(
+                t.model_copy(update=change) if t.tool_id == "headroom" else t for t in cat.tools
+            )
+        }
     )
-    patched_catalog = catalog.model_copy(
-        update={"tools": tuple(patched if t.tool_id == "promptfoo" else t for t in catalog.tools)},
-        deep=True,
-    )
-    context = EligibilityContext(
-        platform=Platform.LINUX,
-        assistant="claude-code",
-        registered_adapters=["promptfoo"],
-        prerequisite_checks={"promptfoo": OperationStatus.SUCCEEDED},
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=patched_catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
+    monkeypatch.setattr("shutil.which", lambda name: "/usr/local/bin/headroom")
+    assert not check_plan(plan(tmp_path), **args).is_ready_to_apply
 
 
-# ---------------------------------------------------------------------------
-# check_plan — SKIP_ALREADY_MANAGED
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_skip_when_receipt_succeeded_and_env_exists(tmp_path: Path) -> None:
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
-    assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
-    assert report.is_ready_to_apply
-
-
-def test_check_plan_skip_message_names_tool(tmp_path: Path) -> None:
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
-    assert "promptfoo" in report.checks[0].message
-
-
-def test_check_plan_not_skipped_when_receipt_failed(tmp_path: Path) -> None:
-    """A FAILED receipt does not cause skip — the step should be retried."""
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="failed")
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = _ready_context("promptfoo")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)), catalog=catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.READY
-
-
-def test_check_plan_not_skipped_for_different_tool_same_step_id(tmp_path: Path) -> None:
-    """is_succeeded checks both step_id AND tool_id — different tool must not skip."""
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    # Plan uses headroom with the SAME step_id as the promptfoo receipt
-    headroom_step = PlanStep(
-        step_id="install-promptfoo",  # same step_id
-        tool_id="headroom",  # different tool_id
-        description="Install Headroom with the same step id",
-    )
-    plan = InstallPlan(project_root=str(tmp_path), tool_ids=["headroom"], steps=[headroom_step])
-    catalog = _adapter_ready_catalog("headroom")
-    context = _ready_context("headroom")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan, catalog=catalog, context=context)
-    # The receipt is for promptfoo, not headroom — headroom must not be skipped
-    assert report.checks[0].status == PreflightStatus.READY
-
-
-# ---------------------------------------------------------------------------
-# check_plan — STALE_RECEIPT
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_stale_when_receipt_succeeded_but_env_gone(tmp_path: Path) -> None:
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    # Intentionally do NOT create the managed env
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
-    assert report.checks[0].status == PreflightStatus.STALE_RECEIPT
+@pytest.mark.parametrize("tool", ["serena", "unknown-tool"])
+def test_registry_cannot_be_invented_by_context_or_path(tmp_path, monkeypatch, tool):
+    monkeypatch.setattr("shutil.which", lambda name: f"/usr/local/bin/{name}")
+    report = check_plan(plan(tmp_path, tool), **eligible(tool))
+    assert report.checks[0].status == "blocked"
     assert not report.is_ready_to_apply
 
 
-def test_check_plan_stale_message_names_tool(tmp_path: Path) -> None:
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path)))
-    assert "promptfoo" in report.checks[0].message
+@pytest.mark.parametrize(
+    "fact,value,tool",
+    [
+        ("system", "Linux", "headroom"),
+        ("machine", "x86_64", "promptfoo"),
+        ("python_version", "3.14.0", "graphify"),
+        ("python_implementation", "PyPy", "graphify"),
+    ],
+)
+def test_real_supported_host_gates_cannot_be_bypassed_by_target_context(
+    tmp_path, monkeypatch, fact, value, tool
+):
+    monkeypatch.setattr(f"platform.{fact}", lambda: value)
+    report = check_plan(plan(tmp_path, tool), **eligible(tool))
+    assert not report.is_ready_to_apply and "host" in report.checks[0].message
 
 
-# ---------------------------------------------------------------------------
-# check_plan — SKIP / STALE across run IDs (P2 line 161 regressions)
-# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("status", ["succeeded", "failed", "blocked", "skipped"])
+@pytest.mark.parametrize("step", ["install-headroom", "verify-headroom", "remove-headroom"])
+@pytest.mark.parametrize("environment", [False, True])
+def test_any_tool_history_requires_recipe_review_without_claiming_ownership(
+    tmp_path, status, step, environment
+):
+    receipt(tmp_path, status=status, step=step)
+    if environment:
+        (tmp_path / ".stackwinnow/envs/headroom/python").mkdir(parents=True)
+    before = snapshot(tmp_path)
+    report = check_plan(plan(tmp_path), **eligible("headroom"))
+    assert report.checks[0].status == "blocked" and not report.is_ready_to_apply
+    assert "workflow review" in report.checks[0].message
+    advice = " ".join(report.checks[0].reasons)
+    assert "preserve receipts" in advice and "clear the receipt" not in advice
+    assert snapshot(tmp_path) == before
 
 
-def test_check_plan_skip_with_fresh_step_id_when_env_exists(tmp_path: Path) -> None:
-    """A new step_id for the same tool must still produce SKIP when the env is present."""
-    old_step = PlanStep(
-        step_id="install-promptfoo-run1", tool_id="promptfoo", description="Install promptfoo"
+def test_dry_run_receipt_does_not_establish_existing_installation(tmp_path):
+    receipt(tmp_path, dry_run=True)
+    assert check_plan(plan(tmp_path), **eligible("headroom")).is_ready_to_apply
+
+
+@pytest.mark.parametrize("relative", ["headroom", "headroom/python", "headroom/node"])
+def test_empty_environment_requires_review_even_without_receipts(tmp_path, relative):
+    (tmp_path / ".stackwinnow/envs" / relative).mkdir(parents=True)
+    report = check_plan(plan(tmp_path), **eligible("headroom"))
+    assert not report.is_ready_to_apply and "workflow review" in report.checks[0].message
+
+
+@pytest.mark.parametrize(
+    "relative",
+    [
+        ".stackwinnow",
+        ".stackwinnow/envs",
+        ".stackwinnow/envs/headroom",
+        ".stackwinnow/envs/headroom/python",
+        ".stackwinnow/envs/headroom/node",
+    ],
+)
+@pytest.mark.parametrize("kind", ["symlink", "file"])
+def test_unsafe_environment_ancestors_rejected_even_when_context_is_ineligible(
+    tmp_path, relative, kind
+):
+    path = tmp_path / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if kind == "symlink":
+        target = tmp_path / "outside"
+        target.mkdir()
+        (target / "python").mkdir()
+        path.symlink_to(target)
+    else:
+        path.write_text("occupied")
+    with pytest.raises(PreflightError, match="real directories"):
+        check_plan(plan(tmp_path))
+
+
+@pytest.mark.parametrize(
+    "problem",
+    [
+        "invalid-json",
+        "duplicate-key",
+        "duplicate-step",
+        "other-project",
+        "oversize",
+        "symlink",
+        "hardlink",
+        "fifo",
+    ],
+)
+def test_receipts_are_bounded_unambiguous_and_preserved(tmp_path, problem):
+    path = receipt(tmp_path)
+    raw = path.read_text()
+    if problem == "invalid-json":
+        path.write_text("{")
+    elif problem == "duplicate-key":
+        path.write_text('{"schema_version":1,' + raw[1:])
+    elif problem == "duplicate-step":
+        data = json.loads(raw)
+        data["steps"] *= 2
+        path.write_text(json.dumps(data))
+    elif problem == "other-project":
+        data = json.loads(raw)
+        data["project_root"] = str(tmp_path / "other")
+        path.write_text(json.dumps(data))
+    elif problem == "oversize":
+        path.write_text(" " * (4 * 1024 * 1024 + 1))
+    else:
+        path.unlink()
+        target = tmp_path / "outside.json"
+        target.write_text(raw)
+        if problem == "symlink":
+            path.symlink_to(target)
+        elif problem == "hardlink":
+            path.hardlink_to(target)
+        else:
+            import os
+
+            os.mkfifo(path)
+    before = path.lstat()
+    with pytest.raises(PreflightError):
+        check_plan(plan(tmp_path), **eligible("headroom"))
+    after = path.lstat()
+    assert (before.st_ino, before.st_size, before.st_mtime_ns) == (
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
     )
-    _write_receipt(tmp_path, old_step, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    new_step = PlanStep(
-        step_id="install-promptfoo-run2", tool_id="promptfoo", description="Install promptfoo"
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path), steps=[new_step]))
-    assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
 
 
-def test_check_plan_stale_with_fresh_step_id_when_env_gone(tmp_path: Path) -> None:
-    """A new step_id for the same tool must surface STALE when the env has been removed."""
-    old_step = PlanStep(
-        step_id="install-promptfoo-run1", tool_id="promptfoo", description="Install promptfoo"
-    )
-    _write_receipt(tmp_path, old_step, status="succeeded")
-    # Intentionally do NOT create the managed env
-    new_step = PlanStep(
-        step_id="install-promptfoo-run2", tool_id="promptfoo", description="Install promptfoo"
-    )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(_plan(str(tmp_path), steps=[new_step]))
-    assert report.checks[0].status == PreflightStatus.STALE_RECEIPT
-
-
-# ---------------------------------------------------------------------------
-# check_plan — EXTERNAL_INSTALL_DETECTED
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_external_install_detected(tmp_path: Path) -> None:
-    external = "/usr/local/bin/promptfoo"
-    with patch("shutil.which", return_value=external):
-        report = check_plan(_plan(str(tmp_path)))
+def test_external_path_is_observation_not_readiness(tmp_path, monkeypatch):
+    external = "/usr/local/bin/headroom"
+    monkeypatch.setattr("shutil.which", lambda name: external)
+    report = check_plan(plan(tmp_path), **eligible("headroom"))
     check = report.checks[0]
-    assert check.status == PreflightStatus.EXTERNAL_INSTALL_DETECTED
-    assert check.external_path == external
-    assert report.is_ready_to_apply  # external does NOT block apply
+    assert check.status == "external-install-detected" and check.external_path == external
+    assert not report.is_ready_to_apply and external in check.message
 
 
-def test_check_plan_external_path_in_message(tmp_path: Path) -> None:
-    external = "/usr/local/bin/promptfoo"
-    with patch("shutil.which", return_value=external):
-        report = check_plan(_plan(str(tmp_path)))
-    assert external in report.checks[0].message
+@pytest.mark.parametrize(
+    "location,external",
+    [
+        (".stackwinnow/envs/headroom/bin/tool", False),
+        (".stackwinnow-backup/bin/tool", True),
+        ("user-bin/tool", True),
+    ],
+)
+def test_external_path_detection_uses_path_boundaries(tmp_path, monkeypatch, location, external):
+    path = str(tmp_path / location)
+    monkeypatch.setattr("shutil.which", lambda name: path)
+    assert _find_external_executable(str(tmp_path), "headroom") == (path if external else None)
 
 
-def test_check_plan_managed_install_takes_priority_over_external(tmp_path: Path) -> None:
-    """If managed install exists with a succeeded receipt, skip takes priority over external."""
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    external = "/usr/local/bin/promptfoo"
-    with patch("shutil.which", return_value=external):
-        report = check_plan(_plan(str(tmp_path)))
-    assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
-
-
-# ---------------------------------------------------------------------------
-# check_plan — PreflightError on corrupt receipts
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_raises_preflight_error_on_corrupt_receipts(tmp_path: Path) -> None:
-    receipts_dir = tmp_path / ".stackwinnow"
-    receipts_dir.mkdir()
-    (receipts_dir / "receipts.json").write_text("not valid json", encoding="utf-8")
-    with pytest.raises(PreflightError, match="corrupt"):
-        check_plan(_plan(str(tmp_path)))
-
-
-def test_check_plan_raises_preflight_error_on_project_root_mismatch(tmp_path: Path) -> None:
-    project_a = tmp_path / "a"
-    project_b = tmp_path / "b"
-    project_a.mkdir()
-    project_b.mkdir()
-
-    # Write a valid receipt for project_a
-    _write_receipt(project_a, _PROMPTFOO_STEP, status="succeeded")
-    # Copy it into project_b's state directory
-    (project_b / ".stackwinnow").mkdir()
-    receipts_a = _receipts_path(str(project_a))
-    (project_b / ".stackwinnow" / "receipts.json").write_bytes(receipts_a.read_bytes())
-
-    with pytest.raises(PreflightError, match="project root"):
-        check_plan(_plan(str(project_b)))
-
-
-# ---------------------------------------------------------------------------
-# check_plan — multi-step plans
-# ---------------------------------------------------------------------------
-
-
-def test_check_plan_checks_each_step_independently(tmp_path: Path) -> None:
-    _write_receipt(tmp_path, _PROMPTFOO_STEP, status="succeeded")
-    _make_managed_python_env(tmp_path, "promptfoo")
-    catalog = _adapter_ready_catalog("promptfoo", "headroom")
-    context = _ready_context("promptfoo", "headroom")
-    plan = _plan(str(tmp_path), steps=[_PROMPTFOO_STEP, _HEADROOM_STEP])
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan, catalog=catalog, context=context)
-    assert len(report.checks) == 2
-    assert report.checks[0].status == PreflightStatus.SKIP_ALREADY_MANAGED
-    assert report.checks[1].status == PreflightStatus.READY
-
-
-def test_check_plan_blocked_step_does_not_affect_others(tmp_path: Path) -> None:
-    """Other steps are still individually checked even if one step is blocked."""
-    catalog = _adapter_ready_catalog("promptfoo")
-    context = _ready_context("promptfoo")
-    plan = InstallPlan(
-        project_root=str(tmp_path),
-        tool_ids=["no-such-tool", "promptfoo"],
-        steps=[
-            PlanStep(
-                step_id="install-no-such-tool",
-                tool_id="no-such-tool",
-                description="Install absent tool",
-            ),
-            _PROMPTFOO_STEP,
-        ],
+def test_history_is_tool_specific_and_steps_are_independent(tmp_path):
+    receipt(tmp_path, tool="promptfoo", step="install-headroom")
+    report = check_plan(
+        plan(tmp_path, "promptfoo", "headroom", "unknown-tool"), **eligible("promptfoo", "headroom")
     )
-    with patch("shutil.which", return_value=None):
-        report = check_plan(plan, catalog=catalog, context=context)
-    assert report.checks[0].status == PreflightStatus.BLOCKED
-    assert report.checks[1].status == PreflightStatus.READY
-    assert not report.is_ready_to_apply  # one blocked step stops the whole plan
+    assert [c.status for c in report.checks] == ["blocked", "ready", "blocked"]
+    assert len(report.blocked_checks) == 2 and not report.is_ready_to_apply
+
+
+@pytest.mark.parametrize("tool", ["graphify", "playwright-mcp"])
+@pytest.mark.parametrize("assistant", [None, "cursor"])
+def test_codex_mode_requires_explicit_codex_selection(tmp_path, tool, assistant):
+    args = eligible(tool)
+    if assistant:
+        args["context"].assistant = assistant
+        catalog = args["catalog"]
+        args["catalog"] = catalog.model_copy(
+            update={
+                "tools": tuple(
+                    t.model_copy(update={"supported_assistants": [assistant]})
+                    if t.tool_id == tool
+                    else t
+                    for t in catalog.tools
+                )
+            }
+        )
+    request = plan(tmp_path, tool).model_copy(update={"assistant": assistant})
+    report = check_plan(request, **args)
+    assert not report.is_ready_to_apply and "assistant" in report.checks[0].message
+
+
+def test_plan_and_context_assistants_cannot_disagree(tmp_path):
+    request = plan(tmp_path).model_copy(update={"assistant": "cursor"})
+    report = check_plan(request, **eligible("headroom"))
+    assert not report.is_ready_to_apply and "assistant" in report.checks[0].message
+
+
+@pytest.mark.parametrize("tool", ["graphify", "playwright-mcp"])
+def test_upstream_linux_support_is_not_local_mode_support(tmp_path, tool):
+    args = eligible(tool)
+    args["context"].platform = Platform.LINUX
+    catalog = args["catalog"]
+    args["catalog"] = catalog.model_copy(
+        update={
+            "tools": tuple(
+                t.model_copy(update={"supported_platforms": [Platform.LINUX]})
+                if t.tool_id == tool
+                else t
+                for t in catalog.tools
+            )
+        }
+    )
+    report = check_plan(plan(tmp_path, tool), **args)
+    assert not report.is_ready_to_apply and "target" in report.checks[0].message

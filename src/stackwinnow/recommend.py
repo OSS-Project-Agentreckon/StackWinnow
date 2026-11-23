@@ -20,6 +20,7 @@ from stackwinnow.catalog import (
 )
 from stackwinnow.contracts import Contract, Identifier, NonEmptyText
 from stackwinnow.detect import InspectionResult
+from stackwinnow.supported import supported_modes
 
 
 class RecommendationError(ValueError):
@@ -81,6 +82,12 @@ class _GoalRule:
 
 
 _RULES = (
+    _GoalRule(
+        "browser-automation",
+        ("browser automation", "automate the browser", "automate browser", "browser testing"),
+        frozenset({"browser-automation"}),
+        "Provides browser automation for the requested goal; review the supported client mode.",
+    ),
     _GoalRule(
         "code-navigation",
         (
@@ -182,6 +189,7 @@ _RULES = (
 
 # Distribution/package names are exact aliases, not substring matches or installed-state checks.
 _PYTHON_PACKAGES = {
+    "headroom-ai": "headroom",
     "graphifyy": "graphify",
     "gptcache": "gptcache",
     "deepeval": "deepeval",
@@ -313,11 +321,13 @@ def recommend_tools(
                 )
                 matched_goals.update(matches)
     context = EligibilityContext.from_profile(inspection.profile)
+    modes = {mode.tool_id: mode for mode in supported_modes()}
     context = EligibilityContext.model_validate(
         {
             **context.model_dump(),
             "platform": platform if platform is not None else context.platform,
             "selected_tools": selected,
+            "registered_adapters": list(modes),
         }
     )
     recommendations = []
@@ -335,7 +345,17 @@ def recommend_tools(
                 alternatives=sorted(tool.alternatives),
                 conflicts_with=sorted(set(tool.conflicts) & reasons.keys()),
                 eligibility=evaluate_eligibility(tool, context),
-                limitations=tool.limitations,
+                limitations=[
+                    *tool.limitations,
+                    (
+                        f"StackWinnow mode: {modes[tool_id].mode} @ {modes[tool_id].version}. "
+                        + "Requires "
+                        + ", ".join(modes[tool_id].requirements)
+                        + ". Use workflow plan for a live review; catalog compatibility is separate."
+                    )
+                    if tool_id in modes
+                    else "No executable StackWinnow mode is registered for this catalog tool.",
+                ],
             )
         )
 
@@ -365,7 +385,9 @@ def recommend_tools(
         else ("unrestricted" if preference == "any" else "unverified")
     )
     notes = [
-        "Matches describe potential fit. No installation or runtime prerequisites were checked."
+        "Matches describe potential fit. No installation or runtime prerequisites were checked.",
+        "Catalog eligibility describes upstream metadata and supplied observations; "
+        "use 'workflow modes' and a fresh workflow plan for executable support.",
     ]
     if not inspection.complete:
         notes.append(

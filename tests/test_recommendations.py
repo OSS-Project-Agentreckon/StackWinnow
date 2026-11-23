@@ -32,6 +32,41 @@ def test_navigation_and_evaluation_have_different_explained_matches():
     assert not navigation.unmatched_goals and not evaluation.unmatched_goals
 
 
+@pytest.mark.parametrize("package", ["headroom-ai", "Headroom_AI", "HEADROOM.AI"])
+@pytest.mark.parametrize("optional", [False, True])
+def test_actual_headroom_distribution_is_recognized(tmp_path, package, optional):
+    manifest = (
+        '[project.optional-dependencies]\ncompression = ["' + package + '==0.44.0"]\n'
+        if optional
+        else '[project]\nname = "example"\ndependencies = ["' + package + '==0.44.0"]\n'
+    )
+    (tmp_path / "pyproject.toml").write_text(manifest)
+    result = recommend_tools(inspect_project(tmp_path))
+    assert ids(result) == ["headroom"]
+    match = result.recommendations[0]
+    assert match.already_declared and not match.eligibility.installable
+    assert match.reasons[0].values == ["headroom-ai"]
+    assert "installation" in match.reasons[0].message
+
+
+@pytest.mark.parametrize("goal", ["Browser automation", "automate the browser", "browser-testing"])
+def test_browser_goals_match_capabilities_and_explain_local_mode(goal):
+    result = recommend_tools(profile(goal))
+    assert ids(result) == ["playwright-mcp"] and not result.unmatched_goals
+    match = result.recommendations[0]
+    assert match.reasons[0].matched_capabilities == ["browser-automation"]
+    assert any("StackWinnow mode: codex" in note for note in match.limitations)
+    assert not match.eligibility.installable
+
+
+@pytest.mark.parametrize(
+    "goal", ["do not automate browser", "if browser automation helps", "web hosting"]
+)
+def test_browser_rule_does_not_invent_intent(goal):
+    result = recommend_tools(profile(goal))
+    assert not result.recommendations and result.unmatched_goals == [goal]
+
+
 def test_cost_matches_explain_tradeoffs_without_promising_savings():
     result = recommend_tools(profile("Reduce costs"))
     assert {"headroom", "llmlingua", "gptcache", "litellm"} <= set(ids(result))
@@ -254,9 +289,7 @@ def test_alternatives_are_not_installation_conflicts():
 
 
 def test_catalog_only_matches_never_become_ready_from_goal_or_selection():
-    result = recommend_tools(
-        profile("Evaluate answers", selected_tools=["promptfoo"]), platform="macos"
-    )
+    result = recommend_tools(profile(selected_tools=["serena"]), platform="macos")
     assert result.target_platform == "macos"
     assert result.inspection.profile.operating_system is None
     for item in result.recommendations:

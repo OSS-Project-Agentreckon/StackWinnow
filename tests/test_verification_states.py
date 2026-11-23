@@ -422,11 +422,11 @@ def test_preflight_managed_state_does_not_establish_functional_readiness(onboard
     root = onboard()
     plan = adapter.plan_promptfoo(root)
     preflight = check_plan(plan.installation)
-    assert preflight.is_ready_to_apply
-    assert all(item.status == "skip-already-managed" for item in preflight.checks)
+    assert not preflight.is_ready_to_apply
+    assert all(item.status == "blocked" for item in preflight.checks)
     assert not check(root, commands).ready
     (root / plan.configuration.relative_path).write_text('{"modified":true}')
-    assert check_plan(plan.installation).is_ready_to_apply
+    assert not check_plan(plan.installation).is_ready_to_apply
     result = check(root, commands, run_functional=True)
     assert dimensions(result)["configured"].status == "failed" and not result.ready
     assert commands.count("eval") == 1

@@ -144,3 +144,9 @@ execution boundary. Only declared successful receipt transitions and reviewed
 configuration effects advance expected state; serialized commands or credentials
 are not executable inputs. See [A02 evidence](evidence/unified-workflow.md) for the
 checks actually run and the later full combination acceptance boundary.
+
+
+Discovery remains useful for partial projects: `workflow inspect` returns 1 if a
+supported manifest is malformed, while preserving valid findings and diagnostics.
+It returns 0 for complete inspection, including an empty/no-match result, and 2
+for an invalid request. This matches the standalone `recommend` command.

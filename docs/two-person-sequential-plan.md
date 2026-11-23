@@ -14,6 +14,25 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
+## A04 recommendations and preliminary setup checks
+
+A04 is implemented on `feat/a04-recommendation-acceptance`, stacked on A03 PR #38.
+Discovery commit `17e98be` adds Headroom/browser matches and registry-derived mode
+explanations. Preflight commit `9570581` removes receipt/environment/PATH readiness
+shortcuts and validates actual host, target and assistant constraints. CLI acceptance
+cases and portable Headroom logic checks are prepared; incomplete workflow inspection
+now returns exit 1. See [implementation evidence](evidence/recommendation-acceptance.md).
+
+The user explicitly deferred rigorous testing. Earlier focused runs passed 284 and
+102 overlapping cases; final mode-gate sanity passed 7 cases. Lint/format/diff checks
+passed. Final full suite, installed package/CLI, Python 3.14, actual profile combinations,
+new benchmarks and release acceptance are deferred. CI stays enabled. Implementation
+proceeds directly to A06 packaging/licenses/CI, then A07 docs/report and A08 artifact
+preparation; A05 validation remains a backlog, not a completed acceptance milestone.
+Publication uses a stacked PR; no merge/release/submission is implied.
+
+### Previous A03 checkpoint
+
 A03 portable profiles are implemented on feat/a03-portable-profiles, based on
 published A02 PR #37 at 436992c. Core 9539895 and CLI 73e06e8 are committed
 and pushed. Versioned allowlist export/import, four example profiles, destination

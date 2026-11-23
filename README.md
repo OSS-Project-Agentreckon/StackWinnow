@@ -121,6 +121,7 @@ limits, and API handoff.
 stackwinnow recommend . --goal "Understand relationships across source files"
 stackwinnow recommend . --goal "Evaluate answers" --tool promptfoo --json
 stackwinnow recommend . --goal "Reduce context tokens" --model-preference local
+stackwinnow recommend . --goal "Browser automation"
 ```
 
 Recommendations explain matches using declared dependencies, explicit choices,
@@ -132,6 +133,12 @@ Tool fit and installation readiness are separate. Local/hosted model support is
 reported as unverified where the catalog lacks evidence. See
 [recommendation rules](docs/recommendation-rules.md) for supported phrases,
 ranking, dependency aliases, JSON output, and the Python API.
+
+Headroom declarations (`headroom-ai`, including normalized spellings) and browser
+automation goals are recognized. Catalog gates describe preliminary eligibility;
+`workflow modes` lists the four executable modes and their narrower requirements.
+Recommendations and PATH executables never establish a working managed setup.
+Use a reviewed workflow plan for installation and fresh checks for readiness.
 
 ## Preview Graphify setup
 

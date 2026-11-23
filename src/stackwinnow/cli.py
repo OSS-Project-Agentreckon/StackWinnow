@@ -426,7 +426,10 @@ def _show_recommendations(result: RecommendationResult) -> None:
             print(f"    Why: {reason.message}" + (f" ({detail})" if detail else ""))
             if reason.matched_capabilities:
                 print("      Matched capabilities: " + ", ".join(reason.matched_capabilities))
-        print("    Setup: " + ("eligible" if item.eligibility.installable else "unavailable"))
+        print(
+            "    Catalog gates: "
+            + ("satisfied" if item.eligibility.installable else "not established")
+        )
         for reason in item.eligibility.reasons:
             print(f"      {reason.message}")
         if item.alternatives:
@@ -506,7 +509,18 @@ def _show(tool: CatalogEntry, context: EligibilityContext) -> None:
     print(f"License scope: {tool.license_scope}")
     print(f"Source review: {tool.reviewed_on}")
     print(f"Availability: {tool.availability}")
-    print(f"Installation-ready: {'yes' if eligibility.installable else 'no'}")
+    from stackwinnow.supported import supported_modes
+
+    mode = next((mode for mode in supported_modes() if mode.tool_id == tool.tool_id), None)
+    if mode is not None:
+        print(f"Executable mode: {mode.mode} @ {mode.version}")
+        print("Mode requirements: " + ", ".join(mode.requirements))
+        print(
+            "Use 'workflow plan' for current project checks; catalog platforms describe upstream."
+        )
+    else:
+        print("Executable mode: none registered")
+    print(f"Catalog gates: {'satisfied' if eligibility.installable else 'not established'}")
     for reason in eligibility.reasons:
         print(f"  [{reason.code}] {reason.message}")
     print("Prerequisites:")
@@ -823,7 +837,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         catalog_parser.print_help()
         return 0
     try:
-        context = EligibilityContext(platform=args.platform, assistant=args.assistant)
+        from stackwinnow.supported import supported_modes
+
+        context = EligibilityContext(
+            platform=args.platform,
+            assistant=args.assistant,
+            registered_adapters=[mode.tool_id for mode in supported_modes()],
+        )
         catalog = load_catalog()
         if args.catalog_command == "show":
             try:
