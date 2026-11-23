@@ -290,3 +290,85 @@ def test_graphify_plan_does_not_include_index_pending_blocker(plan):
         assert "index" not in blocker.lower() or "pending" not in blocker.lower(), (
             f"Unexpected index blocker: {blocker!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# 7. Freshness and lock re-validation (B04 reviewer fixes)
+# ---------------------------------------------------------------------------
+
+
+def test_changed_source_blocks_index(project, plan):
+    """Editing a source file after plan generation must raise before running any commands."""
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+
+    _seed_install(project)
+    # Modify a source file that is recorded in plan.sources.
+    (project / "caller.py").write_text("# changed after planning\n")
+    runner = FakeIndex()
+
+    with pytest.raises(GraphifyError, match="replan"):
+        apply_graphify_index(plan, command_runner=runner)
+
+    assert not runner.calls
+
+
+def test_stale_graph_raises_before_reporting_success(project, plan):
+    """Deleting graph.json after a succeeded index must raise, not return indexed=True."""
+    from stackwinnow.adapters.graphify import GRAPH_PATH as _GRAPH_PATH
+    from stackwinnow.adapters.graphify_index import apply_graphify_index
+
+    _seed_install(project)
+    runner = FakeIndex(graph_factory=lambda root: _fake_graph(root, EXPECTATION))
+
+    first = apply_graphify_index(plan, command_runner=runner)
+    assert first.indexed
+
+    # Delete the graph — a repeat call must detect the stale evidence.
+    (project / _GRAPH_PATH).unlink()
+
+    with pytest.raises(GraphifyError, match="missing|unreadable"):
+        apply_graphify_index(plan, command_runner=runner)
+
+
+def test_runner_exception_records_state_ownership(project, plan):
+    """If the runner raises, the receipt must still own STATE_PATH (not empty)."""
+    from stackwinnow.adapters.graphify_index import INDEX_STEP_ID, apply_graphify_index
+
+    _seed_install(project)
+
+    def exploding_runner(argv, **kwargs):
+        raise OSError("simulated launch failure")
+
+    result = apply_graphify_index(plan, command_runner=exploding_runner)
+
+    assert not result.indexed
+    receipt = result.record.receipt_for(INDEX_STEP_ID)
+    assert receipt is not None
+    assert STATE_PATH in receipt.owned_paths or any(
+        STATE_PATH in p for p in receipt.owned_paths
+    )
+
+
+def test_malformed_graph_json_records_state_ownership(project, plan):
+    """When graph.json is not valid JSON, the receipt must still own STATE_PATH."""
+    from stackwinnow.adapters.graphify_index import INDEX_STEP_ID, apply_graphify_index
+
+    _seed_install(project)
+
+    def bad_graph_runner(argv, **kwargs):
+        root = Path(kwargs["cwd"])
+        graph_file = root / GRAPH_PATH
+        graph_file.parent.mkdir(parents=True, exist_ok=True)
+        graph_file.write_bytes(b"not valid json {{{")
+        return __import__("stackwinnow.runner", fromlist=["CommandResult"]).CommandResult(
+            0, "indexed ok", ""
+        )
+
+    result = apply_graphify_index(plan, command_runner=bad_graph_runner)
+
+    assert not result.indexed
+    receipt = result.record.receipt_for(INDEX_STEP_ID)
+    assert receipt is not None
+    assert STATE_PATH in receipt.owned_paths or any(
+        STATE_PATH in p for p in receipt.owned_paths
+    )

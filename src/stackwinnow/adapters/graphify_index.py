@@ -7,7 +7,6 @@ the resulting graph, and records owned state paths and graph evidence.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Callable
@@ -65,6 +64,50 @@ def _check_install_prereq(root: Path) -> None:
         )
 
 
+def _check_index_prereqs(root: Path, plan: GraphifyExecutionPlan) -> None:
+    """Validate install prereq, source-file snapshots, and index state freshness.
+
+    Called before execute_plan (pre-flight) and again under the lock (before_execute).
+    Raises GraphifyError for any violation so the caller gets a clear error without
+    running the index command or leaving partial state.
+    """
+    # 1. Install receipt must exist and be succeeded.
+    _check_install_prereq(root)
+
+    # 2. Every source file must still match the reviewed plan snapshot.
+    for source in plan.sources:
+        try:
+            raw = _read_at(root, source.path)
+        except (OSError, GraphifyError) as exc:
+            raise GraphifyError(
+                f"Source file '{source.path}' is missing or unreadable; replan before indexing."
+            ) from exc
+        if _digest(raw) != source.sha256:
+            raise GraphifyError(
+                f"Source file '{source.path}' changed since planning; replan before indexing."
+            )
+
+    # 3. If a prior index succeeded, graph.json must still match the recorded evidence digest.
+    record = record_for(root)
+    index_receipt = record.receipt_for(INDEX_STEP_ID)
+    if index_receipt is not None and index_receipt.status == OperationStatus.SUCCEEDED:
+        for ev in index_receipt.evidence:
+            if ev.source == GRAPH_PATH and ev.detail.startswith("sha256:"):
+                expected = ev.detail[len("sha256:"):]
+                try:
+                    current_raw = _read_at(root, GRAPH_PATH)
+                except (OSError, GraphifyError):
+                    raise GraphifyError(
+                        "graph.json is missing or unreadable since the last index; "
+                        "delete the index state and reindex."
+                    )
+                if _digest(current_raw) != expected:
+                    raise GraphifyError(
+                        "graph.json has changed since the last index; "
+                        "delete the index state and reindex."
+                    )
+
+
 def _run_index(
     plan: GraphifyExecutionPlan,
     runner: CommandRunner,
@@ -72,49 +115,80 @@ def _run_index(
 ) -> RunnerOutcome:
     root = Path(plan.project_root)
     state = root / STATE_PATH
+    owned: list[str] = []
 
     # Refuse to adopt an existing, unowned state directory.
+    # Safe to raise here — owned is still empty so no paths are lost from the receipt.
     if os.path.lexists(state):
         raise GraphifyError(
             "Graphify index state already exists; inspect it before reindexing."
         )
 
-    # Create the state tree the index command writes into.
-    directories(root, STATE_PATH, create=True)
-    home = root / STATE_PATH / "home"
-    home.mkdir(mode=0o700)
-    (home / ".config").mkdir()
-    (home / ".cache").mkdir()
-    owned = [STATE_PATH]
-
-    cmd = index_command(root, root / ENV_PATH / "bin/python")
-    outcome = runner(cmd.argv, cwd=cmd.cwd, timeout=cmd.timeout_seconds, extra_env=cmd.environment)
-    if not outcome.succeeded:
-        return RunnerOutcome(
-            status=OperationStatus.FAILED,
-            message="Graphify indexing failed.",
-            owned_paths=owned,
-        )
-
     try:
-        raw = _read_at(root, GRAPH_PATH)
-    except (OSError, GraphifyError):
+        # Create the state tree the index command writes into.
+        directories(root, STATE_PATH, create=True)
+        owned = [STATE_PATH]
+        home = root / STATE_PATH / "home"
+        home.mkdir(mode=0o700)
+        (home / ".config").mkdir()
+        (home / ".cache").mkdir()
+
+        # Capture runner exceptions so owned_paths are always preserved in the receipt.
+        try:
+            cmd = index_command(root, root / ENV_PATH / "bin/python")
+            outcome = runner(
+                cmd.argv, cwd=cmd.cwd, timeout=cmd.timeout_seconds, extra_env=cmd.environment
+            )
+        except Exception as exc:
+            return RunnerOutcome(
+                status=OperationStatus.FAILED,
+                message=f"Index command could not launch ({type(exc).__name__}).",
+                owned_paths=owned,
+            )
+
+        if not outcome.succeeded:
+            return RunnerOutcome(
+                status=OperationStatus.FAILED,
+                message="Graphify indexing failed.",
+                owned_paths=owned,
+            )
+
+        try:
+            raw = _read_at(root, GRAPH_PATH)
+        except (OSError, GraphifyError):
+            return RunnerOutcome(
+                status=OperationStatus.FAILED,
+                message="Index command succeeded but graph.json is missing or unreadable.",
+                owned_paths=owned,
+            )
+
+        try:
+            graph = json.loads(raw)
+        except (ValueError, RecursionError):
+            return RunnerOutcome(
+                status=OperationStatus.FAILED,
+                message="Index command succeeded but graph.json is not valid JSON.",
+                owned_paths=owned,
+            )
+
+        check = check_relationship(graph, plan.expectation)
+        result_holder.append(check)
+
         return RunnerOutcome(
-            status=OperationStatus.FAILED,
-            message="Index command succeeded but graph.json is missing or unreadable.",
+            status=check.status,
+            message=check.message,
             owned_paths=owned,
+            evidence=[EvidenceRef(source=GRAPH_PATH, detail=f"sha256:{_digest(raw)}")],
         )
 
-    graph = json.loads(raw)
-    check = check_relationship(graph, plan.expectation)
-    result_holder.append(check)
-
-    return RunnerOutcome(
-        status=check.status,
-        message=check.message,
-        owned_paths=owned,
-        evidence=[EvidenceRef(source=GRAPH_PATH, detail=f"sha256:{_digest(raw)}")],
-    )
+    except (OSError, ValueError, RuntimeError) as exc:
+        # Broad catch after STATE_PATH is claimed: always report ownership so the
+        # receipt never drops the path (ValueError also covers GraphifyError subclass).
+        return RunnerOutcome(
+            status=OperationStatus.FAILED,
+            message=f"Graphify indexing could not complete ({type(exc).__name__}).",
+            owned_paths=owned,
+        )
 
 
 def apply_graphify_index(
@@ -127,7 +201,7 @@ def apply_graphify_index(
     try:
         plan = GraphifyExecutionPlan.model_validate(plan.model_dump())
         root = _root(plan.project_root)
-        _check_install_prereq(root)
+        _check_index_prereqs(root, plan)
 
         installation = InstallPlan(
             project_root=plan.project_root,
@@ -145,6 +219,7 @@ def apply_graphify_index(
         record, results = execute_plan(
             installation,
             dry_run=dry_run,
+            before_execute=lambda: _check_index_prereqs(root, plan),
             step_runner=lambda step: _run_index(plan, command_runner, check_holder),
         )
         indexed = record.is_succeeded(INDEX_STEP_ID, "graphify")

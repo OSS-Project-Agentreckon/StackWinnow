@@ -19,7 +19,7 @@ from packaging.version import Version
 from pydantic import Field
 
 from stackwinnow.adapters._managed import ManagedStateError, directories, record_for
-from stackwinnow.adapters.graphify import STATE_PATH, GraphifyError, _root
+from stackwinnow.adapters.graphify import GraphifyError, _root
 from stackwinnow.adapters.graphify_plan import (
     ENV_PATH,
     GraphifyExecutionPlan,
@@ -153,10 +153,6 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         )
     ):
         raise GraphifyError("Installation requires CPython 3.11.5–3.11.x on macOS 14+ arm64.")
-    if os.path.lexists(root / STATE_PATH):
-        raise GraphifyError(
-            "Existing Graphify index state requires inspection before installation."
-        )
     record = record_for(root)
     own = [s for s in record.steps if s.tool_id == "graphify"]
     if not own:
@@ -167,23 +163,26 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         if current.receipts_sha256 != checked.receipts_sha256:
             raise GraphifyError("Receipts changed; generate and review a new plan.")
         return False
+    # Locate the install receipt specifically; other known Graphify steps (e.g. index) may coexist.
+    install_receipt = next((s for s in own if s.step_id == STEP_ID), None)
+    _KNOWN_STEP_IDS = frozenset({"graphify-index-code"})
     if (
-        len(own) != 1
-        or own[0].step_id != STEP_ID
-        or own[0].status != OperationStatus.SUCCEEDED
-        or own[0].owned_paths != [INSTALL_ROOT]
-        or own[0].configuration_intents
+        install_receipt is None
+        or install_receipt.status != OperationStatus.SUCCEEDED
+        or install_receipt.owned_paths != [INSTALL_ROOT]
+        or install_receipt.configuration_intents
+        or any(s.step_id != STEP_ID and s.step_id not in _KNOWN_STEP_IDS for s in own)
     ):
         raise GraphifyError("Partial or unfamiliar Graphify state requires manual inspection.")
     # configuration_ownership may hold the graphify codex patch from a prior configure step.
-    codex_ownership = own[0].configuration_ownership
+    codex_ownership = install_receipt.configuration_ownership
     if codex_ownership and not all(
         p.tool_id == "graphify" and p.relative_path == ".codex/config.toml"
         for p in codex_ownership
     ):
         raise GraphifyError("Graphify configuration ownership has unexpected patches; inspect before retrying.")
     raw = _read_at(root, MANIFEST)
-    if own[0].evidence != [EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(raw)}")]:
+    if install_receipt.evidence != [EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(raw)}")]:
         raise GraphifyError("Graphify installation evidence changed; inspect the owned state.")
     manifest = _json(raw)
     if (
