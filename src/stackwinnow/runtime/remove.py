@@ -98,12 +98,24 @@ def _normalise(raw: str, project_root: Path) -> str:
 
 
 def _is_managed(path: Path, project_root: Path) -> bool:
-    """True when path resolves strictly inside the managed .stackwinnow/ prefix."""
+    """True when path is lexically inside managed prefix with no symlinked ancestors.
+
+    Uses absolute (not resolved) paths so that a symlinked parent directory such
+    as external-alias -> .stackwinnow/envs/shared does not make a file look managed.
+    """
+    managed = (project_root / _MANAGED_PREFIX).absolute()
     try:
-        path.resolve().relative_to((project_root / _MANAGED_PREFIX).resolve())
-        return True
+        abs_path = path.absolute()
+        rel = abs_path.relative_to(managed)
     except (ValueError, OSError):
         return False
+    # Reject any symlink component between managed/ and path
+    current = managed
+    for part in rel.parts:
+        current = current / part
+        if current.is_symlink():
+            return False
+    return True
 
 
 def _is_infrastructure(path: Path, project_root: Path) -> bool:
@@ -180,6 +192,23 @@ def plan_removal(
             # regardless of whether the tool is in scope.
             for raw in step.owned_paths:
                 retained_norm.add(_normalise(raw, root))
+
+    # Pre-compute paths that will be RETAIN within the removal batch:
+    # (a) evidence-referenced outputs inside owned directories (e.g. graph.json),
+    # (b) owned paths that are themselves project data (e.g. results/).
+    # These are added to the containment check so a parent directory is not
+    # incorrectly marked REMOVE when it contains retained data.
+    batch_retain_norm: set[str] = set()
+    for receipt in to_remove:
+        for ev in receipt.evidence:
+            batch_retain_norm.add(_normalise(ev.source, root))
+        for raw in receipt.owned_paths:
+            norm = _normalise(raw, root)
+            if _is_project_data(norm, root):
+                batch_retain_norm.add(norm)
+
+    # Combined set used for the two-directional containment check.
+    all_retained_norm = retained_norm | batch_retain_norm
 
     items: list[RemovalItem] = []
 
@@ -275,10 +304,27 @@ def plan_removal(
                 )
                 continue
 
+            # Inverse containment: retain a path that sits inside a retained directory.
+            if any(norm_key.startswith(rp + os.sep) for rp in retained_norm):
+                items.append(
+                    RemovalItem(
+                        path=raw,
+                        tool_id=receipt.tool_id,
+                        step_id=receipt.step_id,
+                        action=RemovalAction.RETAIN,
+                        reason=(
+                            "Path is inside a directory retained by another tool "
+                            "or a failed step; removing it would corrupt retained state."
+                        ),
+                    )
+                )
+                continue
+
             # Containment: retain a directory that contains files owned by a
-            # retained tool or recorded by a failed step.
+            # retained tool, a failed step, or retained data (evidence/project data)
+            # within this removal batch.
             if path.is_dir() and any(
-                rp.startswith(norm_key + os.sep) for rp in retained_norm
+                rp.startswith(norm_key + os.sep) for rp in all_retained_norm
             ):
                 items.append(
                     RemovalItem(
@@ -287,8 +333,8 @@ def plan_removal(
                         step_id=receipt.step_id,
                         action=RemovalAction.RETAIN,
                         reason=(
-                            "Directory contains files referenced by a retained tool "
-                            "or recorded by a failed step."
+                            "Directory contains files referenced by a retained tool, "
+                            "a failed step, or retained project data."
                         ),
                     )
                 )

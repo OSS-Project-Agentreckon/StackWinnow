@@ -431,3 +431,111 @@ def test_directory_containing_retained_file_is_itself_retained(tmp_path):
     assert plan.items[0].action == RemovalAction.RETAIN
     assert "contains" in plan.items[0].reason.lower()
 
+
+# ---------------------------------------------------------------------------
+# B02 — new regression tests for PR #21 review findings
+# ---------------------------------------------------------------------------
+
+
+def test_graphify_state_path_retained_when_graph_evidence_inside(tmp_path):
+    """STATE_PATH owned by graphify is RETAIN when graph.json evidence is inside it.
+
+    P1: Preserve actual project-data paths and their removable ancestors.
+    """
+    from stackwinnow.adapters.graphify import GRAPH_PATH, STATE_PATH
+    from stackwinnow.contracts import EvidenceRef
+
+    graph = tmp_path / GRAPH_PATH
+    graph.parent.mkdir(parents=True)
+    graph.write_text('{"nodes": [], "edges": []}')
+    state_abs = str(tmp_path / STATE_PATH)
+
+    execute_plan(
+        _plan(tmp_path, [_STEP_A]),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="ok",
+            owned_paths=[state_abs],
+            evidence=[EvidenceRef(source=GRAPH_PATH, detail="sha256:abc")],
+        ),
+    )
+
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+
+
+def test_parent_retained_when_owned_child_is_project_data(tmp_path):
+    """When a receipt owns both parent and a results/ child, the parent is also retained.
+
+    P1: Internally contradictory plan — parent REMOVE while child results RETAIN.
+    """
+    parent = tmp_path / ".stackwinnow" / "promptfoo"
+    child = parent / "results"
+    parent.mkdir(parents=True)
+    child.mkdir()
+
+    execute_plan(
+        _plan(tmp_path, [_STEP_A]),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="ok",
+            owned_paths=[str(parent), str(child)],
+        ),
+    )
+
+    plan = plan_removal(str(tmp_path))
+
+    assert all(item.action == RemovalAction.RETAIN for item in plan.items), (
+        "Both parent and results/ child should be RETAIN; got: "
+        + str([(i.path, i.action, i.reason) for i in plan.items])
+    )
+
+
+def test_child_inside_retained_parent_is_retained(tmp_path):
+    """A file owned by tool-a inside a directory retained by tool-b must be retained.
+
+    P1: Inverse containment — descendant inside a retained owned directory.
+    """
+    parent = tmp_path / ".stackwinnow" / "envs" / "shared"
+    child = parent / "bin" / "python"
+    child.parent.mkdir(parents=True)
+    child.touch()
+
+    execute_plan(
+        _plan(tmp_path, [_STEP_A, _STEP_B]),
+        step_runner=lambda s: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="ok",
+            owned_paths=[str(child) if s.tool_id == "tool-a" else str(parent)],
+        ),
+    )
+
+    plan = plan_removal(str(tmp_path), tool_ids=["tool-a"])
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+
+
+def test_path_through_symlinked_ancestor_is_retained(tmp_path):
+    """A regular leaf file reached via a symlinked parent is retained.
+
+    P2: Reject symlink ancestors before accepting a managed candidate.
+    """
+    target = tmp_path / ".stackwinnow" / "envs" / "shared"
+    target.mkdir(parents=True)
+    link = tmp_path / "external-alias"
+    link.symlink_to(target)
+
+    (target / "bin").mkdir()
+    (target / "bin" / "python").touch()
+    leaf = link / "bin" / "python"
+
+    _run(tmp_path, _STEP_A, owned_paths=[str(leaf)])
+
+    plan = plan_removal(str(tmp_path))
+
+    assert len(plan.items) == 1
+    assert plan.items[0].action == RemovalAction.RETAIN
+
