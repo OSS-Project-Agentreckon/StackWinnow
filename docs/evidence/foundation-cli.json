@@ -1,0 +1,1566 @@
+{
+  "schema_version": 1,
+  "scope": "Installed manager narrow foundation CLI acceptance; not unified workflow or release acceptance",
+  "production_commit": "188e155",
+  "test_commit": "2a4f3b8",
+  "environment": {
+    "os": "macOS 27.2.1",
+    "architecture": "arm64",
+    "python": "3.11.14",
+    "node": "24.13.1",
+    "codex": "0.169.0"
+  },
+  "strict_assertion_audit": "Current assert_functional_report independently applied to all saved fresh/negative reports after the original process loaded its earlier assertion version. Paths exist, hashes captured, identities distinct within each case.",
+  "cases": [
+    {
+      "case": "test_real_library_cli_remove_a0",
+      "command_count": 22,
+      "fresh_functional_reports_audited": 3,
+      "distinct_functional_evidence": 3,
+      "dependency_capture": [
+        {
+          "name": "headroom-artifacts/index.json",
+          "sha256": "a1d029c1f5c943a30ca37261b0fb67eb568f42730e12aee15c0598a6b41158cf",
+          "distributions": 70,
+          "captured_text_references": 144
+        }
+      ],
+      "commands": [
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.187,
+          "ready": false,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "blocked",
+                "configured": "blocked",
+                "connected": "not_applicable",
+                "functional": "blocked"
+              }
+            }
+          ],
+          "status": "blocked"
+        },
+        {
+          "args": [
+            "headroom",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.121
+        },
+        {
+          "args": [
+            "headroom",
+            "apply",
+            "<saved-plan-or-expectation>/initial.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.137,
+          "status": "skipped"
+        },
+        {
+          "args": [
+            "headroom",
+            "apply",
+            "<saved-plan-or-expectation>/initial.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 160.394,
+          "status": "succeeded",
+          "compression": {
+            "tokens_before": 282,
+            "tokens_after": 282,
+            "tokens_saved": 0
+          }
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 8.229,
+          "ready": false,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "not_run"
+              }
+            }
+          ],
+          "status": "not_run"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 33.975,
+          "ready": true,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/headroom/reports/headroom-3270ada33cf8418abdfb4d7c40d46a96-verify.json",
+              "sha256": "b947b40b1460dc46332591e6a2f85ad6f5e9dc8e04e9bc887ae89031c21a49ff"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--run-functional",
+            "--scenario",
+            "fail",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 49.758,
+          "ready": false,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "failed"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/headroom/reports/headroom-facdf2e4ba224d4695f78f75b363595c-verify.json",
+              "sha256": "5c6ec96c0727fdd8c6acc1a3ba1cd3835b58149172cda27f6ff3f6791fa4de32"
+            }
+          ],
+          "status": "failed"
+        },
+        {
+          "args": [
+            "headroom",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 12.109
+        },
+        {
+          "args": [
+            "headroom",
+            "apply",
+            "<saved-plan-or-expectation>/repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 56.321,
+          "status": "succeeded",
+          "compression": {
+            "tokens_before": 282,
+            "tokens_after": 282,
+            "tokens_saved": 0
+          }
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 3.404
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-first.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.548,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-first.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 9.603,
+          "status": "succeeded",
+          "retired_tools": [
+            "headroom"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/headroom/python"
+          ]
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.165,
+          "ready": false,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "blocked",
+                "configured": "blocked",
+                "connected": "not_applicable",
+                "functional": "blocked"
+              }
+            }
+          ],
+          "status": "blocked"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.125
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-repeat.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.127,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.121,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "headroom",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.141
+        },
+        {
+          "args": [
+            "headroom",
+            "apply",
+            "<saved-plan-or-expectation>/reinstall.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 146.91,
+          "status": "succeeded",
+          "compression": {
+            "tokens_before": 282,
+            "tokens_after": 282,
+            "tokens_saved": 0
+          }
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 50.066,
+          "ready": true,
+          "tools": [
+            {
+              "id": "headroom",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/headroom/reports/headroom-37e5f593876b4518a1cefdf3d352c44a-verify.json",
+              "sha256": "f8498d10cc55365ccfc6a26d5002e42db20f3e08076cd54c876ff732c41c86b7"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 3.386
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-final.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.912,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-final.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 9.49,
+          "status": "succeeded",
+          "retired_tools": [
+            "headroom"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/headroom/python"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "test_real_library_cli_remove_a1",
+      "command_count": 22,
+      "fresh_functional_reports_audited": 3,
+      "distinct_functional_evidence": 3,
+      "dependency_capture": [
+        {
+          "name": "promptfoo-installed-lock.json",
+          "sha256": "08c67f192f57645f770e6828c892e49ac1b4da3fe20fcebda4a4287c17103424",
+          "package_records": 623
+        }
+      ],
+      "commands": [
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.158,
+          "ready": false,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "failed",
+                "configured": "failed",
+                "connected": "not_applicable",
+                "functional": "blocked"
+              }
+            }
+          ],
+          "status": "failed"
+        },
+        {
+          "args": [
+            "promptfoo",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.117
+        },
+        {
+          "args": [
+            "promptfoo",
+            "apply",
+            "<saved-plan-or-expectation>/initial.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.13,
+          "status": "skipped"
+        },
+        {
+          "args": [
+            "promptfoo",
+            "apply",
+            "<saved-plan-or-expectation>/initial.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 80.359,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.205,
+          "ready": false,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "not_run"
+              }
+            }
+          ],
+          "status": "not_run"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.419,
+          "ready": true,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/promptfoo/results/6571c399f8e34a6f86081b1d827f26ea.json",
+              "sha256": "a3fff86a74e6670522de1869c5a380eb300774d2fab3a8e851cf479ba38494b7"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--run-functional",
+            "--scenario",
+            "fail",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 2.444,
+          "ready": false,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "failed"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/promptfoo/results/58a1fa9ef1b046f08b81c991858f8c91.json",
+              "sha256": "2a09585f4d64a4b82c875d3a4dd1dfa5e8f09c9617f45e00ad9f2bda1411be67"
+            }
+          ],
+          "status": "failed"
+        },
+        {
+          "args": [
+            "promptfoo",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.122
+        },
+        {
+          "args": [
+            "promptfoo",
+            "apply",
+            "<saved-plan-or-expectation>/repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.461,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 113.766
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-first.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 105.57,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-first.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 220.26,
+          "status": "succeeded",
+          "retired_tools": [
+            "promptfoo"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/promptfoo/node"
+          ]
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.199,
+          "ready": false,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "failed",
+                "configured": "blocked",
+                "connected": "not_applicable",
+                "functional": "blocked"
+              }
+            }
+          ],
+          "status": "failed"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.125
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-repeat.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.123,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.12,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "promptfoo",
+            "plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.117
+        },
+        {
+          "args": [
+            "promptfoo",
+            "apply",
+            "<saved-plan-or-expectation>/reinstall.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 64.742,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.544,
+          "ready": true,
+          "tools": [
+            {
+              "id": "promptfoo",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_applicable",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/promptfoo/results/1b53850763414bfc9137fe917cdaf725.json",
+              "sha256": "52f231de66826d0f0fe87f140aa67a47938f43ffd6d967facdf456be82ca14f6"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "promptfoo",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 120.887
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-final.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 146.222,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-final.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 240.683,
+          "status": "succeeded",
+          "retired_tools": [
+            "promptfoo"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/promptfoo/node"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "test_real_shared_codex_cli_sou0",
+      "command_count": 40,
+      "fresh_functional_reports_audited": 4,
+      "distinct_functional_evidence": 8,
+      "dependency_capture": [
+        {
+          "name": "playwright-mcp-installed-lock.json",
+          "sha256": "db9273d8323ae253fbfaac408bbec7e0014039ba66d7bf82eb095ecfa3a6a051",
+          "package_records": 3
+        },
+        {
+          "name": "graphify-artifacts/index.json",
+          "sha256": "ec8febcb2dbb4675f742cc1cc21b9aec9dbeec3c642b2e31ddcc88023d9e97dc",
+          "distributions": 33,
+          "captured_text_references": 114
+        }
+      ],
+      "commands": [
+        {
+          "args": [
+            "graphify",
+            "execution-plan",
+            "<fixture-project>",
+            "--expectation",
+            "<saved-plan-or-expectation>/expectation.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.195
+        },
+        {
+          "args": [
+            "graphify",
+            "apply",
+            "<saved-plan-or-expectation>/first-graphify-install.json",
+            "--install-only",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.147
+        },
+        {
+          "args": [
+            "graphify",
+            "apply",
+            "<saved-plan-or-expectation>/first-graphify-install.json",
+            "--install-only",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 31.608
+        },
+        {
+          "args": [
+            "graphify",
+            "index-plan",
+            "<fixture-project>",
+            "--expectation",
+            "<saved-plan-or-expectation>/expectation.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 4.012
+        },
+        {
+          "args": [
+            "graphify",
+            "index",
+            "<saved-plan-or-expectation>/first-index.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 9.317
+        },
+        {
+          "args": [
+            "graphify",
+            "configure-plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.698
+        },
+        {
+          "args": [
+            "graphify",
+            "configure",
+            "<saved-plan-or-expectation>/first-config.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.842
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "plan",
+            "<fixture-project>",
+            "--assistant",
+            "codex",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.218
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "apply",
+            "<saved-plan-or-expectation>/first-playwright.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 28.654,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 5.881,
+          "ready": false,
+          "tools": [
+            {
+              "id": "graphify",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_run",
+                "functional": "not_run"
+              }
+            },
+            {
+              "id": "playwright-mcp",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "not_run",
+                "functional": "not_run"
+              }
+            }
+          ],
+          "status": "not_run"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 21.418,
+          "ready": true,
+          "tools": [
+            {
+              "id": "graphify",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            },
+            {
+              "id": "playwright-mcp",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/graphify/checks/graphify-client-04d45b7a40514d35abbd713c2fbd5901.json",
+              "sha256": "35516b4176cb778dba61ed91820fedb50bfbfada0c32e4cfeba89adfc7571258"
+            },
+            {
+              "path": ".stackwinnow/envs/playwright-mcp/checks/d203c0c5ee0949e8a48437ed7d29c310.json",
+              "sha256": "30a219b64da26d4d1b970d1b41fd2118d84bd09c79b4af14b685d6b95cec13b2"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--run-functional",
+            "--scenario",
+            "fail",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 17.177,
+          "ready": false,
+          "tools": [
+            {
+              "id": "graphify",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "failed"
+              }
+            },
+            {
+              "id": "playwright-mcp",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "failed"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/graphify/checks/graphify-client-c8abd720ab814fbab276ff16dac10ac8.json",
+              "sha256": "a579cb64a3ed85136a08b109fed14c09ba7cac1756a28636fed973536bbd1a72"
+            },
+            {
+              "path": ".stackwinnow/envs/playwright-mcp/checks/d617709bdda14ab8a14f61d6d7d9cc70.json",
+              "sha256": "7a5995816c9f34bf2f01b280957b24e99bb77909f88800bf47ba406fd8a40df0"
+            }
+          ],
+          "status": "failed"
+        },
+        {
+          "args": [
+            "graphify",
+            "apply",
+            "<saved-plan-or-expectation>/first-graphify-install.json",
+            "--install-only",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 9.945
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "plan",
+            "<fixture-project>",
+            "--assistant",
+            "codex",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.22
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "apply",
+            "<saved-plan-or-expectation>/playwright-repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.844,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "graphify",
+            "index",
+            "<saved-plan-or-expectation>/first-index.json",
+            "--json"
+          ],
+          "returncode": 2,
+          "elapsed_seconds": 2.485
+        },
+        {
+          "args": [
+            "graphify",
+            "index-plan",
+            "<fixture-project>",
+            "--expectation",
+            "<saved-plan-or-expectation>/expectation.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.582
+        },
+        {
+          "args": [
+            "graphify",
+            "index",
+            "<saved-plan-or-expectation>/revised-index.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 9.053
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 23.184,
+          "ready": true,
+          "tools": [
+            {
+              "id": "graphify",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            },
+            {
+              "id": "playwright-mcp",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/graphify/checks/graphify-client-306cc3faac6b4241a43169064afd1c0a.json",
+              "sha256": "223f8c6a7d7573cb0c4f497eaee4a5db913fb4c12d930fd0c5bed3fb8b02ce21"
+            },
+            {
+              "path": ".stackwinnow/envs/playwright-mcp/checks/0b7daa359deb4f52935759f6e18e0ea3.json",
+              "sha256": "0855f6f68a93ca28eef1f8aabf87421e76f7eb067b67671d78e25ab02646d16f"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.184
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/modified-settings.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.131,
+          "status": "succeeded",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 1.048
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 1.014,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.698,
+          "status": "succeeded",
+          "retired_tools": [
+            "graphify",
+            "playwright-mcp"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/graphify",
+            ".stackwinnow/envs/playwright-mcp/node",
+            ".stackwinnow/envs/playwright-mcp/browsers"
+          ]
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.17
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both-repeat.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.131,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both-repeat.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.121,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "graphify",
+            "execution-plan",
+            "<fixture-project>",
+            "--expectation",
+            "<saved-plan-or-expectation>/expectation.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.132
+        },
+        {
+          "args": [
+            "graphify",
+            "apply",
+            "<saved-plan-or-expectation>/reinstall-graphify-install.json",
+            "--install-only",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.152
+        },
+        {
+          "args": [
+            "graphify",
+            "apply",
+            "<saved-plan-or-expectation>/reinstall-graphify-install.json",
+            "--install-only",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 34.428
+        },
+        {
+          "args": [
+            "graphify",
+            "index-plan",
+            "<fixture-project>",
+            "--expectation",
+            "<saved-plan-or-expectation>/expectation.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 3.215
+        },
+        {
+          "args": [
+            "graphify",
+            "index",
+            "<saved-plan-or-expectation>/reinstall-index.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 10.012
+        },
+        {
+          "args": [
+            "graphify",
+            "configure-plan",
+            "<fixture-project>",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 3.04
+        },
+        {
+          "args": [
+            "graphify",
+            "configure",
+            "<saved-plan-or-expectation>/reinstall-config.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 3.914
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "plan",
+            "<fixture-project>",
+            "--assistant",
+            "codex",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.243
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "apply",
+            "<saved-plan-or-expectation>/reinstall-playwright.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 23.967,
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "check",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--run-functional",
+            "--scenario",
+            "pass",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 22.283,
+          "ready": true,
+          "tools": [
+            {
+              "id": "graphify",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            },
+            {
+              "id": "playwright-mcp",
+              "checks": {
+                "installed": "succeeded",
+                "configured": "succeeded",
+                "connected": "succeeded",
+                "functional": "succeeded"
+              }
+            }
+          ],
+          "functional_evidence": [
+            {
+              "path": ".stackwinnow/graphify/checks/graphify-client-2c365fd38aeb4a91893048a63c135dfb.json",
+              "sha256": "d8b64a0dd0d7c1d38966b091cb3b92e34b7951657975fe37c3c00cdfb0f18c22"
+            },
+            {
+              "path": ".stackwinnow/envs/playwright-mcp/checks/051faaa5bcf140e393889828e6bee3aa.json",
+              "sha256": "01bad19024322d248947d5e3fe036dbb587467bc38a7883ac8ff616623d923c2"
+            }
+          ],
+          "status": "succeeded"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "graphify",
+            "--tool",
+            "playwright-mcp",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 1.151
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both-final.json",
+            "--dry-run",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.982,
+          "status": "skipped",
+          "retired_tools": [],
+          "removed_paths": []
+        },
+        {
+          "args": [
+            "remove",
+            "apply",
+            "<saved-plan-or-expectation>/remove-both-final.json",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 2.735,
+          "status": "succeeded",
+          "retired_tools": [
+            "graphify",
+            "playwright-mcp"
+          ],
+          "removed_paths": [
+            ".stackwinnow/envs/graphify",
+            ".stackwinnow/envs/playwright-mcp/node",
+            ".stackwinnow/envs/playwright-mcp/browsers"
+          ]
+        }
+      ]
+    },
+    {
+      "case": "test_installed_cli_rejects_mis0",
+      "command_count": 3,
+      "fresh_functional_reports_audited": 0,
+      "distinct_functional_evidence": 0,
+      "dependency_capture": [],
+      "commands": [
+        {
+          "args": [
+            "playwright-mcp",
+            "plan",
+            "<fixture-project>",
+            "--assistant",
+            "codex",
+            "--json"
+          ],
+          "returncode": 0,
+          "elapsed_seconds": 0.18
+        },
+        {
+          "args": [
+            "playwright-mcp",
+            "apply",
+            "<saved-plan-or-expectation>/missing-prerequisites.json",
+            "--json"
+          ],
+          "returncode": 1,
+          "elapsed_seconds": 0.168,
+          "status": "blocked"
+        },
+        {
+          "args": [
+            "remove",
+            "plan",
+            "<fixture-project>",
+            "--tool",
+            "headroom",
+            "--json"
+          ],
+          "returncode": 2,
+          "elapsed_seconds": 0.165
+        }
+      ]
+    }
+  ],
+  "sdist_resource_sha256": {
+    "catalog.json": "36a2fa00760018cf625fc98c8347b9a2ef498b6fc4e4fc118e9ffd98afb63a59",
+    "graphify-lock.json": "94f289eded6c09af11187d14f70aa9e945e153c164aba9dc947a024dbb6b2c20",
+    "playwright-fixture.html": "c5345e10d365ab9f5e89319f5eae7f781329a8c498cb95d3379fa5d03a0bedd2",
+    "playwright-launcher.cjs": "173a589ae63b60cfb119a76355057d41ebcaaab02f808ee48ea54d4d05c2d9be",
+    "promptfoo-provider.cjs": "fe337a97e4876493be33e07702a28b5d455f8ffb8a9f6ca1939a956adbf078c2"
+  },
+  "validation": {
+    "default_and_packaging": {
+      "passed": 1142,
+      "skipped": 12,
+      "seconds": 65.19
+    },
+    "real_cli_lifecycles": {
+      "passed": 3,
+      "seconds": 1943.03
+    },
+    "installed_cli_failure_controls": {
+      "passed": 1,
+      "seconds": 0.56
+    },
+    "real_graphify_install_failure_control": {
+      "passed": 1,
+      "seconds": 58.53
+    }
+  }
+}

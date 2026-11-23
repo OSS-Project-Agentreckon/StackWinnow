@@ -4,6 +4,29 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## B08 / A01 accepted narrow foundation handoff
+
+Engineering commit `2a4f3b8` on `test/a01-foundation-handoff`, stacked on
+removal PR #35, completes the actual installed-manager narrow acceptance.
+Production fix `188e155` adds the missing `python -m stackwinnow` entry point.
+Three real lifecycle cases passed in 1943.03s (84 CLI commands); separate
+missing-prerequisite/damaged-receipt control passed (three commands). Actual
+Graphify controlled-download-failure acceptance also passed separately.
+
+The final rebuilt default/clean-wheel packaging suite passed 1142 tests with
+12 explicit integration/provider skips, warnings as errors. Clean source archive
+installation and all five resource hashes passed. The final stronger assertions
+were independently audited against all ten captured fresh/negative check reports,
+including actual Codex calls and 14 unique functional evidence files; the original
+live process loaded the earlier harness. See [exact handoff](foundation-handoff.md)
+and [sanitized evidence](evidence/foundation-cli.json) for scope and reproduction.
+
+This validates four narrow workflows with preserved settings/data and supported
+removal/reinstall. Headroom control savings remain zero. Direct pins do not imply
+transitive license/release closure; A06 owns that review and the existing package
+build warning. Publication is a stacked PR; no merge/release/submission claimed.
+Next authorized agent: A02 unified workflow, then A03–A08 in sequential order.
+
 ## A01 foundation repair — coordinated removal (B07)
 
 Implemented on feat/a01-coordinated-removal, stacked on Headroom PR #34.
