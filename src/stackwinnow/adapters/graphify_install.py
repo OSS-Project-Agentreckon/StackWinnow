@@ -178,10 +178,11 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
     # configuration_ownership may hold the graphify codex patch from a prior configure step.
     codex_ownership = own[0].configuration_ownership
     if codex_ownership and not all(
-        p.tool_id == "graphify" and p.relative_path == ".codex/config.toml"
-        for p in codex_ownership
+        p.tool_id == "graphify" and p.relative_path == ".codex/config.toml" for p in codex_ownership
     ):
-        raise GraphifyError("Graphify configuration ownership has unexpected patches; inspect before retrying.")
+        raise GraphifyError(
+            "Graphify configuration ownership has unexpected patches; inspect before retrying."
+        )
     raw = _read_at(root, MANIFEST)
     if own[0].evidence != [EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(raw)}")]:
         raise GraphifyError("Graphify installation evidence changed; inspect the owned state.")

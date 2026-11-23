@@ -13,19 +13,15 @@ from pathlib import Path
 
 import pytest
 
-from stackwinnow.adapters import graphify_install as install_adapter
 from stackwinnow.adapters import graphify_plan as preparation
 from stackwinnow.adapters.graphify import (
     GRAPH_PATH,
-    INDEX_PATH,
     STATE_PATH,
     GraphifyError,
     RelationshipExpectation,
-    check_relationship,
 )
-from stackwinnow.adapters.graphify_plan import GraphifyExecutionPlan
 from stackwinnow.contracts import OperationStatus
-from stackwinnow.installer import ExecutionRecord, RunnerOutcome, StepReceipt
+from stackwinnow.installer import ExecutionRecord, StepReceipt
 from stackwinnow.runner import CommandResult
 
 # ---------------------------------------------------------------------------
@@ -78,7 +74,6 @@ def _seed_install(root: Path) -> None:
     """Write a succeeded install receipt so the index adapter's prereq check passes."""
     from stackwinnow.adapters.graphify_install import INSTALL_ROOT, STEP_ID
     from stackwinnow.contracts import EvidenceRef
-    from stackwinnow.installer import ExecutionRecord, StepReceipt
 
     managed = root / ".stackwinnow"
     managed.mkdir(exist_ok=True)
@@ -214,9 +209,7 @@ def test_successful_index_records_state_path_as_owned(project, plan):
     assert result.indexed
     receipt = result.record.receipt_for(INDEX_STEP_ID)
     assert receipt is not None
-    assert STATE_PATH in receipt.owned_paths or any(
-        STATE_PATH in p for p in receipt.owned_paths
-    )
+    assert STATE_PATH in receipt.owned_paths or any(STATE_PATH in p for p in receipt.owned_paths)
 
 
 def test_successful_index_records_graph_evidence(project, plan):

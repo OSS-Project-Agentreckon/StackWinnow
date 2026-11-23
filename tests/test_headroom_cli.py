@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -36,7 +35,9 @@ def _make_plan(project_root: str) -> HeadroomPlan:
         tool_ids=["headroom"],
         steps=[
             PlanStep(step_id="headroom-abc123-install", tool_id="headroom", description="Install"),
-            PlanStep(step_id="headroom-abc123-compress", tool_id="headroom", description="Compress"),
+            PlanStep(
+                step_id="headroom-abc123-compress", tool_id="headroom", description="Compress"
+            ),
         ],
     )
     return HeadroomPlan(

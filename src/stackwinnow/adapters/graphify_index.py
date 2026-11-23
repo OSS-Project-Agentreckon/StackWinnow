@@ -7,7 +7,6 @@ the resulting graph, and records owned state paths and graph evidence.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from collections.abc import Callable
@@ -22,7 +21,6 @@ from stackwinnow.adapters.graphify import (
     STATE_PATH,
     GraphifyError,
     RelationshipCheck,
-    _environment,
     _root,
     check_relationship,
     index_command,
@@ -60,9 +58,7 @@ def _check_install_prereq(root: Path) -> None:
     record = record_for(root)
     receipt = record.receipt_for(INSTALL_STEP_ID)
     if receipt is None or receipt.status != OperationStatus.SUCCEEDED:
-        raise GraphifyError(
-            "Graphify packages must be installed (apply install) before indexing."
-        )
+        raise GraphifyError("Graphify packages must be installed (apply install) before indexing.")
 
 
 def _run_index(
@@ -75,9 +71,7 @@ def _run_index(
 
     # Refuse to adopt an existing, unowned state directory.
     if os.path.lexists(state):
-        raise GraphifyError(
-            "Graphify index state already exists; inspect it before reindexing."
-        )
+        raise GraphifyError("Graphify index state already exists; inspect it before reindexing.")
 
     # Create the state tree the index command writes into.
     directories(root, STATE_PATH, create=True)

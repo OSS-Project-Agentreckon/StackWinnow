@@ -15,7 +15,8 @@ from pydantic import Field
 from stackwinnow.adapters._managed import ManagedStateError, directories, record_for
 from stackwinnow.adapters.graphify import GRAPH_PATH, GraphifyError, _root
 from stackwinnow.adapters.graphify_index import INDEX_STEP_ID
-from stackwinnow.adapters.graphify_install import MANIFEST, STEP_ID as INSTALL_STEP_ID, graphify_server_settings
+from stackwinnow.adapters.graphify_install import MANIFEST, graphify_server_settings
+from stackwinnow.adapters.graphify_install import STEP_ID as INSTALL_STEP_ID
 from stackwinnow.adapters.graphify_plan import GraphifyExecutionPlan, _digest, _read_at
 from stackwinnow.configure.codex import apply_graphify_codex_server, plan_graphify_codex_server
 from stackwinnow.configure.patches import ConfigurationError
@@ -58,7 +59,7 @@ def _check_prereqs(root: Path) -> None:
     # Verify the actual installation still matches the recorded evidence digest.
     for ev in install_receipt.evidence:
         if ev.source == MANIFEST and ev.detail.startswith("sha256:"):
-            expected = ev.detail[len("sha256:"):]
+            expected = ev.detail[len("sha256:") :]
             try:
                 raw = _read_at(root, MANIFEST)
             except (OSError, GraphifyError):
@@ -66,23 +67,19 @@ def _check_prereqs(root: Path) -> None:
                     "Graphify installation manifest is missing; reinstall before configuring."
                 )
             if _digest(raw) != expected:
-                raise GraphifyError(
-                    "Graphify installation changed; reinstall before configuring."
-                )
+                raise GraphifyError("Graphify installation changed; reinstall before configuring.")
 
     # Index receipt must exist, be succeeded, and belong to Graphify.
     index_receipt = record.receipt_for(INDEX_STEP_ID)
     if index_receipt is None or index_receipt.status != OperationStatus.SUCCEEDED:
-        raise GraphifyError(
-            "Graphify source must be indexed (apply index) before configuring."
-        )
+        raise GraphifyError("Graphify source must be indexed (apply index) before configuring.")
     if index_receipt.tool_id != "graphify":
         raise GraphifyError("Index receipt does not belong to Graphify; cannot configure.")
 
     # Verify graph.json still matches the recorded evidence digest.
     for ev in index_receipt.evidence:
         if ev.source == GRAPH_PATH and ev.detail.startswith("sha256:"):
-            expected = ev.detail[len("sha256:"):]
+            expected = ev.detail[len("sha256:") :]
             try:
                 raw = _read_at(root, GRAPH_PATH)
             except (OSError, GraphifyError):
@@ -109,7 +106,9 @@ def _configure_step(root: Path, config_patch) -> RunnerOutcome:
         status=applied.result.status,
         message=applied.result.message,
         configuration_ownership=[applied.ownership] if applied.ownership else [],
-        owned_paths=[str(parent)] if created and applied.result.status == OperationStatus.SUCCEEDED else [],
+        owned_paths=[str(parent)]
+        if created and applied.result.status == OperationStatus.SUCCEEDED
+        else [],
     )
 
 
@@ -156,5 +155,12 @@ def apply_graphify_configure(
         )
     except GraphifyError:
         raise
-    except (OSError, ValueError, RuntimeError, ManagedStateError, InstallerError, ConfigurationError) as exc:
+    except (
+        OSError,
+        ValueError,
+        RuntimeError,
+        ManagedStateError,
+        InstallerError,
+        ConfigurationError,
+    ) as exc:
         raise GraphifyError(f"Cannot configure Graphify Codex entry: {exc}") from exc
