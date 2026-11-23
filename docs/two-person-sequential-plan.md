@@ -68,7 +68,7 @@ hosted validation result is claimed here.
 | B03 — Configuration/lifecycle ownership | Primitives implemented in A01 repair; coordinated removal must wire the documented lock/journal/reference contract |
 | B04 — Graphify indexing and shared verification | Implemented: source/runtime validation under lock, staged extraction/query, deliberate reindex, failure ownership, index CLI and shared verifier; 1042 default tests and the real managed lifecycle passed |
 | B05 — Graphify Codex integration | Implemented: manager-owned stdio bridge, owned Codex settings and actual Codex0.169.0 tool calls with positive/repeat/negative evidence; connection and functionality remain separate |
-| B06 — Headroom CLI and shared verification | CLI exists; shared verifier, current real lifecycle evidence and dependency inventory remain |
+| B06 — Headroom CLI and shared verification | Implemented in c6b7e8a: current inventory/import health, fresh shared compression reports, strict token/preservation checks and retained mutable data; real full library lifecycle passed, with 282 before/after and 0 saved; 70 dependency versions/license candidates captured, release audit still pending |
 | B07 — Coordinated safe removal | Pending: preserve edits, clean owned configuration, revalidate/remove unreferenced runtimes under lock, journal partial progress, repeat harmlessly |
 | B08 — Foundation acceptance and handoff | Pending: all four narrow lifecycles, negative/mixed-tool cases, clean distribution acceptance, operational/API documentation and exact handoff revision |
 
