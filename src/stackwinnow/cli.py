@@ -528,6 +528,38 @@ def _show(tool: CatalogEntry, context: EligibilityContext) -> None:
         print(f"  {source.kind}: {source.url}")
 
 
+def _remove(args, parser) -> int:
+    from stackwinnow.installer import InstallerError
+    from stackwinnow.removal import apply_removal, load_removal_plan, plan_removal_lifecycle
+    from stackwinnow.state.lock import ProjectLockError
+
+    try:
+        if args.remove_command == "plan":
+            result = plan_removal_lifecycle(args.project_root, args.tool)
+        else:
+            result = apply_removal(load_removal_plan(args.plan_file), dry_run=args.dry_run)
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        elif args.remove_command == "plan":
+            print("Removal preview for " + result.project_root)
+            for item in result.runtimes:
+                print(f"  {item.action}: {item.path} — {item.reason}")
+            print(f"  {len(result.configuration)} owned configuration patches reviewed.")
+            print("Use --json to save a private plan, then remove apply PLAN.json.")
+        else:
+            print(result.message)
+            for path in result.removed_paths:
+                print("  Removed: " + path)
+            if result.journal:
+                print("  Journal: " + result.journal)
+        return (
+            0 if args.remove_command == "plan" or result.status in {"succeeded", "skipped"} else 1
+        )
+    except (OSError, ValueError, InstallerError, ProjectLockError) as exc:
+        parser.error(str(exc))
+        return 2
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Discover tools, preview Graphify, and explicitly plan/apply promptfoo setup."""
     parser = argparse.ArgumentParser(
@@ -538,6 +570,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    removal = commands.add_parser(
+        "remove", help="Preview or apply owned configuration/runtime cleanup.", allow_abbrev=False
+    )
+    removal_commands = removal.add_subparsers(dest="remove_command", required=True)
+    removal_plan = removal_commands.add_parser("plan", allow_abbrev=False)
+    removal_plan.add_argument("project_root")
+    removal_plan.add_argument(
+        "--tool",
+        action="append",
+        required=True,
+        help="Supported tool ID; repeat to select multiple.",
+    )
+    removal_plan.add_argument("--json", action="store_true")
+    removal_apply = removal_commands.add_parser("apply", allow_abbrev=False)
+    removal_apply.add_argument("plan_file")
+    removal_apply.add_argument("--dry-run", action="store_true")
+    removal_apply.add_argument("--json", action="store_true")
     graphify = commands.add_parser(
         "graphify",
         help="Preview Graphify or explicitly install its locked local packages.",
@@ -749,6 +798,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _inspect(args, parser)
     if args.command == "recommend":
         return _recommend(args, parser)
+    if args.command == "remove":
+        return _remove(args, parser)
     if args.command == "playwright-mcp":
         return _playwright(args, parser)
     if args.command == "headroom":
