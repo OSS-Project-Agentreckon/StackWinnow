@@ -1,7 +1,7 @@
 # StackWinnow
 
 StackWinnow is an open-source project for choosing suitable AI development tools
-and managing their setup for a project. The intended workflow is project
+and managing their setup for a project. The workflow is project
 inspection, explained recommendations, a reviewed setup plan, installation,
 functional verification, and removal that preserves the user's settings.
 
@@ -20,13 +20,13 @@ for selected tools; all four narrow modes have verification adapters. The `inspe
 project declarations; host runtime inspection and setup preflight remain Python
 APIs. Explicit [removal plans and apply](docs/coordinated-removal.md) restore clean
 owned settings, remove unreferenced runtime scopes and retain project data.
-The assembled real foundation handoff and unified guided journey remain next.
+The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) now combines explicit selection, planning, apply, fresh verification and passive status. Portable profiles and final release acceptance remain next.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
-membership will not imply installation support. The supported integration OS,
-coding assistant, and tool versions must be agreed and tested before any
-integration is advertised as supported. The initial promptfoo execution scope
+membership will not imply installation support. The [executable mode registry](docs/unified-workflow.md) records the supported
+macOS arm64 target, Codex client and pinned tool versions; the tested narrow
+lifecycles are documented in the [foundation handoff](docs/foundation-handoff.md). The initial promptfoo execution scope
 is macOS arm64 with Node 24. The runner is integrated; its remaining reviewed
 limitations are recorded in [implementation progress](docs/implementation-progress.md).
 Graphify's managed index and manager-owned MCP bridge are verified with actual
@@ -62,6 +62,25 @@ coding assistant. Bare `stackwinnow` and `stackwinnow catalog` display help.
 Invalid commands, tool IDs, flags, or catalog data return exit status 2. A valid
 empty result returns 0. Long option names must be written in full; abbreviated
 flags such as `--inst` or `--j` are rejected.
+
+## Set up selected tools
+
+~~~sh
+stackwinnow workflow inspect ./my-project --goal "Evaluate answers" --json
+stackwinnow workflow modes
+stackwinnow workflow plan ./my-project --tool promptfoo --json > workflow-plan.json
+stackwinnow workflow apply workflow-plan.json --dry-run
+stackwinnow workflow apply workflow-plan.json --json
+stackwinnow workflow status ./my-project --tool promptfoo --json
+~~~
+
+Save the plan outside the target project. Repeat --tool for multiple explicit
+selections; Graphify also requires --expectation expected.json. Planning and
+dry-run make no managed changes. Apply checks prerequisites before installation
+and runs fresh verification; passive status does not claim fresh functionality.
+Each workflow plan permits one attempt. Review a new plan to repeat setup, or use
+remove plan / remove apply for owned cleanup. See the [workflow guide](docs/unified-workflow.md)
+for exact modes, state-change handling, exit codes and partial failures.
 
 ## Inspect a project
 

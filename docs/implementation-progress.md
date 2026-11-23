@@ -4,6 +4,30 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A02 unified reviewed workflow
+
+Implemented on feat/a02-unified-workflow, stacked on the accepted foundation
+PR #36 branch test/a01-foundation-handoff. Commit fc39092 adds optional read-only
+adapter composition guards inside existing project locks. The subsequent workflow
+slice adds one supported-mode registry, explicit selection and reviewed plans,
+ordered apply, fresh verification, passive status and existing reviewed removal.
+
+Graphify runtime precedes other installations; indexing includes promptfoo's
+reviewed root JSON, and late Codex registration follows Playwright. Receipts only
+advance through declared adapter outcomes; terminal verification and passive
+status preserve selected ownership and detect concurrent changes. New plans
+permit healthy reapply and new Graphify expectations with the original immutable
+runtime; attempted plans cannot be replayed. Partial state is retained on failure.
+
+See [the operating guide](unified-workflow.md) and [exact evidence](evidence/unified-workflow.md)
+for exact evidence. Guard fc39092 and implementation e7959c0 are committed and
+pushed. Final rebuilt-package 1182 passed / 14 opt-in skips; both actual promptfoo and
+Graphify workflow smokes passed in 190.08s; focused Python 3.14 passed 40. Publication
+is a stacked PR, not a merge. Next: A03 portable
+profiles must export an explicit request/registry allowlist and generate a fresh
+destination-specific plan. Full unified/profile combinations remain A05; release,
+license and assignment deliverables remain A06–A08. No merge/release/submission.
+
 ## B08 / A01 accepted narrow foundation handoff
 
 Engineering commit `2a4f3b8` on `test/a01-foundation-handoff`, stacked on

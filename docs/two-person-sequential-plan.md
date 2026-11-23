@@ -14,14 +14,23 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
+A02 is implemented on feat/a02-unified-workflow, based on the accepted PR #36
+handoff. Guard commit fc39092 adds read-only composition checks inside adapter
+locks. The unified registry/inspect/plan/apply/check/status commands compose the
+four supported modes, preserve original Graphify recipes and predicted source/
+Codex effects, reject stale/replayed plans, and retain partial ownership. Workflow commit e7959c0 is pushed; final rebuilt 1182/14 tests and both actual
+CLI smokes passed (190.08s), with 40 focused Python 3.14 tests. Evidence is recorded
+in evidence/unified-workflow.md; the documentation commit/stacked PR follows. Next implementation is A03 portable profiles, using
+WorkflowRequest and the supported-mode registry; A04–A08 remain unfinished.
+No PR merge or release is implied. Preserve unrelated docs/superpowers files.
+
 Current accepted handoff: test/a01-foundation-handoff at engineering commit
 2a4f3b8 (production fix 188e155), stacked on removal PR #35. All four real narrow
 CLI lifecycles passed through install, fresh/negative check, removal and reinstall;
 shared Codex/source-change cases passed. Final rebuilt default + wheel packaging:
 1142 passed / 12 opt-in skips. Clean sdist/resource smoke and actual failure
 controls passed separately. See foundation-handoff.md and evidence/foundation-cli.json
-for exact evidence, assertion audit and support limits. Next is A02 unified
-workflow; A02–A08 remain unfinished. No merge or published release is claimed.
+for exact evidence, assertion audit and support limits. This accepted narrow handoff is the base for A02; its updated checkpoint is above. No merge or published release is claimed.
 
 Previous branch: feat/a01-coordinated-removal, stacked on Headroom PR #34.
 Coordinated configuration/runtime cleanup and deliberate reinstall are implemented
@@ -90,7 +99,7 @@ Known B implementation gaps must be finished before accepting the handoff.
 A01 reproduce and accept the foundations; A02 unified workflow; A03 portable
 profiles; A04 recommendation/CLI acceptance; A05 full lifecycle and combinations;
 A06 packaging/license closure and release CI; A07 guides/measurements/demo/report;
-A08 final release and submission. A's product implementation has not started.
+A08 final release and submission. A02 implementation is recorded above; A03 is next.
 
 After each implementation slice, update this checkpoint and
 implementation-progress.md with the actual tests, revision/publication state,
