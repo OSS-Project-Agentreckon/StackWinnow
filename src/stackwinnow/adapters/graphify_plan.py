@@ -331,7 +331,7 @@ def _prepare_graphify_execution(
         runtime = _runtime()
         blockers = [
             "A complete dependency-license audit remains pending; wheels are downloaded, not redistributed.",
-            "Actual client verification (confirming Codex connects to and reads the Graphify MCP server) is not implemented.",
+            _CLIENT_ADVISORY,
         ]
         if (
             runtime.implementation != "CPython"
@@ -373,12 +373,32 @@ def _prepare_graphify_execution(
         ) from exc
 
 
+_OLD_CLIENT_ADVISORY = "Actual client verification (confirming Codex connects to and reads the Graphify MCP server) is not implemented."
+_CLIENT_ADVISORY = "Codex readiness requires owned bridge configuration and a fresh actual client check after indexing."
+
+
+def same_graphify_recipe(left: GraphifyExecutionPlan, right: GraphifyExecutionPlan) -> bool:
+    """Accept one historical advisory wording without weakening executable fields."""
+
+    def canonical(plan):
+        return plan.model_copy(
+            update={
+                "blockers": tuple(
+                    _CLIENT_ADVISORY if message == _OLD_CLIENT_ADVISORY else message
+                    for message in plan.blockers
+                )
+            }
+        )
+
+    return canonical(left) == canonical(right)
+
+
 def validate_graphify_execution_plan(plan: GraphifyExecutionPlan) -> GraphifyExecutionPlan:
     """Reject modified recipe fields or changed inputs; never authorize execution."""
     try:
         checked = GraphifyExecutionPlan.model_validate(plan.model_dump())
         current = plan_graphify_execution(checked.project_root, expectation=checked.expectation)
-        if checked != current:
+        if not same_graphify_recipe(checked, current):
             raise GraphifyError(
                 "Graphify plan or its inputs changed; generate and review a new plan."
             )

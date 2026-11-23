@@ -28,6 +28,7 @@ from stackwinnow.adapters.graphify_plan import (
     _prepare_graphify_execution,
     _read_at,
     graphify_requirements,
+    same_graphify_recipe,
 )
 from stackwinnow.contracts import (
     Contract,
@@ -47,14 +48,30 @@ CommandRunner = Callable[..., CommandResult]
 
 
 def graphify_server_settings(root: Path) -> dict:
-    """MCP server settings dict for the Graphify server entry in .codex/config.toml."""
-    from stackwinnow.adapters.graphify import GRAPH_PATH, _environment
+    """Register the manager bridge; the upstream package has no MCP subcommand."""
+    import sys
+
+    from stackwinnow.adapters.graphify import _environment
+    from stackwinnow.graphify_bridge import TOOL
 
     python = root / ENV_PATH / "bin/python"
     return {
-        "command": str(python),
-        "args": ["-I", "-m", "graphify", "mcp", "--graph", str(root / GRAPH_PATH)],
-        "env": _environment(root),
+        "command": sys.executable,
+        "args": [
+            "-I",
+            "-B",
+            "-m",
+            "stackwinnow.graphify_bridge",
+            "--project",
+            str(root),
+            "--python",
+            str(python),
+        ],
+        "cwd": str(root / STATE_PATH / "home"),
+        "env": dict(_environment(root), PATH=str(Path(sys.executable).parent) + ":/usr/bin:/bin"),
+        "enabled_tools": [TOOL],
+        "startup_timeout_sec": 30,
+        "tool_timeout_sec": 90,
     }
 
 
@@ -143,7 +160,9 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         sources_override=checked.sources if existing is not None else None,
     )
     # Only the receipts snapshot may differ after this plan's successful apply.
-    if current.model_copy(update={"receipts_sha256": checked.receipts_sha256}) != checked:
+    if not same_graphify_recipe(
+        current.model_copy(update={"receipts_sha256": checked.receipts_sha256}), checked
+    ):
         raise GraphifyError("Graphify plan or inputs changed; generate and review a new plan.")
     runtime = current.runtime
     if (
@@ -254,7 +273,7 @@ def validate_graphify_installation(
         root, expectation=plan.expectation, require_fresh=False, sources_override=plan.sources
     )
     current = current.model_copy(update={"receipts_sha256": plan.receipts_sha256})
-    if current != plan or manifest["plan_sha256"] != _plan_digest(plan):
+    if not same_graphify_recipe(current, plan) or manifest["plan_sha256"] != _plan_digest(plan):
         raise GraphifyError("Graphify installed recipe or runtime changed.")
     if not manifest["files"] or manifest["files"] != _inventory(root):
         raise GraphifyError("Graphify installation changed; inspect it before reuse.")
@@ -362,7 +381,9 @@ def _install(plan: GraphifyExecutionPlan, runner: CommandRunner) -> RunnerOutcom
         current = _prepare_graphify_execution(
             root, expectation=plan.expectation, require_fresh=False
         )
-        if current.model_copy(update={"receipts_sha256": plan.receipts_sha256}) != plan:
+        if not same_graphify_recipe(
+            current.model_copy(update={"receipts_sha256": plan.receipts_sha256}), plan
+        ):
             raise GraphifyError(
                 "Inputs changed during installation; no successful receipt recorded."
             )
