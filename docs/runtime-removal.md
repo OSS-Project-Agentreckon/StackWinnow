@@ -38,3 +38,9 @@ runtime ownership. B03 will define that interface, and B07 will coordinate
 configuration cleanup, locked revalidation, deletion and partial-failure
 recovery. A serialized candidate must not be deleted merely because it was
 eligible at preview time.
+
+Python 3.14 can leave symlink loops unresolved in Path.resolve(strict=False).
+Ownership normalization also checks stat() so ELOOP remains a blocking error
+on every supported Python version. Missing owned paths still remain harmless.
+The 40 removal-planning tests passed locally on Python 3.11.14 and 3.14.4
+after the hosted Python 3.14 regression was reproduced in CI.
