@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "kind": "stackwinnow-profile",
+  "selections": [
+    {
+      "tool_id": "playwright-mcp",
+      "mode": "codex",
+      "version": "0.0.86"
+    }
+  ],
+  "assistant": "codex",
+  "model_preference": "local",
+  "requirements": {
+    "playwright-mcp": [
+      "macOS arm64",
+      "Node 24",
+      "npm",
+      "Codex 0.169.0"
+    ]
+  },
+  "expectation": null
+}

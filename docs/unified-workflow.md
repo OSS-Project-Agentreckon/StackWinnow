@@ -134,8 +134,9 @@ plan_workflow(root, request), load_workflow_plan(path) and
 apply_workflow(plan, dry_run=False) implement the reviewed local flow.
 WorkflowResult.as_payload() includes derived readiness and partial completion.
 The local plan contains machine paths, state hashes, configuration originals and
-one-attempt IDs. It is **not a portable profile**. A03 must export an allowlist
-from the request/registry and create a new destination-specific plan on import.
+one-attempt IDs. It is **not a portable profile**. [Portable profile export](portable-profiles.md)
+projects an allowlist from the request/registry; import creates a new
+destination-specific plan.
 
 The checksum detects accidental edits, not human approval. Fixed leaf recipes,
 current state comparison and read-only guards inside adapter locks enforce the

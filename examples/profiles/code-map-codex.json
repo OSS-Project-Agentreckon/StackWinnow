@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "kind": "stackwinnow-profile",
+  "selections": [
+    {
+      "tool_id": "graphify",
+      "mode": "codex",
+      "version": "0.9.114"
+    }
+  ],
+  "assistant": "codex",
+  "model_preference": "local",
+  "requirements": {
+    "graphify": [
+      "macOS >=14 arm64",
+      "CPython >=3.11.5,<3.12",
+      "Codex 0.169.0"
+    ]
+  },
+  "expectation": {
+    "caller_file": "sample_app/greetings.py",
+    "caller_label": "greet()",
+    "callee_file": "sample_app/names.py",
+    "callee_label": "normalize_name()"
+  }
+}

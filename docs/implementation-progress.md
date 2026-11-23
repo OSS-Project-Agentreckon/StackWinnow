@@ -4,6 +4,30 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A03 portable selections and destination review
+
+Implemented on feat/a03-portable-profiles, based on published A02 PR #37
+at 436992c. Core commit 9539895 exports a strict selection allowlist and creates
+fresh destination workflow plans, with shared host requirements and four example
+profiles. CLI commit 73e06e8 adds explicit profile export/import commands. Both
+are pushed under the current contributor's genuine identity.
+
+The source may have moved or already used its plan. No source receipts, runtime
+paths, credentials, configuration originals or freeform goals enter the profile.
+Import inspects the destination's own state, retains its original Graphify recipe
+when healthy, and never installs or asserts transferred readiness. Review fixes
+cover mixed-case private paths on macOS; schema validation also shares Graphify's
+excluded source directories.
+
+Final rebuilt installed package: 1245 tests passed / 14 explicit opt-in skips
+in 58.80s. Profile/workflow cases: 100 passed on Python 3.11 and 100 on Python 3.14.
+All four examples passed real installed CLI round-trips (20 commands), preserving
+source/destination bytes and mtimes without managed state. See the
+[profile guide](portable-profiles.md) and [exact evidence](evidence/portable-profiles.md).
+Publication is a stacked PR; no merge/release/submission is claimed. Next is A04
+recommendation/CLI acceptance, followed by actual full profile lifecycles in A05.
+The inherited package-data warning remains for A06.
+
 ## A02 unified reviewed workflow
 
 Implemented on feat/a02-unified-workflow, stacked on the accepted foundation

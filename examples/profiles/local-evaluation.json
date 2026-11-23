@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "kind": "stackwinnow-profile",
+  "selections": [
+    {
+      "tool_id": "promptfoo",
+      "mode": "deterministic",
+      "version": "0.125.1"
+    }
+  ],
+  "assistant": "codex",
+  "model_preference": "local",
+  "requirements": {
+    "promptfoo": [
+      "macOS arm64",
+      "Node 24",
+      "npm"
+    ]
+  },
+  "expectation": null
+}

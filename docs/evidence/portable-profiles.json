@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "scope": "installed CLI pure profile round-trips; no tool installation or functional evidence",
+  "manager_version": "0.1.0.dev0",
+  "python_version": "3.11.14",
+  "source_and_destination_bytes_and_mtimes_unchanged": true,
+  "commands": [
+    {
+      "tool_id": "headroom",
+      "operation": "workflow plan",
+      "exit_code": 0,
+      "duration_seconds": 0.742
+    },
+    {
+      "tool_id": "headroom",
+      "operation": "profile export",
+      "exit_code": 0,
+      "duration_seconds": 0.151
+    },
+    {
+      "tool_id": "headroom",
+      "operation": "profile import",
+      "exit_code": 0,
+      "duration_seconds": 0.145
+    },
+    {
+      "tool_id": "headroom",
+      "operation": "workflow dry-run",
+      "exit_code": 0,
+      "duration_seconds": 0.146
+    },
+    {
+      "tool_id": "headroom",
+      "operation": "profile re-export",
+      "exit_code": 0,
+      "duration_seconds": 0.152
+    },
+    {
+      "tool_id": "promptfoo",
+      "operation": "workflow plan",
+      "exit_code": 0,
+      "duration_seconds": 0.148
+    },
+    {
+      "tool_id": "promptfoo",
+      "operation": "profile export",
+      "exit_code": 0,
+      "duration_seconds": 0.157
+    },
+    {
+      "tool_id": "promptfoo",
+      "operation": "profile import",
+      "exit_code": 0,
+      "duration_seconds": 0.145
+    },
+    {
+      "tool_id": "promptfoo",
+      "operation": "workflow dry-run",
+      "exit_code": 0,
+      "duration_seconds": 0.144
+    },
+    {
+      "tool_id": "promptfoo",
+      "operation": "profile re-export",
+      "exit_code": 0,
+      "duration_seconds": 0.139
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "operation": "workflow plan",
+      "exit_code": 0,
+      "duration_seconds": 0.144
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "operation": "profile export",
+      "exit_code": 0,
+      "duration_seconds": 0.142
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "operation": "profile import",
+      "exit_code": 0,
+      "duration_seconds": 0.15
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "operation": "workflow dry-run",
+      "exit_code": 0,
+      "duration_seconds": 0.144
+    },
+    {
+      "tool_id": "playwright-mcp",
+      "operation": "profile re-export",
+      "exit_code": 0,
+      "duration_seconds": 0.137
+    },
+    {
+      "tool_id": "graphify",
+      "operation": "workflow plan",
+      "exit_code": 0,
+      "duration_seconds": 0.187
+    },
+    {
+      "tool_id": "graphify",
+      "operation": "profile export",
+      "exit_code": 0,
+      "duration_seconds": 0.16
+    },
+    {
+      "tool_id": "graphify",
+      "operation": "profile import",
+      "exit_code": 0,
+      "duration_seconds": 0.167
+    },
+    {
+      "tool_id": "graphify",
+      "operation": "workflow dry-run",
+      "exit_code": 0,
+      "duration_seconds": 0.16
+    },
+    {
+      "tool_id": "graphify",
+      "operation": "profile re-export",
+      "exit_code": 0,
+      "duration_seconds": 0.14
+    }
+  ],
+  "engineering_commit": "73e06e894b53eeb3f4f3c165516cd6ee708de50d",
+  "host": {
+    "system": "Darwin",
+    "machine": "arm64"
+  }
+}
