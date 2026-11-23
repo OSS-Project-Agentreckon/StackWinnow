@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "kind": "stackwinnow-profile",
+  "selections": [
+    {
+      "tool_id": "headroom",
+      "mode": "library",
+      "version": "0.44.0"
+    }
+  ],
+  "assistant": "codex",
+  "model_preference": "local",
+  "requirements": {
+    "headroom": [
+      "macOS arm64",
+      "manager Python >=3.11"
+    ]
+  },
+  "expectation": null
+}

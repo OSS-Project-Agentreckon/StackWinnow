@@ -1,7 +1,10 @@
 """Executable modes; catalog membership alone never grants execution support."""
 
+from collections.abc import Sequence
 from typing import Literal
 
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 from pydantic import Field, model_validator
 
 from stackwinnow.adapters import graphify, headroom, playwright_mcp, promptfoo
@@ -79,3 +82,17 @@ def select_tool(tool_id: str) -> ToolSelection:
         if mode.tool_id == tool_id:
             return ToolSelection(tool_id=tool_id, mode=mode.mode, version=mode.version)
     raise ValueError(f"Tool '{tool_id}' has no supported workflow mode; use 'workflow modes'.")
+
+
+def validate_supported_host(tool_ids: Sequence[str], host: tuple[str, str, str, str, str]) -> None:
+    """Check observable host requirements without executing prerequisite commands."""
+    system, machine, implementation, python_version, macos = host
+    if system != "Darwin" or machine != "arm64":
+        raise ValueError("The supported workflow modes require macOS arm64.")
+    if "graphify" in tool_ids and (
+        implementation != "CPython"
+        or not SpecifierSet(">=3.11.5,<3.12").contains(python_version)
+        or not macos
+        or Version(macos) < Version("14")
+    ):
+        raise ValueError("Graphify requires CPython >=3.11.5,<3.12 on macOS >=14 arm64.")

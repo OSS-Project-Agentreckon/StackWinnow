@@ -10,8 +10,6 @@ from pathlib import Path
 from typing import Literal
 from uuid import uuid4
 
-from packaging.specifiers import SpecifierSet
-from packaging.version import Version
 from pydantic import Field, model_validator
 
 from stackwinnow.adapters import headroom, playwright_mcp, promptfoo
@@ -55,7 +53,7 @@ from stackwinnow.installer import InstallerError
 from stackwinnow.recommend import recommend_tools
 from stackwinnow.runner import run_command
 from stackwinnow.state.lock import project_lock
-from stackwinnow.supported import ToolSelection, supported_modes
+from stackwinnow.supported import ToolSelection, supported_modes, validate_supported_host
 from stackwinnow.verify import VerificationReport, check_project
 from stackwinnow.workflow_state import (
     WorkflowError,
@@ -342,16 +340,10 @@ def _validate(plan: WorkflowPlan) -> Path:
 
 
 def _prerequisites(plan: WorkflowPlan, runner) -> None:
-    system, machine, implementation, python_version, macos = plan.state.host
-    if system != "Darwin" or machine != "arm64":
-        raise WorkflowError("The supported workflow modes require macOS arm64.")
-    if plan.graphify and (
-        implementation != "CPython"
-        or not SpecifierSet(">=3.11.5,<3.12").contains(python_version)
-        or not macos
-        or Version(macos) < Version("14")
-    ):
-        raise WorkflowError("Graphify requires CPython >=3.11.5,<3.12 on macOS >=14 arm64.")
+    try:
+        validate_supported_host(plan.request.tool_ids, plan.state.host)
+    except ValueError as exc:
+        raise WorkflowError(str(exc)) from exc
     patterns = {
         "node": r"v24\.\d+\.\d+",
         "npm": r"\d+\.\d+\.\d+",
