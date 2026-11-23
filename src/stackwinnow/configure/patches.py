@@ -270,7 +270,9 @@ def plan_json_edits(
         ) from exc
 
 
-def _check_current(patch: ConfigPatch, parent: int, name: str) -> bytes | None:
+def _check_current(
+    patch: ConfigPatch, parent: int, name: str, *, limit: int | None = None
+) -> bytes | None:
     # Reopen the path as well as checking the held descriptor, detecting a
     # renamed/replaced parent before publication. No symlink is followed.
     with _parent(patch.project_root, patch.relative_path) as (current_parent, _):
@@ -278,7 +280,11 @@ def _check_current(patch: ConfigPatch, parent: int, name: str) -> bytes | None:
         held = os.fstat(parent)
         if (current.st_dev, current.st_ino) != (held.st_dev, held.st_ino):
             raise ConfigurationConflict("The configuration's parent directory changed.")
-    raw, state = _read(parent, name, limit=4 * 1024 * 1024 if patch.format == "toml" else None)
+    raw, state = _read(
+        parent,
+        name,
+        limit=limit if limit is not None else 4 * 1024 * 1024 if patch.format == "toml" else None,
+    )
     if state != patch.expected_file:
         raise ConfigurationConflict(
             "Configuration content, existence, or permissions changed since preview; preview again."

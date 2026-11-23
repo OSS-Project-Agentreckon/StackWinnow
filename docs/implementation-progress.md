@@ -4,6 +4,37 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A01 foundation repair — configuration lifecycle
+
+The user authorized a continuous sequence of implementation agents, commits
+and PRs under the current contributor's identity. A01 takes ownership of
+unfinished B prerequisites; no complete B handoff is claimed.
+
+Implemented on feat/a01-config-lifecycle, based on PR #30:
+
+- JSON and supported Codex TOML ownership reconciliation, including user dates
+  and comments without leaking configuration values into diagnostic reports.
+- Read-only restoration previews and atomic cleanup of unchanged owned keys,
+  preserving user edits, foreign values and unrelated TOML bytes.
+- Original ownership retained in every valid result, including failures after
+  publication, with explicit released_keys for the later durable journal.
+- Conservative live runtime-reference reports that include foreign settings
+  and direct filesystem aliases; unreadable configuration retains candidates.
+
+The caller owns project locking, authoritative receipt validation and durable
+intent/outcome recording. Empty files are kept; reformatted TOML stanzas are
+preserved for inspection. See [configuration lifecycle](configuration-lifecycle.md).
+
+Validation: 142 focused tests passed; a wheel rebuilt from the working source
+passed 1015 tests with warnings as errors, with 12 opt-in integration/packaging
+skips. Ruff lint/format and git diff --check passed. Real client execution and
+runtime deletion were not part of this slice. Publication is via the two
+configuration commits on this branch; no merge or hosted CI result is claimed.
+
+Next dependencies: managed Graphify freshness/reindexing, its real Codex
+integration, Headroom shared verification, then coordinated safe removal using
+these lock/journal/reference interfaces. The product handoff remains pending.
+
 ## B01/B02 — baseline and removal classification
 
 Started fix/b-foundation-baseline-removal from main 8466c8c at the user's

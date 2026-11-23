@@ -10,6 +10,23 @@ Do not switch accounts to attribute new work to an absent teammate.
 
 ## Current implementation checkpoint
 
+The latest user instruction authorizes a continuous multi-agent implementation
+sequence under the current contributor's identity. A01 now includes repairing
+the incomplete B prerequisites; a complete B handoff is not assumed.
+
+Active branch: feat/a01-config-lifecycle, stacked on PR #30. JSON/Codex TOML
+reconciliation, conservative owned configuration restoration and live runtime
+reference inspection are implemented. The later removal executor must hold
+the project lock, validate receipt ownership and journal intent/outcomes.
+See configuration-lifecycle.md for the public APIs and deliberately retained
+unsupported cases. This closes the configuration primitive gap, not the entire
+handoff. Full lifecycle wiring and real tool acceptance remain pending.
+
+Validation for this A01 repair: 142 focused tests and 1015 rebuilt-package
+tests passed with warnings treated as errors; 12 opt-in checks skipped.
+Lint, formatting and diff checks passed. Publication is through the two
+configuration commits on this branch; no hosted CI/merge claim.
+
 Branch: fix/b-foundation-baseline-removal.
 Current slice: B01 baseline fixes and B02 read-only removal classification.
 Implemented locally: deterministic Headroom plan-file closure, baseline lint
@@ -32,7 +49,7 @@ hosted validation result is claimed here.
 | --- | --- |
 | B01 — Stable baseline | Implemented and locally validated; commit 9c80b11; hosted CI pending |
 | B02 — Runtime removal classification | Implemented and locally validated in the following branch commit; see runtime-removal.md; hosted CI pending |
-| B03 — Configuration/lifecycle ownership | Next: TOML reconciliation/restoration, preserved runtime references, repeat/removal interfaces |
+| B03 — Configuration/lifecycle ownership | Primitives implemented in A01 repair; coordinated removal must wire the documented lock/journal/reference contract |
 | B04 — Graphify indexing and shared verification | Pending: validate installed inventory and reviewed sources under lock; stage fresh indexing; support deliberate reindex; retain ownership on failure; expose shared checks/CLI |
 | B05 — Graphify Codex integration | Pending: replace unsupported upstream MCP command with a supported integration; prove actual Codex invocation; keep connection and functionality separate |
 | B06 — Headroom CLI and shared verification | CLI exists; shared verifier, current real lifecycle evidence and dependency inventory remain |
