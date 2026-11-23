@@ -51,13 +51,18 @@ The script refuses to run if `__version__` contains a dev, alpha, beta, rc, or p
 
 ## 3. Verify the wheel
 
-Install the wheel in a clean environment and confirm it runs correctly:
+Verify the exact artifacts produced in step 2, checking their sha256 digests and
+running smoke checks (entry point, `--version`, catalog). Use `--verify-only` so
+that the release artifacts and `sha256sums.txt` are **not** overwritten:
 
 ```sh
-python scripts/check_distribution.py --dist-dir dist
+python scripts/check_distribution.py --verify-only dist
 ```
 
-Or run the packaging test suite:
+Do not use `--dist-dir dist` here: that mode rebuilds from source, overwrites both
+artifacts, and invalidates the recorded checksums.
+
+You can also run the packaging test suite (session-scoped venv, built once):
 
 ```sh
 python -m pytest tests/packaging/ --run-packaging -v

@@ -23,6 +23,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+from packaging.version import InvalidVersion, Version
 
 SOURCE_ROOT = Path(__file__).resolve().parent.parent
 
@@ -36,20 +37,23 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
 
 
 def _check_version() -> str:
-    """Return the declared version; raise if it looks like a dev/pre-release."""
+    """Return the declared version; raise if it is a dev/pre-release per PEP 440."""
     result = _run([sys.executable, "-c", "from stackwinnow import __version__; print(__version__)"])
     if result.returncode != 0:
         raise RuntimeError(f"Cannot read version: {result.stderr.strip()}")
-    version = result.stdout.strip()
-    if not version:
+    version_str = result.stdout.strip()
+    if not version_str:
         raise RuntimeError("Empty version string.")
-    lower = version.lower()
-    if any(tag in lower for tag in ("dev", "alpha", "beta", "rc", "post")):
+    try:
+        v = Version(version_str)
+    except InvalidVersion:
+        raise RuntimeError(f"Version {version_str!r} is not a valid PEP 440 version.")
+    if v.is_devrelease or v.is_prerelease:
         raise RuntimeError(
-            f"Version {version!r} looks like a pre-release or dev version.\n"
+            f"Version {version_str!r} is a pre-release or dev version.\n"
             "Update __version__ in src/stackwinnow/__init__.py before building a release."
         )
-    return version
+    return version_str
 
 
 def _build(dist_dir: Path) -> tuple[Path, Path]:

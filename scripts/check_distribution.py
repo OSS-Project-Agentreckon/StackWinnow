@@ -2,14 +2,16 @@
 
 Usage (from the repo root):
     python scripts/check_distribution.py [--dist-dir DIST_DIR]
+    python scripts/check_distribution.py --verify-only DIST_DIR
 
-The script:
-  1. Builds a wheel (and sdist) using the ``build`` package.
-  2. Installs the wheel with its declared dependencies into a fresh venv.
-  3. Runs ``pip check`` to confirm no broken dependency requirements.
-  4. Checks that ``stackwinnow --version`` exits 0 and prints a version string.
-  5. Loads and validates the tool catalog via ``stackwinnow.catalog.load_catalog``.
-  6. Checks that the declared entry point resolves to the installed package tree.
+Build mode (default): builds a fresh wheel + sdist from source, installs into a
+clean venv with declared dependencies, and runs smoke checks.
+
+Verify-only mode (--verify-only): takes an existing dist directory that already
+contains a wheel, sdist, and sha256sums.txt (produced by build_release.py).
+Checks the recorded hashes, then installs the existing wheel and runs the same
+smoke checks. Use this after ``build_release.py`` to validate release artifacts
+without rebuilding or overwriting them.
 
 Exit 0 on success; non-zero (with a summary of failures) otherwise.
 """
@@ -148,18 +150,96 @@ def check_entry_point(python: Path) -> None:
         )
 
 
+def verify_existing_checksums(dist_dir: Path) -> Path:
+    """Verify existing artifacts against sha256sums.txt; return the wheel path.
+
+    Reads sha256sums.txt from dist_dir, confirms each listed artifact exists and
+    matches its recorded digest, then returns the wheel path for further checks.
+    """
+    checksums_file = dist_dir / "sha256sums.txt"
+    if not checksums_file.exists():
+        raise RuntimeError(f"sha256sums.txt not found in {dist_dir}")
+    wheel: Path | None = None
+    for line in checksums_file.read_text().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            raise RuntimeError(f"Unexpected sha256sums.txt line: {line!r}")
+        expected_digest, name = parts
+        artifact = dist_dir / name
+        if not artifact.exists():
+            raise RuntimeError(f"Artifact {name!r} listed in sha256sums.txt is missing.")
+        actual = _sha256(artifact)
+        if actual != expected_digest:
+            raise RuntimeError(
+                f"Checksum mismatch for {name!r}:\n"
+                f"  expected: {expected_digest}\n"
+                f"  actual:   {actual}"
+            )
+        print(f"  OK  sha256:{actual[:16]}…  {name}")
+        if name.endswith(".whl"):
+            wheel = artifact
+    if wheel is None:
+        raise RuntimeError("No wheel (.whl) found in sha256sums.txt.")
+    return wheel
+
+
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument(
         "--dist-dir",
         default=None,
         help="Output directory for built artifacts (default: a temporary directory).",
+    )
+    parser.add_argument(
+        "--verify-only",
+        metavar="DIST_DIR",
+        default=None,
+        help=(
+            "Verify existing artifacts in DIST_DIR against sha256sums.txt, "
+            "then install the wheel and run smoke checks. Does not rebuild."
+        ),
     )
     args = parser.parse_args(argv)
 
     source_root = Path(__file__).resolve().parent.parent
     failures: list[str] = []
 
+    if args.verify_only:
+        # Verify-only mode: check existing artifacts, then run smoke checks.
+        dist_dir = Path(args.verify_only)
+        with tempfile.TemporaryDirectory(prefix="stackwinnow-dist-verify-") as tmpdir:
+            venv_dir = Path(tmpdir) / "verify-venv"
+            print("Verifying checksums…")
+            try:
+                wheel = verify_existing_checksums(dist_dir)
+            except RuntimeError as exc:
+                failures.append(f"checksum verification: {exc}")
+                print(f"FAIL  {failures[-1]}")
+                return _report(failures)
+
+            print("Creating clean venv…")
+            try:
+                python = create_venv(venv_dir)
+            except RuntimeError as exc:
+                failures.append(f"venv creation: {exc}")
+                print(f"FAIL  {failures[-1]}")
+                return _report(failures)
+
+            print("Installing verified wheel with dependencies…")
+            try:
+                install_wheel(python, wheel)
+            except RuntimeError as exc:
+                failures.append(f"wheel install: {exc}")
+                print(f"FAIL  {failures[-1]}")
+                return _report(failures)
+
+            _run_smoke_checks(python, failures)
+        return _report(failures)
+
+    # Build mode: build fresh artifacts, install, run smoke checks.
     with tempfile.TemporaryDirectory(prefix="stackwinnow-dist-check-") as tmpdir:
         tmp = Path(tmpdir)
         dist_dir = Path(args.dist_dir) if args.dist_dir else tmp / "dist"
@@ -173,7 +253,6 @@ def main(argv: list[str] | None = None) -> int:
         except RuntimeError as exc:
             failures.append(f"wheel build: {exc}")
             print(f"FAIL  {failures[-1]}")
-            # Cannot continue without a wheel.
             _report(failures)
             return 1
 
@@ -203,31 +282,35 @@ def main(argv: list[str] | None = None) -> int:
             _report(failures)
             return 1
 
-        print("Checking entry point…")
-        try:
-            check_entry_point(python)
-            print("  OK")
-        except RuntimeError as exc:
-            failures.append(f"entry point: {exc}")
-            print(f"FAIL  {failures[-1]}")
-
-        print("Checking --version…")
-        try:
-            version = check_version(python)
-            print(f"  OK  ({version})")
-        except RuntimeError as exc:
-            failures.append(f"--version: {exc}")
-            print(f"FAIL  {failures[-1]}")
-
-        print("Checking catalog…")
-        try:
-            check_catalog(python)
-            print("  OK")
-        except RuntimeError as exc:
-            failures.append(f"catalog: {exc}")
-            print(f"FAIL  {failures[-1]}")
+        _run_smoke_checks(python, failures)
 
     return _report(failures)
+
+
+def _run_smoke_checks(python: Path, failures: list[str]) -> None:
+    print("Checking entry point…")
+    try:
+        check_entry_point(python)
+        print("  OK")
+    except RuntimeError as exc:
+        failures.append(f"entry point: {exc}")
+        print(f"FAIL  {failures[-1]}")
+
+    print("Checking --version…")
+    try:
+        version = check_version(python)
+        print(f"  OK  ({version})")
+    except RuntimeError as exc:
+        failures.append(f"--version: {exc}")
+        print(f"FAIL  {failures[-1]}")
+
+    print("Checking catalog…")
+    try:
+        check_catalog(python)
+        print("  OK")
+    except RuntimeError as exc:
+        failures.append(f"catalog: {exc}")
+        print(f"FAIL  {failures[-1]}")
 
 
 def _report(failures: list[str]) -> int:
