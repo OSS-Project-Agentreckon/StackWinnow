@@ -134,8 +134,13 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
     """Validate inputs and current ownership, returning whether reuse is allowed."""
     checked = GraphifyExecutionPlan.model_validate(plan.model_dump())
     root = _root(checked.project_root)
+    record = record_for(root)
+    existing = record.receipt_for(STEP_ID)
     current = _prepare_graphify_execution(
-        root, expectation=checked.expectation, require_fresh=False
+        root,
+        expectation=checked.expectation,
+        require_fresh=False,
+        sources_override=checked.sources if existing is not None else None,
     )
     # Only the receipts snapshot may differ after this plan's successful apply.
     if current.model_copy(update={"receipts_sha256": checked.receipts_sha256}) != checked:
@@ -153,12 +158,12 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         )
     ):
         raise GraphifyError("Installation requires CPython 3.11.5–3.11.x on macOS 14+ arm64.")
-    if os.path.lexists(root / STATE_PATH):
+    record = record_for(root)
+    own = [s for s in record.steps if s.tool_id == "graphify" and s.step_id == STEP_ID]
+    if not own and os.path.lexists(root / STATE_PATH):
         raise GraphifyError(
             "Existing Graphify index state requires inspection before installation."
         )
-    record = record_for(root)
-    own = [s for s in record.steps if s.tool_id == "graphify"]
     if not own:
         if record.receipt_for(STEP_ID) is not None:
             raise GraphifyError("Graphify's installation step ID is already owned by another tool.")
@@ -188,15 +193,72 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         raise GraphifyError("Graphify installation evidence changed; inspect the owned state.")
     manifest = _json(raw)
     if (
-        not isinstance(manifest, dict)
-        or set(manifest) != {"schema_version", "plan_sha256", "files"}
-        or manifest["schema_version"] != 1
+        not _manifest_shape(manifest)
+        or (manifest["schema_version"] == 2 and manifest["plan"] != checked.model_dump(mode="json"))
         or manifest["plan_sha256"] != _plan_digest(checked)
         or not manifest["files"]
         or manifest["files"] != _inventory(root)
     ):
         raise GraphifyError("Graphify installation changed; inspect it before reuse.")
     return True
+
+
+def _manifest_shape(manifest: object) -> bool:
+    return isinstance(manifest, dict) and (
+        (
+            manifest.get("schema_version") == 1
+            and set(manifest) == {"schema_version", "plan_sha256", "files"}
+        )
+        or (
+            manifest.get("schema_version") == 2
+            and set(manifest) == {"schema_version", "plan_sha256", "plan", "files"}
+        )
+    )
+
+
+def validate_graphify_installation(
+    root: Path, installation_plan: GraphifyExecutionPlan | None = None
+) -> tuple[GraphifyExecutionPlan, str]:
+    """Inspect current inventory/recipe; legacy manifests need the original plan."""
+    record = record_for(root)
+    receipt = record.receipt_for(STEP_ID)
+    if (
+        receipt is None
+        or not record.is_succeeded(STEP_ID, "graphify")
+        or receipt.owned_paths != [INSTALL_ROOT]
+        or receipt.configuration_intents
+        or any(
+            p.tool_id != "graphify"
+            or p.project_root != str(root)
+            or p.relative_path != ".codex/config.toml"
+            for p in receipt.configuration_ownership
+        )
+    ):
+        raise GraphifyError("A current owned Graphify installation is required.")
+    raw = _read_at(root, MANIFEST)
+    if receipt.evidence != [EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(raw)}")]:
+        raise GraphifyError("Graphify installation evidence is missing or changed.")
+    manifest = _json(raw)
+    if not _manifest_shape(manifest):
+        raise GraphifyError("Invalid installation manifest requires inspection before indexing.")
+    if manifest["schema_version"] == 1 and installation_plan is None:
+        raise GraphifyError(
+            "Legacy installation needs its original saved execution plan via --installation-plan."
+        )
+    plan = GraphifyExecutionPlan.model_validate(
+        manifest["plan"] if manifest["schema_version"] == 2 else installation_plan.model_dump()
+    )
+    if installation_plan is not None and installation_plan != plan:
+        raise GraphifyError("Supplied installation plan differs from the owned recipe.")
+    current = _prepare_graphify_execution(
+        root, expectation=plan.expectation, require_fresh=False, sources_override=plan.sources
+    )
+    current = current.model_copy(update={"receipts_sha256": plan.receipts_sha256})
+    if current != plan or manifest["plan_sha256"] != _plan_digest(plan):
+        raise GraphifyError("Graphify installed recipe or runtime changed.")
+    if not manifest["files"] or manifest["files"] != _inventory(root):
+        raise GraphifyError("Graphify installation changed; inspect it before reuse.")
+    return plan, _digest(raw)
 
 
 _HEALTH_CHECK = """
@@ -308,7 +370,12 @@ def _install(plan: GraphifyExecutionPlan, runner: CommandRunner) -> RunnerOutcom
         if not files or f"{ENV_PATH}/bin/python" not in files:
             raise GraphifyError("Installation did not produce its declared Python environment.")
         raw = json.dumps(
-            {"schema_version": 1, "plan_sha256": _plan_digest(plan), "files": files},
+            {
+                "schema_version": 2,
+                "plan_sha256": _plan_digest(plan),
+                "plan": plan.model_dump(mode="json"),
+                "files": files,
+            },
             sort_keys=True,
             indent=2,
         ).encode()

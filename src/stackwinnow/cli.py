@@ -114,6 +114,8 @@ def _check_project(args: argparse.Namespace, parser: argparse.ArgumentParser) ->
 
 
 def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    if args.graphify_command in ("index-plan", "index"):
+        return _graphify_index(args, parser)
     if args.graphify_command == "apply":
         try:
             result = apply_graphify_install(
@@ -166,6 +168,38 @@ def _graphify(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
             print(note)
         print("Use --json to inspect command arguments. No project files were changed.")
     return 0
+
+
+def _graphify_index(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    from stackwinnow.adapters.graphify_index import (
+        apply_graphify_index,
+        load_graphify_index_plan,
+        plan_graphify_index,
+    )
+
+    try:
+        if args.graphify_command == "index-plan":
+            result = plan_graphify_index(
+                args.project_root,
+                expectation=load_relationship_expectation(args.expectation),
+                installation_plan=load_graphify_install_plan(args.installation_plan)
+                if args.installation_plan
+                else None,
+            )
+            print(result.model_dump_json(indent=2))
+            return 0
+        result = apply_graphify_index(
+            load_graphify_index_plan(args.plan_file), dry_run=args.dry_run
+        )
+        if args.json:
+            print(result.model_dump_json(indent=2))
+        else:
+            for operation in result.results:
+                print(f"[{operation.status}] {operation.message}")
+        return 0 if result.dry_run or result.indexed else 1
+    except GraphifyError as exc:
+        parser.exit(2, f"error: {exc}\n")
+        return 2
 
 
 def _graphify_execution_plan(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -516,6 +550,28 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     graphify_apply.add_argument("--dry-run", action="store_true")
     graphify_apply.add_argument("--json", action="store_true")
+    index_plan = graphify_commands.add_parser(
+        "index-plan",
+        allow_abbrev=False,
+        help="Review current runtime and source inputs for initial indexing or reindexing.",
+    )
+    index_plan.add_argument("project_root")
+    index_plan.add_argument("--expectation", required=True)
+    index_plan.add_argument(
+        "--installation-plan",
+        help="Original execution-plan JSON for a legacy installation manifest.",
+    )
+    index_plan.add_argument(
+        "--json", action="store_true", help="Emit the reviewable JSON plan (default)."
+    )
+    index_apply = graphify_commands.add_parser(
+        "index",
+        allow_abbrev=False,
+        help="Apply a reviewed index plan; reuse only current graph evidence.",
+    )
+    index_apply.add_argument("plan_file")
+    index_apply.add_argument("--dry-run", action="store_true")
+    index_apply.add_argument("--json", action="store_true")
     checking = commands.add_parser(
         "check",
         help="Verify selected tools without installing or changing their configuration.",

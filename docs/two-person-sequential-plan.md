@@ -14,7 +14,14 @@ The latest user instruction authorizes a continuous multi-agent implementation
 sequence under the current contributor's identity. A01 now includes repairing
 the incomplete B prerequisites; a complete B handoff is not assumed.
 
-Active branch: feat/a01-config-lifecycle, stacked on PR #30. JSON/Codex TOML
+Active branch: feat/a01-graphify-freshness, stacked on configuration PR #31.
+Managed Graphify indexing/reindexing and shared local verification are now
+implemented and validated: 151 focused tests, 1042 rebuilt-package tests passed
+with warnings as errors / 12 opt-in skips, and 1 real managed Graphify lifecycle
+test passed. Lint, formatting, dependency and diff checks passed.
+See graphify-index-lifecycle.md. The next agent owns real Codex integration.
+
+Previous configuration slice: feat/a01-config-lifecycle, stacked on PR #30. JSON/Codex TOML
 reconciliation, conservative owned configuration restoration and live runtime
 reference inspection are implemented. The later removal executor must hold
 the project lock, validate receipt ownership and journal intent/outcomes.
@@ -50,7 +57,7 @@ hosted validation result is claimed here.
 | B01 — Stable baseline | Implemented and locally validated; commit 9c80b11; hosted CI pending |
 | B02 — Runtime removal classification | Implemented and locally validated in the following branch commit; see runtime-removal.md; hosted CI pending |
 | B03 — Configuration/lifecycle ownership | Primitives implemented in A01 repair; coordinated removal must wire the documented lock/journal/reference contract |
-| B04 — Graphify indexing and shared verification | Pending: validate installed inventory and reviewed sources under lock; stage fresh indexing; support deliberate reindex; retain ownership on failure; expose shared checks/CLI |
+| B04 — Graphify indexing and shared verification | Implemented: source/runtime validation under lock, staged extraction/query, deliberate reindex, failure ownership, index CLI and shared verifier; 1042 default tests and the real managed lifecycle passed |
 | B05 — Graphify Codex integration | Pending: replace unsupported upstream MCP command with a supported integration; prove actual Codex invocation; keep connection and functionality separate |
 | B06 — Headroom CLI and shared verification | CLI exists; shared verifier, current real lifecycle evidence and dependency inventory remain |
 | B07 — Coordinated safe removal | Pending: preserve edits, clean owned configuration, revalidate/remove unreferenced runtimes under lock, journal partial progress, repeat harmlessly |

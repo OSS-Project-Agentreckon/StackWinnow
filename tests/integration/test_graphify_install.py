@@ -52,10 +52,38 @@ def test_real_graphify_managed_install_repeat_and_changed_state(fixture_project)
     assert all((root / path).read_bytes() == raw for path, raw in before.items())
     assert not (root / ".codex").exists() and not (root / "AGENTS.md").exists()
     assert not (root / ".stackwinnow/graphify").exists()
+    from stackwinnow.adapters.graphify_index import apply_graphify_index, plan_graphify_index
+    from stackwinnow.verify import check_project
+
+    index_plan = plan_graphify_index(root, expectation=plan.expectation)
+    indexed = apply_graphify_index(index_plan, command_runner=runner)
+    assert indexed.indexed, indexed.model_dump_json()
+    assert len(calls) == 6  # install commands, extraction, upstream query
+    repeated = apply_graphify_index(index_plan, command_runner=runner)
+    assert repeated.indexed and repeated.results[0].status == "skipped" and len(calls) == 6
+    reinstall = apply_graphify_install(plan, command_runner=runner)
+    assert reinstall.installed and reinstall.results[0].status == "skipped" and len(calls) == 6
+    verified = check_project(
+        root, tool_ids=["graphify"], run_functional=True, command_runner=runner
+    )
+    observations = {item.kind: item for item in verified.tools[0].checks}
+    assert observations["functional"].status == "succeeded", verified.as_payload()
+    assert observations["connected"].status == "blocked" and not verified.ready
+    assert len(calls) == 7
+    changed = root / "sample_app/names.py"
+    changed.write_text(changed.read_text() + "\n# deliberate source revision\n")
+    with pytest.raises(GraphifyError, match="new index plan"):
+        apply_graphify_index(index_plan, command_runner=runner)
+    revised = plan_graphify_index(root, expectation=plan.expectation)
+    assert apply_graphify_index(revised, command_runner=runner).indexed
+    assert len(calls) == 9
+    # Return the original reviewed source so the install-only negative control
+    # below isolates runtime tampering, rather than the source-plan change.
+    changed.write_bytes(before[changed.relative_to(root)])
     (root / ENV_PATH / "pyvenv.cfg").write_text("changed configuration\n")
     with pytest.raises(GraphifyError, match="installation changed"):
         apply_graphify_install(plan, command_runner=runner)
-    assert len(calls) == 4
+    assert len(calls) == 9
 
     # An actual venv/bootstrap followed by a controlled download failure retains
     # the partial directory and does not retry or delete it automatically.
