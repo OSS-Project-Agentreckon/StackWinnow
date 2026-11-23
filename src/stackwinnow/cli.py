@@ -570,6 +570,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    from stackwinnow.workflow_cli import add_workflow_parser, workflow_command
+
+    add_workflow_parser(commands)
     removal = commands.add_parser(
         "remove", help="Preview or apply owned configuration/runtime cleanup.", allow_abbrev=False
     )
@@ -794,6 +797,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command == "workflow":
+        return workflow_command(args, parser)
     if args.command == "inspect":
         return _inspect(args, parser)
     if args.command == "recommend":
