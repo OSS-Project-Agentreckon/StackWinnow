@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ast
 import json
 import sys
 from dataclasses import dataclass
@@ -64,7 +65,7 @@ class FakeCommands:
         self.calls.append((args, Path(cwd), dict(extra_env or {})))
 
         # Normalise: strip -I inserted by _isolated_args so dispatch uses -m <module> form.
-        effective = [args[0]] + (args[2:] if len(args) >= 2 and args[1] == "-I" else args[1:])
+        effective = [a for a in args if a not in ("-I", "-B")]
 
         # --- python [-I] -m venv --without-pip <path> ---
         if len(effective) >= 3 and effective[1] == "-m" and effective[2] == "venv":
@@ -87,8 +88,20 @@ class FakeCommands:
                 stderr="" if not self.pip_exit else "synthetic pip failure",
             )
 
+        if "-c" in args and args[-1].startswith("# stackwinnow-headroom-health"):
+            return CommandResult(
+                stdout=json.dumps(
+                    {
+                        "prefix": str(_venv_from_python(args[0])),
+                        "version": adapter.VERSION,
+                        "tokenizer": "o200k_base",
+                        "distributions": [{"name": "headroom-ai", "version": adapter.VERSION}],
+                    }
+                )
+            )
+
         # --- <venv>/bin/python -I -c <script> ---
-        if len(args) >= 3 and args[1] == "-I" and args[2] == "-c":
+        if "-c" in args and args[-1].startswith("# stackwinnow-headroom-compress"):
             if self.compress_timed_out:
                 return CommandResult(returncode=-1, timed_out=True)
             if self.compress_exit:
@@ -96,8 +109,23 @@ class FakeCommands:
                     returncode=self.compress_exit,
                     stderr=json.dumps({"error": "synthetic compress failure"}),
                 )
-            default = {"messages_in": 2, "messages_out": 2, "tokens_saved": 10}
-            out = self.compress_output if self.compress_output is not None else default
+            run_line = next(
+                line for line in args[-1].splitlines() if line.startswith("SW_RUN_ID = ")
+            )
+            default = {
+                "messages_in": 2,
+                "messages_out": 2,
+                "tokens_before": 100,
+                "tokens_after": 90,
+                "tokens_saved": 10,
+                "run_id": ast.literal_eval(run_line.split(" = ", 1)[1]),
+                "fixture_sha256": adapter._FIXTURE_SHA256,
+                "model_target": "gpt-4o",
+                "tokenizer": "o200k_base",
+                "system_preserved": True,
+                "failure_preserved": True,
+            }
+            out = default | (self.compress_output or {})
             return CommandResult(stdout=json.dumps(out))
 
         raise AssertionError(f"Unexpected command: {args}")
@@ -297,7 +325,7 @@ def test_apply_headroom_compress_bad_json(fixture_project):
     class BadJsonRunner(FakeCommands):
         def __call__(self, args, *, cwd, timeout, extra_env=None):
             self.calls.append((args, Path(cwd), dict(extra_env or {})))
-            if len(args) >= 3 and args[1] == "-I" and args[2] == "-c":
+            if "-c" in args and args[-1].startswith("# stackwinnow-headroom-compress"):
                 return CommandResult(stdout="NOT VALID JSON")
             return super().__call__(args, cwd=cwd, timeout=timeout, extra_env=extra_env)
 
