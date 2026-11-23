@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from stackwinnow.contracts import InstallPlan, OperationStatus
 from stackwinnow.installer import RunnerOutcome, execute_plan
 from stackwinnow.runtime.remove import RemovalAction, RemovalPlan, plan_removal
@@ -539,3 +541,105 @@ def test_path_through_symlinked_ancestor_is_retained(tmp_path):
     assert len(plan.items) == 1
     assert plan.items[0].action == RemovalAction.RETAIN
 
+
+@pytest.mark.parametrize("absolute", [False, True])
+def test_parent_traversal_cannot_make_external_data_removable(tmp_path, absolute):
+    external = tmp_path / "user-data"
+    external.mkdir()
+    (external / "keep.txt").write_text("user data")
+    raw = ".stackwinnow/../user-data"
+    if absolute:
+        raw = str(tmp_path / raw)
+    _run(tmp_path, _STEP_A, owned_paths=[raw])
+
+    assert plan_removal(str(tmp_path)).items[0].action == RemovalAction.RETAIN
+    assert (external / "keep.txt").read_text() == "user data"
+
+
+@pytest.mark.parametrize("evidence", [False, True])
+@pytest.mark.parametrize(
+    "owned",
+    [
+        ".stackwinnow/graphify",
+        ".stackwinnow/graphify/index",
+        ".stackwinnow/graphify/index/graphify-out/graph.json",
+    ],
+)
+def test_actual_graph_data_is_retained_independently_of_evidence(tmp_path, owned, evidence):
+    from stackwinnow.adapters.graphify import GRAPH_PATH
+    from stackwinnow.contracts import EvidenceRef
+
+    graph = tmp_path / GRAPH_PATH
+    graph.parent.mkdir(parents=True)
+    graph.write_text('{"nodes": [], "edges": []}')
+    execute_plan(
+        _plan(tmp_path, [_STEP_A]),
+        step_runner=lambda step: RunnerOutcome(
+            status=OperationStatus.SUCCEEDED,
+            message="indexed",
+            owned_paths=[owned],
+            evidence=[EvidenceRef(source=GRAPH_PATH, detail="sha256:fixture")] if evidence else [],
+        ),
+    )
+    before = {str(p): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()}
+
+    assert not plan_removal(str(tmp_path)).candidates
+    assert {str(p): p.read_bytes() for p in tmp_path.rglob("*") if p.is_file()} == before
+
+
+@pytest.mark.parametrize("child", ["results/run.json", "cache/response.json"])
+def test_promptfoo_data_protects_parent_without_separate_child_receipt(tmp_path, child):
+    parent = tmp_path / ".stackwinnow/promptfoo"
+    output = parent / child
+    output.parent.mkdir(parents=True)
+    output.write_text("{}")
+    _run(tmp_path, _STEP_A, owned_paths=[str(parent)])
+
+    assert not plan_removal(str(tmp_path)).candidates
+
+
+@pytest.mark.parametrize("relative", [".stackwinnow/cache/item", ".stackwinnow/caches/item"])
+def test_designated_shared_caches_survive_removal(tmp_path, relative):
+    cached = tmp_path / relative
+    cached.parent.mkdir(parents=True)
+    cached.write_text("cached result")
+    _run(tmp_path, _STEP_A, owned_paths=[relative])
+
+    assert not plan_removal(str(tmp_path)).candidates
+
+
+@pytest.mark.parametrize("failed_owns_parent", [False, True])
+def test_failed_receipt_protects_overlapping_successful_ownership(tmp_path, failed_owns_parent):
+    parent = tmp_path / ".stackwinnow/envs/shared"
+    child = parent / "bin/python"
+    child.parent.mkdir(parents=True)
+    child.write_text("runtime")
+    _run(tmp_path, _STEP_A, owned_paths=[str(child if failed_owns_parent else parent)])
+    _run_failed(tmp_path, _STEP_B, owned_paths=[str(parent if failed_owns_parent else child)])
+
+    assert not plan_removal(str(tmp_path), ["tool-a"]).candidates
+
+
+def test_symlink_loop_in_ownership_blocks_planning(tmp_path):
+    from stackwinnow.installer import InstallerError
+
+    link = tmp_path / ".stackwinnow/envs/loop"
+    link.parent.mkdir(parents=True)
+    link.symlink_to(link.name)
+    _run(tmp_path, _STEP_A, owned_paths=[str(link / "python")])
+
+    with pytest.raises(InstallerError, match="resolve"):
+        plan_removal(str(tmp_path))
+
+
+def test_retained_alias_protects_candidate_parent_in_same_batch(tmp_path):
+    parent = tmp_path / ".stackwinnow/envs/tool-a"
+    parent.mkdir(parents=True)
+    target = tmp_path / "user-file"
+    target.write_text("preserve")
+    link = parent / "linked-file"
+    link.symlink_to(target)
+    _run(tmp_path, _STEP_A, owned_paths=[str(parent), str(link)])
+
+    assert not plan_removal(str(tmp_path)).candidates
+    assert link.is_symlink() and target.read_text() == "preserve"
