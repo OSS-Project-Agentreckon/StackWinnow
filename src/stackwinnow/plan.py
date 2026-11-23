@@ -1,21 +1,13 @@
-"""Pre-flight plan validation and existing-installation detection.
+"""Read-only preliminary checks for legacy generic installation plans.
 
-Pre-flight runs before any install step and before any filesystem writes.
-It is read-only: it may inspect existing directories and PATH but never
-creates, modifies, or deletes anything.
-
-Three separate concerns are checked for every plan step:
-
-1. Eligibility — does the catalog license and platform allow installation?
-2. Existing managed install — does StackWinnow already own this tool here?
-3. External install — is the tool present in the system outside our control?
-
-A stale receipt (succeeded but environment is gone) is surfaced separately so
-the caller can decide whether to reinstate or wipe state before retrying.
+This plan has no authoritative adapter recipe. Receipts, environment directories
+and PATH entries are observations, not installation or health evidence. Existing
+state requires a fresh dedicated workflow review. No commands or writes occur.
 """
 
 from __future__ import annotations
 
+import platform
 import shutil
 from enum import StrEnum
 from pathlib import Path
@@ -23,29 +15,23 @@ from typing import Literal
 
 from pydantic import Field
 
+from stackwinnow.adapters._managed import directories, record_for
 from stackwinnow.catalog import Catalog, EligibilityContext, evaluate_eligibility, load_catalog
 from stackwinnow.contracts import (
     Contract,
     Identifier,
     InstallPlan,
     NonEmptyText,
-    OperationStatus,
     PlanStep,
     UntrimmedText,
 )
-from stackwinnow.installer import ExecutionRecord, InstallerError, load_record
+from stackwinnow.installer import ExecutionRecord
 
-# Path layout for managed tool environments.  These mirror the constants in
-# environments.py (from the runtime step); they are reproduced here to keep
-# the plan preflight independent of that unmerged module.
 _MANAGED_ROOT = ".stackwinnow"
-_ENVS_SUBDIR = "envs"
-_PYTHON_SUBDIR = "python"
-_NODE_SUBDIR = "node"
 
 
 class PreflightStatus(StrEnum):
-    """Outcome of a single pre-flight step check."""
+    """Outcome of a preliminary step check; old receipt statuses remain readable."""
 
     READY = "ready"
     BLOCKED = "blocked"
@@ -74,15 +60,13 @@ class PreflightReport(Contract):
 
     @property
     def is_ready_to_apply(self) -> bool:
-        """True when no step is blocked or stale.
+        """True only for a nonempty set of preliminary READY checks.
 
-        SKIP_ALREADY_MANAGED and EXTERNAL_INSTALL_DETECTED steps do not block
-        apply; the caller decides whether to proceed with them.
+        This is not execution approval: a reviewed adapter/workflow plan must
+        validate the recipe, runtime, ownership and functional work. Legacy
+        skip/external statuses never grant readiness.
         """
-        return not any(
-            c.status in (PreflightStatus.BLOCKED, PreflightStatus.STALE_RECEIPT)
-            for c in self.checks
-        )
+        return bool(self.checks) and all(c.status == PreflightStatus.READY for c in self.checks)
 
     @property
     def blocked_checks(self) -> list[PreflightCheck]:
@@ -90,26 +74,23 @@ class PreflightReport(Contract):
 
 
 class PreflightError(Exception):
-    """Raised when pre-flight cannot complete due to corrupt or mismatched state."""
+    """Raised when pre-flight cannot safely inspect existing state."""
 
 
 def _has_managed_env(project_root: str, tool_id: str) -> bool:
-    """True if a real (non-symlink) managed Python venv or Node prefix directory exists."""
-    root = Path(project_root) / _MANAGED_ROOT / _ENVS_SUBDIR / tool_id
-    py_path = root / _PYTHON_SUBDIR
-    node_path = root / _NODE_SUBDIR
-    return (py_path.is_dir() and not py_path.is_symlink()) or (
-        node_path.is_dir() and not node_path.is_symlink()
-    )
+    """Observe an occupied tool environment path; never establish ownership.
+
+    Reject unsafe ancestors even when the final Python/Node directory is real.
+    Any occupied tool root requires adapter review, including incomplete installs.
+    """
+    path = directories(Path(project_root), f"{_MANAGED_ROOT}/envs/{tool_id}")
+    for runtime in ("python", "node"):
+        directories(Path(project_root), f"{_MANAGED_ROOT}/envs/{tool_id}/{runtime}")
+    return path.exists()
 
 
 def _find_external_executable(project_root: str, tool_id: str) -> str | None:
-    """Return the absolute PATH to tool_id if found outside the managed root.
-
-    Returns None when the tool is not on PATH at all, or when it is found
-    inside our managed .stackwinnow/ directory (indicating a prior StackWinnow
-    install is on PATH, not a truly external one).
-    """
+    """Observe a PATH entry outside the managed root, without running it."""
     path = shutil.which(tool_id)
     if path is None:
         return None
@@ -119,22 +100,14 @@ def _find_external_executable(project_root: str, tool_id: str) -> str | None:
     return path
 
 
-def _has_succeeded_tool_receipt(record: ExecutionRecord, tool_id: str) -> bool:
-    """True if any real (non-dry-run) step for tool_id succeeded in a prior run."""
-    return any(
-        r.tool_id == tool_id and r.status == OperationStatus.SUCCEEDED and not r.dry_run
-        for r in record.steps
-    )
-
-
 def _check_step(
     step: PlanStep,
     plan: InstallPlan,
     catalog: Catalog,
     context: EligibilityContext,
-    record: ExecutionRecord | None,
+    record: ExecutionRecord,
+    occupied: set[str],
 ) -> PreflightCheck:
-    # 1. Catalog lookup — the tool must exist before any other check.
     try:
         entry = catalog.get(step.tool_id)
     except KeyError:
@@ -143,51 +116,10 @@ def _check_step(
             tool_id=step.tool_id,
             status=PreflightStatus.BLOCKED,
             message=f"Tool '{step.tool_id}' is not in the catalog.",
-            reasons=[f"Add '{step.tool_id}' to the catalog before creating a plan for it."],
+            reasons=["Use 'workflow modes' to select a supported executable tool."],
         )
 
-    # 2. Tool-level stale/skip detection — checked before eligibility so that existing
-    #    managed installations are always surfaced, even if eligibility has changed.
-    if record is not None and _has_succeeded_tool_receipt(record, step.tool_id):
-        if _has_managed_env(plan.project_root, step.tool_id):
-            return PreflightCheck(
-                step_id=step.step_id,
-                tool_id=step.tool_id,
-                status=PreflightStatus.SKIP_ALREADY_MANAGED,
-                message=f"'{step.tool_id}' is already installed and owned by StackWinnow.",
-            )
-        return PreflightCheck(
-            step_id=step.step_id,
-            tool_id=step.tool_id,
-            status=PreflightStatus.STALE_RECEIPT,
-            message=(
-                f"Receipt records '{step.tool_id}' as installed "
-                "but the managed environment is missing."
-            ),
-            reasons=[
-                "The installation may have been deleted outside StackWinnow. "
-                "Re-run apply to reinstall or clear the receipt to start fresh."
-            ],
-        )
-
-    # 3. External installation — note it without blocking; StackWinnow will not take
-    #    ownership of an installation it did not create.
-    external_path = _find_external_executable(plan.project_root, step.tool_id)
-    if external_path is not None:
-        return PreflightCheck(
-            step_id=step.step_id,
-            tool_id=step.tool_id,
-            status=PreflightStatus.EXTERNAL_INSTALL_DETECTED,
-            message=(
-                f"'{step.tool_id}' is already installed at {external_path!r} "
-                "outside StackWinnow's managed environment."
-            ),
-            reasons=["StackWinnow will not take ownership of an external installation."],
-            external_path=external_path,
-        )
-
-    # 4. Full eligibility — reuse shared gates (adapter, platform, assistant, prerequisites,
-    #    conflicts). Merge the plan's tool_ids for conflict detection across all selections.
+    # Eligibility precedes observations of prior/external installations.
     check_context = context.model_copy(update={"selected_tools": list(plan.tool_ids)})
     eligibility = evaluate_eligibility(entry, check_context)
     if not eligibility.installable:
@@ -199,12 +131,90 @@ def _check_step(
             reasons=[r.message for r in eligibility.reasons],
         )
 
-    # 5. All checks passed.
+    # Lazy import: Graphify's legacy preview depends on this module.
+    from stackwinnow.supported import supported_modes, validate_supported_host
+
+    mode = next((mode for mode in supported_modes() if mode.tool_id == step.tool_id), None)
+    if mode is None:
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' has no supported executable mode.",
+            reasons=["Use 'workflow modes' to select a supported tool."],
+        )
+    if context.platform != "macos":
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' targets a platform outside the supported local modes.",
+            reasons=["The current executable modes require a macOS target and macOS arm64 host."],
+        )
+    if (plan.assistant is not None and plan.assistant != context.assistant) or (
+        mode.mode == "codex" and (context.assistant != "codex" or plan.assistant != "codex")
+    ):
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' has no matching assistant selection for this mode.",
+            reasons=["Plan and context must agree; Codex modes require an explicit Codex plan."],
+        )
+    try:
+        validate_supported_host(
+            [step.tool_id],
+            (
+                platform.system(),
+                platform.machine(),
+                platform.python_implementation(),
+                platform.python_version(),
+                platform.mac_ver()[0],
+            ),
+        )
+    except ValueError as exc:
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' cannot execute on this host.",
+            reasons=[str(exc)],
+        )
+
+    history = any(r.tool_id == step.tool_id for r in record.steps)
+    if history or step.tool_id in occupied:
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.BLOCKED,
+            message=f"'{step.tool_id}' has existing state requiring workflow review.",
+            reasons=[
+                "A receipt or environment directory does not establish a working installation. "
+                "Use 'workflow status' and create a fresh 'workflow plan'. "
+                "Use reviewed removal or retirement for recovery; preserve receipts."
+            ],
+        )
+
+    external_path = _find_external_executable(plan.project_root, step.tool_id)
+    if external_path is not None:
+        return PreflightCheck(
+            step_id=step.step_id,
+            tool_id=step.tool_id,
+            status=PreflightStatus.EXTERNAL_INSTALL_DETECTED,
+            message=f"'{step.tool_id}' has a PATH executable at {external_path!r}.",
+            reasons=[
+                "PATH presence proves neither ownership nor functionality. "
+                "Create a fresh 'workflow plan' for the isolated supported mode."
+            ],
+            external_path=external_path,
+        )
+
     return PreflightCheck(
         step_id=step.step_id,
         tool_id=step.tool_id,
         status=PreflightStatus.READY,
-        message=f"'{step.tool_id}' is eligible and not currently installed.",
+        message=f"'{step.tool_id}' passed preliminary eligibility checks.",
+        reasons=["Use a reviewed 'workflow plan' to validate the recipe before execution."],
     )
 
 
@@ -214,20 +224,22 @@ def check_plan(
     catalog: Catalog | None = None,
     context: EligibilityContext | None = None,
 ) -> PreflightReport:
-    """Check all steps in plan before any filesystem writes.
+    """Check all steps without commands or writes.
 
-    Loads the execution record to detect managed and stale installations.
-    Raises PreflightError when durable installation receipts are corrupt or
-    belong to a different project root; the caller must resolve the conflict
-    before retrying.
+    Reads bounded receipts and guarded environment paths. Raises PreflightError
+    on unsafe, corrupt or mismatched state. Existing state requires dedicated
+    workflow review, never generic skip/replay or receipt deletion.
     """
     catalog = catalog or load_catalog()
     context = context or EligibilityContext()
-
     try:
-        record = load_record(plan.project_root)
-    except InstallerError as exc:
-        raise PreflightError(str(exc)) from exc
+        record = record_for(Path(plan.project_root))
+        # Guard paths even for ineligible steps or steps with existing history.
+        occupied = {tid for tid in plan.tool_ids if _has_managed_env(plan.project_root, tid)}
+        checks = [
+            _check_step(step, plan, catalog, context, record, occupied) for step in plan.steps
+        ]
+    except (OSError, ValueError) as exc:
+        raise PreflightError(f"Cannot inspect managed state safely: {exc}") from exc
 
-    checks = [_check_step(step, plan, catalog, context, record) for step in plan.steps]
     return PreflightReport(project_root=plan.project_root, checks=checks)

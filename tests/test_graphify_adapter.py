@@ -209,7 +209,8 @@ def test_external_preflight_observation_never_enables_apply(tmp_path, monkeypatc
     executable.write_text("external tool")
     monkeypatch.setattr("stackwinnow.plan.shutil.which", lambda name: str(executable))
     plan = plan_graphify(tmp_path, platform="macos", assistant="codex")
-    assert {check.status for check in plan.preflight.checks} == {"external-install-detected"}
+    assert {check.status for check in plan.preflight.checks} == {"blocked"}
+    assert not plan.preflight.is_ready_to_apply
     assert not plan.ready_to_apply and plan.blockers
     assert not (tmp_path / ".stackwinnow").exists()
 

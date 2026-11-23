@@ -134,13 +134,22 @@ tools, success without evidence, and read-only functional-success claims.
 `status`/`ready` are derived properties, not accepted caller-supplied verdicts.
 Use normal model JSON for round trips and `as_payload()` for presentation.
 
-Step 11's `check_plan()` answers whether a setup plan is eligible or already
-managed. Step 12's `check_project()` checks the selected installed setup; it
-does not reuse preflight's `is_ready_to_apply` as proof of functionality.
-An integration regression covers a managed installation whose configuration
-has since changed: preflight can still identify it as managed, while
-verification fails and refuses execution. The unified guided CLI remains
-step 16 in the [work plan](chronological-commit-plan.md).
+The generic `check_plan()` API performs preliminary eligibility checks and
+observes existing state. It cannot establish ownership, installation or
+functionality. Existing receipts or occupied environments require a fresh
+workflow review; PATH entries are observations only. Only a nonempty set of
+preliminary `ready` checks makes its legacy `is_ready_to_apply` property true;
+this is not approval to execute an arbitrary generic plan. The checks also
+enforce the current mode's host and assistant requirements. Unsafe ancestors
+and bounded, duplicate-aware receipt failures raise `PreflightError`.
+
+Use `workflow status` to inspect state and `workflow plan` for a fresh review.
+For recovery, use reviewed removal or retirement and preserve receipts; deleting
+receipts can discard the ownership needed for safe cleanup. `check_project()`
+and `workflow check` perform the mode-specific checks. A regression covers an
+existing installation whose configuration changed: generic preflight requires
+review, while fresh verification fails and refuses execution. See the
+[unified workflow guide](unified-workflow.md).
 
 Checks reuse the adapter's ownership validation, operation lock, runtime
 isolation, executor, and report parser. They reject unsafe checked paths, dry-run
@@ -149,7 +158,7 @@ execution. These are observations at check time, not protection against a
 hostile concurrent writer. The merged runner's outstanding timeout, generic
 environment-confinement, and plural-secret-redaction findings remain documented
 in [implementation progress](implementation-progress.md); this feature does not
-change that runner. Catalog availability remains `catalog_only`.
+change that runner. Four narrow modes have adapters; catalog membership alone still proves no readiness.
 
 ## Playwright MCP client check
 
