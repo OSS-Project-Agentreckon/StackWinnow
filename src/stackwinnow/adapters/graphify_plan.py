@@ -299,12 +299,10 @@ def _prepare_graphify_execution(
             raise GraphifyError("Graphify's reviewed catalog identity/license is unavailable.")
         lock = load_graphify_lock()
         # Occupied locations need the pending shared reconciliation interface.
-        if require_fresh and (
-            os.path.lexists(root / ".stackwinnow/envs/graphify")
-            or os.path.lexists(root / STATE_PATH)
-        ):
+        if require_fresh and (os.path.lexists(root / ".stackwinnow/envs/graphify")):
             raise GraphifyError("Existing Graphify paths require reconciliation before planning.")
         receipt_data = None
+        record = ExecutionRecord(project_root=str(root))
         try:
             receipt_data = _read_at(root, ".stackwinnow/receipts.json")
         except FileNotFoundError:
@@ -320,6 +318,12 @@ def _prepare_graphify_execution(
                 raise GraphifyError(
                     "Existing Graphify receipts require reconciliation before planning."
                 )
+        if (
+            require_fresh
+            and os.path.lexists(root / STATE_PATH)
+            and not record.retained_path("graphify", STATE_PATH)
+        ):
+            raise GraphifyError("Existing Graphify index data has no completed removal ownership.")
         sources = (
             sources_override
             if sources_override is not None

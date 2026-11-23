@@ -179,7 +179,11 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         raise GraphifyError("Installation requires CPython 3.11.5–3.11.x on macOS 14+ arm64.")
     record = record_for(root)
     own = [s for s in record.steps if s.tool_id == "graphify" and s.step_id == STEP_ID]
-    if not own and os.path.lexists(root / STATE_PATH):
+    if (
+        not own
+        and os.path.lexists(root / STATE_PATH)
+        and not record.retained_path("graphify", STATE_PATH)
+    ):
         raise GraphifyError(
             "Existing Graphify index state requires inspection before installation."
         )

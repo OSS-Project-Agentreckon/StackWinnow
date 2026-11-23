@@ -296,6 +296,12 @@ def _check_existing_configuration(root: Path, record: ExecutionRecord, relative:
                 raise PromptfooError(
                     "Owned promptfoo configuration changed; preserve it and review manually."
                 )
+    from stackwinnow.contracts import ConfigFileState
+
+    if record.restored_file(
+        "promptfoo", relative, ConfigFileState(exists=True, sha256=digest, mode=mode)
+    ):
+        return
     raise PromptfooError(
         "The chosen configuration file already exists without StackWinnow ownership."
     )
@@ -320,6 +326,10 @@ def _installation(root: Path, run_id: str, provider: Provider, scenario: Scenari
 
 
 def _has_path_ownership(record: ExecutionRecord, path: Path) -> bool:
+    if path == Path(record.project_root) / STATE_PREFIX and record.retained_path(
+        "promptfoo", STATE_PREFIX
+    ):
+        return True
     return any(
         receipt.tool_id == "promptfoo" and str(path) in receipt.owned_paths
         for receipt in record.steps

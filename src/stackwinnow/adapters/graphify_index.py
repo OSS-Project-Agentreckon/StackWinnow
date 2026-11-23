@@ -133,8 +133,9 @@ def _owned_state(root: Path) -> None:
     record = record_for(root)
     receipt = record.receipt_for(INDEX_STEP_ID)
     if receipt is None:
-        if os.path.lexists(root / STATE_PATH):
+        if os.path.lexists(root / STATE_PATH) and not record.retained_path("graphify", STATE_PATH):
             raise GraphifyError("Refusing to adopt an unowned Graphify index directory.")
+        directories(root, STATE_PATH)
         return
     if (
         not record.is_succeeded(INDEX_STEP_ID, "graphify")
@@ -275,7 +276,15 @@ def _execute(
     root: Path, plan: GraphifyIndexPlan, runner: CommandRunner, record: ExecutionRecord
 ) -> GraphifyIndexResult:
     previous = record.receipt_for(INDEX_STEP_ID)
-    owned = list(previous.owned_paths) if previous else []
+    owned = (
+        list(previous.owned_paths)
+        if previous
+        else (
+            [STATE_PATH]
+            if record.retained_path("graphify", STATE_PATH) and (root / STATE_PATH).is_dir()
+            else []
+        )
+    )
     receipt = StepReceipt(
         step_id=INDEX_STEP_ID,
         tool_id="graphify",
