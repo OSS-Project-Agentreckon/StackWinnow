@@ -571,10 +571,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
     from stackwinnow.profile_cli import add_profile_parser, profile_command
+    from stackwinnow.report_cli import add_report_parser, report_command
     from stackwinnow.workflow_cli import add_workflow_parser, workflow_command
 
     add_workflow_parser(commands)
     add_profile_parser(commands)
+    add_report_parser(commands)
     removal = commands.add_parser(
         "remove", help="Preview or apply owned configuration/runtime cleanup.", allow_abbrev=False
     )
@@ -803,6 +805,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return workflow_command(args, parser)
     if args.command == "profile":
         return profile_command(args, parser)
+    if args.command == "report":
+        return report_command(args, parser)
     if args.command == "inspect":
         return _inspect(args, parser)
     if args.command == "recommend":
