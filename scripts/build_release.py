@@ -66,6 +66,9 @@ def source_snapshot(ref: str) -> tuple[str, dict[str, bytes]]:
             if not member.isfile():
                 raise ValueError(f"Release source must contain regular files: {name}")
             files[name] = archive.extractfile(member).read()
+            if name.startswith("licenses/") and "/texts/" in name:
+                if digest(files[name]) != PurePosixPath(name).stem:
+                    raise ValueError(f"License text hash does not match its name: {name}")
     return commit, files
 
 
