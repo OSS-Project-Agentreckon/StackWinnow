@@ -63,10 +63,22 @@ def plan(project):
 
 
 def _seed_install(root: Path) -> None:
-    from stackwinnow.adapters.graphify_install import INSTALL_ROOT, STEP_ID
+    import json as _json
+
+    from stackwinnow.adapters.graphify_install import INSTALL_ROOT, MANIFEST, STEP_ID
+    from stackwinnow.adapters.graphify_plan import _digest
 
     managed = root / ".stackwinnow"
     managed.mkdir(exist_ok=True)
+
+    # Create the actual MANIFEST file so evidence digest checks pass in _check_prereqs.
+    manifest_data = _json.dumps(
+        {"schema_version": 1, "plan_sha256": "fake", "files": {}}, sort_keys=True
+    ).encode()
+    manifest_path = root / MANIFEST
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_bytes(manifest_data)
+
     record = ExecutionRecord(project_root=str(root))
     record.steps.append(
         StepReceipt(
@@ -75,7 +87,7 @@ def _seed_install(root: Path) -> None:
             status="succeeded",
             message="fake install",
             owned_paths=[INSTALL_ROOT],
-            evidence=[EvidenceRef(source=f"{INSTALL_ROOT}/installation.json", detail="sha256:abc")],
+            evidence=[EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(manifest_data)}")],
             timestamp="2026-01-01T00:00:00",
         )
     )
@@ -83,8 +95,19 @@ def _seed_install(root: Path) -> None:
 
 
 def _seed_index(root: Path) -> None:
+    import json as _json
+
+    from stackwinnow.adapters.graphify_plan import _digest
+
     managed = root / ".stackwinnow"
     managed.mkdir(exist_ok=True)
+
+    # Create the actual GRAPH_PATH file so evidence digest checks pass in _check_prereqs.
+    graph_data = _json.dumps({"nodes": [], "edges": []}, sort_keys=True).encode()
+    graph_path = root / GRAPH_PATH
+    graph_path.parent.mkdir(parents=True, exist_ok=True)
+    graph_path.write_bytes(graph_data)
+
     record = ExecutionRecord.model_validate_json((managed / "receipts.json").read_text())
     record.steps.append(
         StepReceipt(
@@ -93,7 +116,7 @@ def _seed_index(root: Path) -> None:
             status="succeeded",
             message="fake index",
             owned_paths=[STATE_PATH],
-            evidence=[EvidenceRef(source=GRAPH_PATH, detail="sha256:def")],
+            evidence=[EvidenceRef(source=GRAPH_PATH, detail=f"sha256:{_digest(graph_data)}")],
             timestamp="2026-01-01T00:00:01",
         )
     )
@@ -237,3 +260,40 @@ def test_graphify_plan_does_not_include_codex_config_blocker(plan):
         assert "codex configuration" not in blocker.lower() or "not implemented" not in blocker.lower(), (
             f"Unexpected Codex config blocker: {blocker!r}"
         )
+
+
+# ---------------------------------------------------------------------------
+# 6. Stale artifact regression — _check_prereqs must gate on real files
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("artifact", ["manifest", "graph"])
+def test_missing_artifacts_block_configure(project, plan, artifact):
+    """Deleting a seeded artifact must block configure before any step runs."""
+    from stackwinnow.adapters.graphify_configure import apply_graphify_configure
+    from stackwinnow.adapters.graphify_install import MANIFEST
+
+    _seed_install_and_index(project)
+    (project / ".codex").mkdir()
+
+    if artifact == "manifest":
+        (project / MANIFEST).unlink()
+        match = "manifest|installation"
+    else:
+        (project / GRAPH_PATH).unlink()
+        match = "graph|index"
+
+    with pytest.raises(GraphifyError, match=match):
+        apply_graphify_configure(plan)
+
+
+# ---------------------------------------------------------------------------
+# 7. Client-verification blocker must remain in the execution plan
+# ---------------------------------------------------------------------------
+
+
+def test_graphify_plan_includes_client_verification_blocker(plan):
+    """After B05, the execution plan must list client verification as still pending."""
+    assert any("client verification" in b.lower() for b in plan.blockers), (
+        f"Expected a client-verification blocker, got: {plan.blockers!r}"
+    )

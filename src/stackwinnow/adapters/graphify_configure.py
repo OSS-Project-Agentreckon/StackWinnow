@@ -13,10 +13,10 @@ from typing import Literal
 from pydantic import Field
 
 from stackwinnow.adapters._managed import ManagedStateError, directories, record_for
-from stackwinnow.adapters.graphify import GraphifyError, _root
+from stackwinnow.adapters.graphify import GRAPH_PATH, GraphifyError, _root
 from stackwinnow.adapters.graphify_index import INDEX_STEP_ID
-from stackwinnow.adapters.graphify_install import STEP_ID as INSTALL_STEP_ID, graphify_server_settings
-from stackwinnow.adapters.graphify_plan import GraphifyExecutionPlan
+from stackwinnow.adapters.graphify_install import MANIFEST, STEP_ID as INSTALL_STEP_ID, graphify_server_settings
+from stackwinnow.adapters.graphify_plan import GraphifyExecutionPlan, _digest, _read_at
 from stackwinnow.configure.codex import apply_graphify_codex_server, plan_graphify_codex_server
 from stackwinnow.configure.patches import ConfigurationError
 from stackwinnow.contracts import (
@@ -42,18 +42,57 @@ class GraphifyConfigureResult(Contract):
 
 
 def _check_prereqs(root: Path) -> None:
-    """Raise GraphifyError unless both install and index receipts are succeeded."""
+    """Raise GraphifyError unless both install and index receipts are present and their
+    owned artifacts still match the recorded evidence digests."""
     record = record_for(root)
+
+    # Install receipt must exist, be succeeded, and belong to Graphify.
     install_receipt = record.receipt_for(INSTALL_STEP_ID)
     if install_receipt is None or install_receipt.status != OperationStatus.SUCCEEDED:
         raise GraphifyError(
             "Graphify packages must be installed (apply install) before configuring."
         )
+    if install_receipt.tool_id != "graphify":
+        raise GraphifyError("Install receipt does not belong to Graphify; cannot configure.")
+
+    # Verify the actual installation still matches the recorded evidence digest.
+    for ev in install_receipt.evidence:
+        if ev.source == MANIFEST and ev.detail.startswith("sha256:"):
+            expected = ev.detail[len("sha256:"):]
+            try:
+                raw = _read_at(root, MANIFEST)
+            except (OSError, GraphifyError):
+                raise GraphifyError(
+                    "Graphify installation manifest is missing; reinstall before configuring."
+                )
+            if _digest(raw) != expected:
+                raise GraphifyError(
+                    "Graphify installation changed; reinstall before configuring."
+                )
+
+    # Index receipt must exist, be succeeded, and belong to Graphify.
     index_receipt = record.receipt_for(INDEX_STEP_ID)
     if index_receipt is None or index_receipt.status != OperationStatus.SUCCEEDED:
         raise GraphifyError(
             "Graphify source must be indexed (apply index) before configuring."
         )
+    if index_receipt.tool_id != "graphify":
+        raise GraphifyError("Index receipt does not belong to Graphify; cannot configure.")
+
+    # Verify graph.json still matches the recorded evidence digest.
+    for ev in index_receipt.evidence:
+        if ev.source == GRAPH_PATH and ev.detail.startswith("sha256:"):
+            expected = ev.detail[len("sha256:"):]
+            try:
+                raw = _read_at(root, GRAPH_PATH)
+            except (OSError, GraphifyError):
+                raise GraphifyError(
+                    "graph.json is missing since the last index; reindex before configuring."
+                )
+            if _digest(raw) != expected:
+                raise GraphifyError(
+                    "graph.json changed since the last index; reindex before configuring."
+                )
 
 
 def _configure_step(root: Path, config_patch) -> RunnerOutcome:
@@ -103,6 +142,7 @@ def apply_graphify_configure(
         record, results = execute_plan(
             installation,
             dry_run=dry_run,
+            before_execute=lambda: _check_prereqs(root),
             step_runner=lambda step: _configure_step(root, config_patch),
             configuration_intents={CONFIGURE_STEP_ID: [config_patch]},
         )
