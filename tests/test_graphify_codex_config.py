@@ -23,7 +23,7 @@ from stackwinnow.contracts import ConfigPatch
 
 GRAPHIFY_SETTINGS = {
     "command": "/path/to/python",
-    "args": ["-I", "-m", "graphify", "mcp", "--graph", "/path/to/graph.json"],
+    "args": ["-I", "-m", "graphify.serve", "--graph", "/path/to/graph.json"],
     "env": {"HOME": "/private/home", "GRAPHIFY_NO_AUTO_REFRESH": "1"},
 }
 
@@ -229,4 +229,70 @@ def test_graphify_server_settings_uses_managed_python(tmp_path):
     # The command must be the managed Python inside the graphify environment.
     assert s["command"] == python_path or python_path in s.get("args", []) or (
         str(root / ".stackwinnow/envs/graphify/python/bin/python") in [s.get("command")] + s.get("args", [])
+    )
+
+
+# ---------------------------------------------------------------------------
+# 6. Startup / protocol smoke test
+# ---------------------------------------------------------------------------
+
+
+def test_graphify_serve_command_responds_to_mcp_initialize(tmp_path):
+    """graphify.serve must accept an MCP initialize handshake without error.
+
+    This catches command-line regressions (e.g. a broken 'mcp' subcommand) that
+    settings-dictionary comparisons cannot detect. Skipped when graphifyy[mcp]
+    is not installed in the current environment.
+    """
+    import importlib.util
+    import subprocess
+
+    if importlib.util.find_spec("graphify") is None:
+        pytest.skip("graphifyy not installed; install graphifyy[mcp] to run smoke test")
+
+    graph_file = tmp_path / "graph.json"
+    graph_file.write_text(
+        '{"directed": false, "multigraph": false, "graph": {}, "nodes": [], "links": []}'
+    )
+
+    init_msg = (
+        json.dumps({
+            "jsonrpc": "2.0",
+            "id": 0,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": "2024-11-05",
+                "capabilities": {},
+                "clientInfo": {"name": "smoke-test", "version": "0.0.1"},
+            },
+        })
+        + "\n"
+    )
+
+    proc = subprocess.Popen(
+        [sys.executable, "-I", "-m", "graphify.serve", "--graph", str(graph_file)],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = proc.communicate(input=init_msg.encode(), timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait()
+        pytest.fail("graphify.serve did not respond within 10 seconds")
+
+    for line in stdout.splitlines():
+        if not line.strip():
+            continue
+        response = json.loads(line)
+        assert response.get("jsonrpc") == "2.0", f"Unexpected response: {response}"
+        assert response.get("id") == 0
+        assert "result" in response, f"Expected 'result' key, got: {response}"
+        assert "protocolVersion" in response["result"], f"Missing protocolVersion: {response}"
+        return
+
+    pytest.fail(
+        f"graphify.serve produced no JSON-RPC response; "
+        f"stdout={stdout!r}, stderr={stderr!r}"
     )

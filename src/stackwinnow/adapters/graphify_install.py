@@ -53,7 +53,7 @@ def graphify_server_settings(root: Path) -> dict:
     python = root / ENV_PATH / "bin/python"
     return {
         "command": str(python),
-        "args": ["-I", "-m", "graphify", "mcp", "--graph", str(root / GRAPH_PATH)],
+        "args": ["-I", "-m", "graphify.serve", "--graph", str(root / GRAPH_PATH)],
         "env": _environment(root),
     }
 
