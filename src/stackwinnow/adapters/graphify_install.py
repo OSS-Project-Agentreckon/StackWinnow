@@ -46,6 +46,18 @@ STEP_ID = "graphify-install-locked"
 CommandRunner = Callable[..., CommandResult]
 
 
+def graphify_server_settings(root: Path) -> dict:
+    """MCP server settings dict for the Graphify server entry in .codex/config.toml."""
+    from stackwinnow.adapters.graphify import GRAPH_PATH, _environment
+
+    python = root / ENV_PATH / "bin/python"
+    return {
+        "command": str(python),
+        "args": ["-I", "-m", "graphify.serve", "--graph", str(root / GRAPH_PATH)],
+        "env": _environment(root),
+    }
+
+
 class GraphifyInstallResult(Contract):
     schema_version: Literal[1] = 1
     tool_id: Literal["graphify"] = "graphify"
@@ -56,8 +68,8 @@ class GraphifyInstallResult(Contract):
     record: ExecutionRecord
     results: list[OperationResult] = Field(default_factory=list)
     limitations: tuple[str, ...] = (
-        "Indexing and shared Graphify verification are not implemented.",
-        "Codex configuration and actual client verification are not implemented.",
+        "Indexing and shared Graphify verification require a separate indexing step.",
+        "Client verification requires indexing and a configured Codex environment.",
     )
 
 
@@ -160,10 +172,16 @@ def _validate(plan: GraphifyExecutionPlan) -> bool:
         or own[0].step_id != STEP_ID
         or own[0].status != OperationStatus.SUCCEEDED
         or own[0].owned_paths != [INSTALL_ROOT]
-        or own[0].configuration_ownership
         or own[0].configuration_intents
     ):
         raise GraphifyError("Partial or unfamiliar Graphify state requires manual inspection.")
+    # configuration_ownership may hold the graphify codex patch from a prior configure step.
+    codex_ownership = own[0].configuration_ownership
+    if codex_ownership and not all(
+        p.tool_id == "graphify" and p.relative_path == ".codex/config.toml"
+        for p in codex_ownership
+    ):
+        raise GraphifyError("Graphify configuration ownership has unexpected patches; inspect before retrying.")
     raw = _read_at(root, MANIFEST)
     if own[0].evidence != [EvidenceRef(source=MANIFEST, detail=f"sha256:{_digest(raw)}")]:
         raise GraphifyError("Graphify installation evidence changed; inspect the owned state.")
