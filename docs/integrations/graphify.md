@@ -1,9 +1,10 @@
 # Graphify installation and local relationship evidence
 
-Step 13 has a read-only recipe preview and tested command builders for local
-indexing/querying, plus explicit managed package installation. Managed indexing,
-client configuration, and the complete verification lifecycle are not implemented.
-The catalog remains `catalog_only`.
+Managed locked installation, staged indexing/reindexing and fresh local
+relationship verification are implemented. See [the index lifecycle](../graphify-index-lifecycle.md)
+for current commands and recovery boundaries. Actual Codex connectivity and the
+complete lifecycle remain pending; catalog availability is unchanged.
+The preview/probe history below describes earlier evidence and narrower interfaces.
 
 ## Preview a project
 

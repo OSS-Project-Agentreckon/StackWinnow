@@ -4,6 +4,26 @@ Last updated: **23 November 2026**. This records observed history and actual wor
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
 
+## A01 foundation repair — Graphify indexing and shared verification
+
+Implemented on feat/a01-graphify-freshness, stacked on PR #31: complete reviewed
+source snapshots, staged extraction and upstream relationship query, current
+installed inventory/recipe validation, durable failure ownership and deliberate
+reindexing. Original install plans can reuse intact runtimes after indexing and
+source revisions. Legacy manifests remain usable with their original saved
+execution plan. Shared checks distinguish local index evidence from actual
+Codex connectivity, which remains pending. See [index lifecycle](graphify-index-lifecycle.md).
+
+Validation: 151 focused tests passed; the rebuilt-package suite passed 1042 tests
+with warnings as errors and 12 opt-in skips. The real pinned managed Graphify
+installation/index/query/reindex/failure fixture passed separately (1 test,
+76.66 seconds). Lint, formatting, dependency and diff checks passed. No actual
+Codex connection or hosted CI result is claimed. Publication is through the
+current branch commits and stacked PR; see evidence/graphify-managed-index.md.
+Next writer: replace the unsupported upstream MCP invocation with a supported
+manager bridge and prove an actual Codex tool call. Headroom verification,
+coordinated removal and the real foundation handoff remain outstanding.
+
 ## A01 foundation repair — configuration lifecycle
 
 The user authorized a continuous sequence of implementation agents, commits
