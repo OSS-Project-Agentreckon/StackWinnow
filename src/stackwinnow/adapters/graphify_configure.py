@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 
+from stackwinnow.adapters._composition import validate_and_guard
 from stackwinnow.adapters._managed import directories, record_for
 from stackwinnow.adapters.graphify import GraphifyError, _root
 from stackwinnow.adapters.graphify_index import PROVENANCE_PATH, inspect_graphify_index
@@ -144,7 +146,10 @@ def load_graphify_configure_plan(path: str | Path) -> GraphifyConfigurePlan:
 
 
 def apply_graphify_configure(
-    plan: GraphifyConfigurePlan | GraphifyExecutionPlan, *, dry_run: bool = False
+    plan: GraphifyConfigurePlan | GraphifyExecutionPlan,
+    *,
+    dry_run: bool = False,
+    before_execute: Callable[[], None] | None = None,
 ) -> GraphifyConfigureResult:
     try:
         if isinstance(plan, GraphifyExecutionPlan):
@@ -221,7 +226,7 @@ def apply_graphify_configure(
         record, results = execute_plan(
             installation,
             dry_run=dry_run,
-            before_execute=validate,
+            before_execute=lambda: validate_and_guard(validate, before_execute),
             step_runner=configure,
             configuration_intents={CONFIGURE_STEP_ID: [checked.configuration]},
         )

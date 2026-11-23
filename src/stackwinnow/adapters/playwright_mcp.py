@@ -8,6 +8,7 @@ import platform
 import re
 import shutil
 import tempfile
+from collections.abc import Callable
 from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
@@ -16,6 +17,7 @@ from uuid import uuid4
 
 from pydantic import Field
 
+from stackwinnow.adapters._composition import validate_and_guard
 from stackwinnow.adapters._managed import (
     ManagedStateError,
     directories,
@@ -360,7 +362,11 @@ def prerequisites(root: Path, node: str, runner=run_command) -> tuple[str, str]:
 
 
 def apply_playwright(
-    plan: PlaywrightPlan, *, dry_run: bool = False, command_runner=None
+    plan: PlaywrightPlan,
+    *,
+    dry_run: bool = False,
+    command_runner=None,
+    before_execute: Callable[[], None] | None = None,
 ) -> PlaywrightResult:
     checked = PlaywrightPlan.model_validate(plan.model_dump())
     runner = command_runner or run_command
@@ -506,6 +512,9 @@ def apply_playwright(
             _validate(checked)
             result.record, result.results = execute_plan(
                 checked.installation,
+                before_execute=lambda: validate_and_guard(
+                    lambda: _validate(checked), before_execute
+                ),
                 step_runner=run_step,
                 configuration_intents={
                     checked.installation.steps[1].step_id: [checked.configuration]

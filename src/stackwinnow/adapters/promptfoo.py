@@ -14,7 +14,7 @@ import platform
 import re
 import shutil
 import stat
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from importlib.resources import files
 from pathlib import Path
@@ -609,6 +609,7 @@ def _execute_promptfoo(
     allow_provider_usage: bool = False,
     command_runner: CommandRunner | None = None,
     verification_only: bool = False,
+    before_execute: Callable[[], None] | None = None,
 ) -> PromptfooResult:
     """Apply a reviewed plan. Paid provider execution needs an explicit separate opt-in."""
     checked = PromptfooPlan.model_validate_json(plan.model_dump_json())
@@ -826,6 +827,13 @@ def _execute_promptfoo(
                 evidence=[EvidenceRef(source=str(result_path), detail=message)],
             )
 
+        def validate():
+            _validate_plan(root, checked)
+            if verification_only:
+                _require_existing_setup(root, checked)
+            if before_execute is not None:
+                before_execute()
+
         with _operation_lock(root):
             # Preflight runs without the lock. A competing apply may have finished
             # while it ran, so re-read receipts and configuration before any step.
@@ -843,6 +851,7 @@ def _execute_promptfoo(
             )
             record, results = execute_plan(
                 execution_plan,
+                before_execute=validate,
                 step_runner=run_step,
                 configuration_intents={}
                 if verification_only
@@ -896,6 +905,7 @@ def apply_promptfoo(
     dry_run: bool = False,
     allow_provider_usage: bool = False,
     command_runner: CommandRunner | None = None,
+    before_execute: Callable[[], None] | None = None,
 ) -> PromptfooResult:
     """Apply a reviewed install/configure/evaluate plan."""
     return _execute_promptfoo(
@@ -903,6 +913,7 @@ def apply_promptfoo(
         dry_run=dry_run,
         allow_provider_usage=allow_provider_usage,
         command_runner=command_runner,
+        before_execute=before_execute,
     )
 
 
