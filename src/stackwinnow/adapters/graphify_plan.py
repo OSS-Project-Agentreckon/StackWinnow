@@ -326,7 +326,7 @@ def _prepare_graphify_execution(
         runtime = _runtime()
         blockers = [
             "A complete dependency-license audit remains pending; wheels are downloaded, not redistributed.",
-            "Owned Codex configuration and actual client verification are not implemented.",
+            "Actual client verification (confirming Codex connects to and reads the Graphify MCP server) is not implemented.",
         ]
         if (
             runtime.implementation != "CPython"
