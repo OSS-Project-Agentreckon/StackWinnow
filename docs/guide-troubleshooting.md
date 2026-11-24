@@ -50,15 +50,17 @@ python -m pip install --force-reinstall .
 
 **Fix:** Install the required upstream tool. The required versions are pinned in
 [docs/support-matrix.md](support-matrix.md). Use `--platform` and `--assistant`
-flags to target the supported configuration explicitly:
+flags only on commands that expose them. Workflow planning detects the actual
+host and derives assistant requirements from selected modes. For Graphify,
+supply a reviewed relationship expectation (see [unified-workflow.md](unified-workflow.md)):
 
 ```sh
 stackwinnow workflow plan ./my-project --tool graphify \
-    --platform macos --assistant codex
+    --expectation relationship.json
 ```
 
-The plan step reports missing prerequisites; apply will not proceed until they
-are satisfied.
+Planning validates host/selection compatibility; executable prerequisites are
+checked during explicit apply. A plan does not prove prerequisites are installed.
 
 ## Stale installed-version after editable source change
 
@@ -84,8 +86,9 @@ python -m pip check
 python -m pip install --upgrade '.[dev]'
 ```
 
-For tool-specific environment issues, re-run `stackwinnow graphify apply` or the
-equivalent adapter command to rebuild the managed environment.
+For damaged managed environments, inspect passive status and follow the reviewed
+[removal/reinstall procedure](coordinated-removal.md). An attempted plan cannot
+be replayed; apply does not overwrite foreign or damaged state automatically.
 
 ## Ruff lint errors after editing
 
