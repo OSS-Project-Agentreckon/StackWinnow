@@ -12,8 +12,32 @@ from uuid import uuid4
 
 from pydantic import Field, model_validator
 
+from stackwinnow.adapters import autogen as autogen_adapter
+from stackwinnow.adapters import crewai as crewai_adapter
+from stackwinnow.adapters import deepeval as deepeval_adapter
+from stackwinnow.adapters import dspy as dspy_adapter
+from stackwinnow.adapters import gptcache as gptcache_adapter
+from stackwinnow.adapters import haystack as haystack_adapter
 from stackwinnow.adapters import headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
+from stackwinnow.adapters import langchain as langchain_adapter
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import langgraph as langgraph_adapter
+from stackwinnow.adapters import litellm as litellm_adapter
+from stackwinnow.adapters import llama_index as llama_index_adapter
+from stackwinnow.adapters import llmlingua as llmlingua_adapter
+from stackwinnow.adapters import openlit as openlit_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
+from stackwinnow.adapters import smolagents as smolagents_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.adapters._managed import directories, read_json, record_for
+from stackwinnow.adapters.autogen import AutogenPlan
+from stackwinnow.adapters.crewai import CrewaiPlan
+from stackwinnow.adapters.deepeval import DeepevalPlan
+from stackwinnow.adapters.dspy import DspyPlan
+from stackwinnow.adapters.gptcache import GptcachePlan
 from stackwinnow.adapters.graphify import RelationshipExpectation, _root
 from stackwinnow.adapters.graphify_configure import (
     CONFIGURE_STEP_ID,
@@ -43,9 +67,23 @@ from stackwinnow.adapters.graphify_plan import (
     _digest,
     plan_graphify_execution,
 )
+from stackwinnow.adapters.haystack import HaystackPlan
 from stackwinnow.adapters.headroom import HeadroomPlan
+from stackwinnow.adapters.inspect_ai import InspectAiPlan
+from stackwinnow.adapters.langchain import LangchainPlan
+from stackwinnow.adapters.langfuse import LangfusePlan
+from stackwinnow.adapters.langgraph import LanggraphPlan
+from stackwinnow.adapters.litellm import LitellmPlan
+from stackwinnow.adapters.llama_index import LlamaIndexPlan
+from stackwinnow.adapters.llmlingua import LlmlinguaPlan
+from stackwinnow.adapters.openlit import OpenlitPlan
+from stackwinnow.adapters.opik import OpikPlan
 from stackwinnow.adapters.playwright_mcp import PlaywrightPlan
 from stackwinnow.adapters.promptfoo import PromptfooPlan
+from stackwinnow.adapters.pydantic_ai import PydanticAiPlan
+from stackwinnow.adapters.ragas import RagasPlan
+from stackwinnow.adapters.smolagents import SmolagentsPlan
+from stackwinnow.adapters.trulens import TrulensPlan
 from stackwinnow.configure.codex import plan_graphify_codex_server
 from stackwinnow.contracts import ConfigPatch, Contract, OperationStatus
 from stackwinnow.detect import ModelPreference, inspect_project
@@ -100,6 +138,25 @@ class WorkflowPlan(Contract):
     graphify: GraphifyExecutionPlan | None = None
     graphify_reuse: bool = False
     graphify_configuration: ConfigPatch | None = None
+    opik: OpikPlan | None = None
+    langfuse: LangfusePlan | None = None
+    ragas: RagasPlan | None = None
+    trulens: TrulensPlan | None = None
+    deepeval: DeepevalPlan | None = None
+    inspect_ai: InspectAiPlan | None = None
+    openlit: OpenlitPlan | None = None
+    langchain: LangchainPlan | None = None
+    litellm: LitellmPlan | None = None
+    llmlingua: LlmlinguaPlan | None = None
+    gptcache: GptcachePlan | None = None
+    dspy: DspyPlan | None = None
+    llama_index: LlamaIndexPlan | None = None
+    pydantic_ai: PydanticAiPlan | None = None
+    haystack: HaystackPlan | None = None
+    langgraph: LanggraphPlan | None = None
+    crewai: CrewaiPlan | None = None
+    autogen: AutogenPlan | None = None
+    smolagents: SmolagentsPlan | None = None
     checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     @property
@@ -111,6 +168,25 @@ class WorkflowPlan(Contract):
                 ("headroom", self.headroom),
                 ("promptfoo", self.promptfoo),
                 ("playwright-mcp", self.playwright),
+                ("opik", self.opik),
+                ("langfuse", self.langfuse),
+                ("ragas", self.ragas),
+                ("trulens", self.trulens),
+                ("deepeval", self.deepeval),
+                ("inspect-ai", self.inspect_ai),
+                ("openlit", self.openlit),
+                ("langchain", self.langchain),
+                ("litellm", self.litellm),
+                ("llmlingua", self.llmlingua),
+                ("gptcache", self.gptcache),
+                ("dspy", self.dspy),
+                ("llama-index", self.llama_index),
+                ("pydantic-ai", self.pydantic_ai),
+                ("haystack", self.haystack),
+                ("langgraph", self.langgraph),
+                ("crewai", self.crewai),
+                ("autogen", self.autogen),
+                ("smolagents", self.smolagents),
             )
             if plan
         ]
@@ -245,6 +321,25 @@ def plan_workflow(project_root: str | Path, request: WorkflowRequest) -> Workflo
         graphify=graphify,
         graphify_reuse=reuse,
         graphify_configuration=graph_config,
+        opik=opik_adapter.plan_opik(root) if "opik" in ids else None,
+        langfuse=langfuse_adapter.plan_langfuse(root) if "langfuse" in ids else None,
+        ragas=ragas_adapter.plan_ragas(root) if "ragas" in ids else None,
+        trulens=trulens_adapter.plan_trulens(root) if "trulens" in ids else None,
+        deepeval=deepeval_adapter.plan_deepeval(root) if "deepeval" in ids else None,
+        inspect_ai=inspect_ai_adapter.plan_inspect_ai(root) if "inspect-ai" in ids else None,
+        openlit=openlit_adapter.plan_openlit(root) if "openlit" in ids else None,
+        langchain=langchain_adapter.plan_langchain(root) if "langchain" in ids else None,
+        litellm=litellm_adapter.plan_litellm(root) if "litellm" in ids else None,
+        llmlingua=llmlingua_adapter.plan_llmlingua(root) if "llmlingua" in ids else None,
+        gptcache=gptcache_adapter.plan_gptcache(root) if "gptcache" in ids else None,
+        dspy=dspy_adapter.plan_dspy(root) if "dspy" in ids else None,
+        llama_index=llama_index_adapter.plan_llama_index(root) if "llama-index" in ids else None,
+        pydantic_ai=pydantic_ai_adapter.plan_pydantic_ai(root) if "pydantic-ai" in ids else None,
+        haystack=haystack_adapter.plan_haystack(root) if "haystack" in ids else None,
+        langgraph=langgraph_adapter.plan_langgraph(root) if "langgraph" in ids else None,
+        crewai=crewai_adapter.plan_crewai(root) if "crewai" in ids else None,
+        autogen=autogen_adapter.plan_autogen(root) if "autogen" in ids else None,
+        smolagents=smolagents_adapter.plan_smolagents(root) if "smolagents" in ids else None,
         checksum="0" * 64,
     )
     if snapshot(root, ids) != state:
@@ -290,6 +385,25 @@ def _validate(plan: WorkflowPlan) -> Path:
         "promptfoo": plan.promptfoo,
         "playwright-mcp": plan.playwright,
         "graphify": plan.graphify,
+        "opik": plan.opik,
+        "langfuse": plan.langfuse,
+        "ragas": plan.ragas,
+        "trulens": plan.trulens,
+        "deepeval": plan.deepeval,
+        "inspect-ai": plan.inspect_ai,
+        "openlit": plan.openlit,
+        "langchain": plan.langchain,
+        "litellm": plan.litellm,
+        "llmlingua": plan.llmlingua,
+        "gptcache": plan.gptcache,
+        "dspy": plan.dspy,
+        "llama-index": plan.llama_index,
+        "pydantic-ai": plan.pydantic_ai,
+        "haystack": plan.haystack,
+        "langgraph": plan.langgraph,
+        "crewai": plan.crewai,
+        "autogen": plan.autogen,
+        "smolagents": plan.smolagents,
     }
     if {name for name, leaf in leaves.items() if leaf is not None} != set(plan.request.tool_ids):
         raise WorkflowError("Workflow selections and reviewed adapters disagree.")
@@ -479,18 +593,81 @@ def apply_workflow(
                     original, _ = validate_graphify_installation(root)
                     if original != checked.graphify:
                         raise WorkflowError("Installed Graphify recipe differs from the review.")
-            elif phase in ("headroom", "promptfoo", "playwright-mcp"):
+            elif phase in (
+                "headroom",
+                "promptfoo",
+                "playwright-mcp",
+                "opik",
+                "langfuse",
+                "ragas",
+                "trulens",
+                "deepeval",
+                "inspect-ai",
+                "openlit",
+                "langchain",
+                "litellm",
+                "llmlingua",
+                "gptcache",
+                "dspy",
+                "llama-index",
+                "pydantic-ai",
+                "haystack",
+                "langgraph",
+                "crewai",
+                "autogen",
+                "smolagents",
+            ):
                 leaf, apply = {
                     "headroom": (checked.headroom, headroom.apply_headroom),
                     "promptfoo": (checked.promptfoo, promptfoo.apply_promptfoo),
                     "playwright-mcp": (checked.playwright, playwright_mcp.apply_playwright),
+                    "opik": (checked.opik, opik_adapter.apply_opik),
+                    "langfuse": (checked.langfuse, langfuse_adapter.apply_langfuse),
+                    "ragas": (checked.ragas, ragas_adapter.apply_ragas),
+                    "trulens": (checked.trulens, trulens_adapter.apply_trulens),
+                    "deepeval": (checked.deepeval, deepeval_adapter.apply_deepeval),
+                    "inspect-ai": (checked.inspect_ai, inspect_ai_adapter.apply_inspect_ai),
+                    "openlit": (checked.openlit, openlit_adapter.apply_openlit),
+                    "langchain": (checked.langchain, langchain_adapter.apply_langchain),
+                    "litellm": (checked.litellm, litellm_adapter.apply_litellm),
+                    "llmlingua": (checked.llmlingua, llmlingua_adapter.apply_llmlingua),
+                    "gptcache": (checked.gptcache, gptcache_adapter.apply_gptcache),
+                    "dspy": (checked.dspy, dspy_adapter.apply_dspy),
+                    "llama-index": (checked.llama_index, llama_index_adapter.apply_llama_index),
+                    "pydantic-ai": (checked.pydantic_ai, pydantic_ai_adapter.apply_pydantic_ai),
+                    "haystack": (checked.haystack, haystack_adapter.apply_haystack),
+                    "langgraph": (checked.langgraph, langgraph_adapter.apply_langgraph),
+                    "crewai": (checked.crewai, crewai_adapter.apply_crewai),
+                    "autogen": (checked.autogen, autogen_adapter.apply_autogen),
+                    "smolagents": (checked.smolagents, smolagents_adapter.apply_smolagents),
                 }[phase]
                 outcome = apply(leaf, command_runner=runner, before_execute=guard)
                 success, steps = (
                     outcome.status == "succeeded",
                     {s.step_id for s in leaf.installation.steps},
                 )
-                if phase != "headroom":
+                if phase not in (
+                    "headroom",
+                    "opik",
+                    "langfuse",
+                    "ragas",
+                    "trulens",
+                    "deepeval",
+                    "inspect-ai",
+                    "openlit",
+                    "langchain",
+                    "litellm",
+                    "llmlingua",
+                    "gptcache",
+                    "dspy",
+                    "llama-index",
+                    "pydantic-ai",
+                    "haystack",
+                    "langgraph",
+                    "crewai",
+                    "autogen",
+                    "smolagents",
+                ):
                     patch = leaf.configuration
             elif phase == "graphify-index":
                 index = plan_graphify_index(

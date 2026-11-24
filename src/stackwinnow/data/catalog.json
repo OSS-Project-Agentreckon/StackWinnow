@@ -55,7 +55,7 @@
         "multi-agent-workflows",
         "agent-orchestration"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Python 3.10+ is documented upstream.",
         "Install the required AgentChat/extensions packages and configure a model client."
@@ -186,7 +186,7 @@
         "multi-agent-workflows",
         "agent-orchestration"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Python >=3.10,<3.14 is documented upstream.",
         "Use the documented uv-based CLI/package installation and configure model providers."
@@ -234,7 +234,7 @@
         "agent-evaluation",
         "regression-testing"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the deepeval Python package.",
         "Provide test cases and configure model/provider dependencies for the chosen metrics."
@@ -277,7 +277,7 @@
         "prompt-optimization",
         "evaluation-driven-optimization"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the dspy Python package and configure a language-model backend.",
         "Provide representative examples and an evaluation metric before running optimization."
@@ -365,7 +365,7 @@
         "response-caching",
         "semantic-caching"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Python 3.8.1+ is documented upstream; install gptcache.",
         "Choose cache storage, similarity evaluation, and embedding components for the intended usage."
@@ -466,7 +466,7 @@
         "rag-pipelines",
         "agent-orchestration"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the haystack-ai Python package.",
         "Configure the chosen model, document store, and optional integration components."
@@ -567,7 +567,7 @@
         "model-evaluation",
         "tool-use-evaluation"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Provide a supported Python environment and the Inspect package.",
         "Configure evaluation tasks and their required model providers or execution environments."
@@ -609,7 +609,7 @@
         "model-integrations",
         "agent-orchestration"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the Python framework and the integration packages required by the application.",
         "Configure supported model providers and any application data services."
@@ -653,7 +653,7 @@
         "spend-tracking",
         "prompt-management"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Choose a self-hosted deployment or a service endpoint.",
         "Instrument the application with supported SDKs or OpenTelemetry and configure endpoint credentials."
@@ -696,7 +696,7 @@
         "stateful-workflows",
         "agent-orchestration"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the Python langgraph package for this catalog scope.",
         "Configure models, tools, and any persistence backend needed by the workflow."
@@ -740,7 +740,7 @@
         "provider-gateway",
         "spend-tracking"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Choose the Python SDK or proxy deployment and its documented dependencies.",
         "Configure reachable model providers and credentials when those providers require them."
@@ -782,7 +782,7 @@
         "rag-pipelines",
         "indexing"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install llama-index-core and the required integration packages, or an appropriate starter package.",
         "Configure data sources, model backends, and any required index storage."
@@ -824,7 +824,7 @@
         "prompt-compression",
         "context-compression"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the Python package and its model dependencies.",
         "Obtain an appropriate compression-model checkpoint and provide sufficient compute for it."
@@ -953,7 +953,7 @@
         "spend-tracking",
         "opentelemetry"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the relevant instrumentation SDK and configure telemetry export.",
         "The documented self-hosted platform quickstart uses Docker Compose."
@@ -997,7 +997,7 @@
         "llm-evaluation",
         "prompt-management"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install an appropriate SDK and configure a tracing/evaluation endpoint.",
         "Self-hosted local development uses the documented Docker-based deployment."
@@ -1143,7 +1143,7 @@
         "typed-agents",
         "structured-outputs"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the Python package and the provider extras required by the application.",
         "Configure a model backend; optional harness components have additional requirements."
@@ -1186,7 +1186,7 @@
         "rag-evaluation",
         "llm-evaluation"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the ragas Python package.",
         "Prepare evaluation data and configure LLM or embedding backends required by the selected metrics."
@@ -1272,7 +1272,7 @@
         "code-agents",
         "tool-use"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the smolagents Python package and selected extras.",
         "Configure a model backend and an appropriate execution environment for code agents."
@@ -1316,7 +1316,7 @@
         "rag-evaluation",
         "tracing"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install trulens and the relevant provider/instrumentation packages.",
         "Configure feedback functions and any model credentials they need."

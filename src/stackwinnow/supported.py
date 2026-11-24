@@ -7,7 +7,26 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 from pydantic import Field, model_validator
 
+from stackwinnow.adapters import autogen as autogen_adapter
+from stackwinnow.adapters import crewai as crewai_adapter
+from stackwinnow.adapters import deepeval as deepeval_adapter
+from stackwinnow.adapters import dspy as dspy_adapter
+from stackwinnow.adapters import gptcache as gptcache_adapter
 from stackwinnow.adapters import graphify, headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import haystack as haystack_adapter
+from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
+from stackwinnow.adapters import langchain as langchain_adapter
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import langgraph as langgraph_adapter
+from stackwinnow.adapters import litellm as litellm_adapter
+from stackwinnow.adapters import llama_index as llama_index_adapter
+from stackwinnow.adapters import llmlingua as llmlingua_adapter
+from stackwinnow.adapters import openlit as openlit_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
+from stackwinnow.adapters import smolagents as smolagents_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.contracts import Contract
 
 
@@ -55,6 +74,139 @@ def supported_modes() -> tuple[SupportedMode, ...]:
                 "CPython >=3.11.5,<3.12",
                 "Codex " + playwright_mcp.CODEX_VERSION,
             ),
+        ),
+        SupportedMode(
+            tool_id="opik",
+            mode="library",
+            version=opik_adapter.VERSION,
+            description="Install opik and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="langfuse",
+            mode="library",
+            version=langfuse_adapter.VERSION,
+            description="Install langfuse and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.11",),
+        ),
+        SupportedMode(
+            tool_id="ragas",
+            mode="library",
+            version=ragas_adapter.VERSION,
+            description="Install ragas and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.9",),
+        ),
+        SupportedMode(
+            tool_id="trulens",
+            mode="library",
+            version=trulens_adapter.VERSION,
+            description="Install trulens and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="deepeval",
+            mode="library",
+            version=deepeval_adapter.VERSION,
+            description="Install deepeval and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="inspect-ai",
+            mode="library",
+            version=inspect_ai_adapter.VERSION,
+            description="Install inspect-ai and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="openlit",
+            mode="library",
+            version=openlit_adapter.VERSION,
+            description="Install openlit and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="langchain",
+            mode="library",
+            version=langchain_adapter.VERSION,
+            description="Install langchain and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="litellm",
+            mode="library",
+            version=litellm_adapter.VERSION,
+            description="Install litellm and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="llmlingua",
+            mode="library",
+            version=llmlingua_adapter.VERSION,
+            description="Install llmlingua and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="gptcache",
+            mode="library",
+            version=gptcache_adapter.VERSION,
+            description="Install gptcache and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="dspy",
+            mode="library",
+            version=dspy_adapter.VERSION,
+            description="Install dspy and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="llama-index",
+            mode="library",
+            version=llama_index_adapter.VERSION,
+            description="Install llama-index and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="pydantic-ai",
+            mode="library",
+            version=pydantic_ai_adapter.VERSION,
+            description="Install pydantic-ai and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="haystack",
+            mode="library",
+            version=haystack_adapter.VERSION,
+            description="Install haystack and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="langgraph",
+            mode="library",
+            version=langgraph_adapter.VERSION,
+            description="Install langgraph and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="crewai",
+            mode="library",
+            version=crewai_adapter.VERSION,
+            description="Install crewai and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="autogen",
+            mode="library",
+            version=autogen_adapter.VERSION,
+            description="Install autogen and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="smolagents",
+            mode="library",
+            version=smolagents_adapter.VERSION,
+            description="Install smolagents and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
         ),
     )
 
