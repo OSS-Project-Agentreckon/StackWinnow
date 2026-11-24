@@ -64,7 +64,8 @@ def main() -> int:
         print("Open http://localhost:5173 — Ctrl+C stops both servers.", flush=True)
         while all(child.poll() is None for child in children):
             time.sleep(0.25)
-        return next((child.returncode for child in children if child.returncode), 1)
+        exited = next((child for child in children if child.returncode is not None), None)
+        return exited.returncode if exited is not None else 1
     except KeyboardInterrupt:
         return 0
     finally:

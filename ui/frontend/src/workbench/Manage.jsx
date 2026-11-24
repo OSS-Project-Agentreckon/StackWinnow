@@ -56,7 +56,7 @@ export default function Manage() {
   async function prepare(removal) {
     setPlan(null); setOperation(null)
     await run(removal ? 'Planning removal' : 'Preparing workflow plan',async()=>{
-      const data = await post(removal ? 'removal/plan' : 'workflow/plan',removal ? base : {...base, goals:settings.goals.split(',').map(s=>s.trim()).filter(Boolean),model_preference:settings.model_preference,expectation:hasGraph ? expectation : null})
+      const data = await post(removal ? 'removal/plan' : 'workflow/plan',removal ? base : {...base, goals:[...settings.goals],model_preference:settings.model_preference,expectation:hasGraph ? expectation : null})
       setPlan(data)
     })
   }

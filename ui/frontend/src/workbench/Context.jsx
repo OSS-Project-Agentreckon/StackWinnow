@@ -16,11 +16,16 @@ export function download(name, content, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 function savedSettings() {
-  const defaults = { project_root: '', goals: '', assistant: '', platform: '', model_preference: 'any', config_path: '', scan_source: true }
+  const defaults = { project_root: '', goals: [], assistant: '', platform: '', model_preference: 'any', config_path: '', scan_source: true }
   try {
     const raw = JSON.parse(localStorage.getItem('stackwinnow.workspace') || 'null')
     if (raw && typeof raw === 'object') {
-      for (const key of Object.keys(defaults)) if (typeof raw[key] === typeof defaults[key]) defaults[key] = raw[key]
+      for (const key of Object.keys(defaults)) {
+        if (key === 'goals') {
+          if (Array.isArray(raw.goals)) defaults.goals = raw.goals.filter(goal => typeof goal === 'string' && goal.trim()).map(goal => goal.trim())
+          else if (typeof raw.goals === 'string' && raw.goals.trim()) defaults.goals = [raw.goals.trim()]
+        } else if (typeof raw[key] === typeof defaults[key]) defaults[key] = raw[key]
+      }
     } else {
       defaults.project_root = localStorage.getItem('recommend_path') || localStorage.getItem('inspect_path') || ''
     }
@@ -28,7 +33,7 @@ function savedSettings() {
   return defaults
 }
 export function requestFor(settings, selected = []) {
-  return { ...settings, goals: settings.goals.split(',').map(s => s.trim()).filter(Boolean), assistant: settings.assistant || null,
+  return { ...settings, goals: [...settings.goals], assistant: settings.assistant || null,
     platform: settings.platform || null, model_preference: settings.model_preference || null,
     config_path: settings.config_path || null, selected_tools: selected }
 }
@@ -80,7 +85,7 @@ export function WorkbenchProvider({ children }) {
     setSelected(value.document.request.selections.map(s => s.tool_id))
     setSettings(previous => ({ ...previous, assistant: value.document.request.assistant,
       model_preference: value.document.request.model_preference,
-      goals: value.document.request.goals.join(', ') }))
+      goals: [...value.document.request.goals] }))
     setPlan(value); setOperation(null)
   }
   async function post(endpoint, body) {
