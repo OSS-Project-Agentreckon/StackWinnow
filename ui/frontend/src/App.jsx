@@ -1,23 +1,22 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import Navbar from './components/Navbar'
-import Catalog from './pages/Catalog'
-import Inspect from './pages/Inspect'
-import Recommend from './pages/Recommend'
-import Workflow from './pages/Workflow'
+import { WorkbenchProvider } from './workbench/Context'
+import Shell from './workbench/Shell'
+import Discovery from './workbench/Discovery'
+import Coverage from './workbench/Coverage'
+import Catalog from './workbench/Catalog'
+import Manage from './workbench/Manage'
+import { Profiles, Reports, Environment } from './workbench/Utilities'
 
 export default function App() {
-  return (
-    <div className="min-h-screen bg-gray-50 text-gray-900">
-      <Navbar />
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <Routes>
-          <Route path="/" element={<Navigate to="/catalog" replace />} />
-          <Route path="/catalog" element={<Catalog />} />
-          <Route path="/inspect" element={<Inspect />} />
-          <Route path="/recommend" element={<Recommend />} />
-          <Route path="/workflow" element={<Workflow />} />
-        </Routes>
-      </main>
-    </div>
-  )
+  return <WorkbenchProvider><Shell><Routes>
+    <Route path="/" element={<Navigate to="/recommend" replace/>}/>
+    <Route path="/recommend" element={<Discovery/>}/>
+    <Route path="/inspect" element={<Coverage/>}/>
+    <Route path="/catalog" element={<Catalog/>}/>
+    <Route path="/workflow" element={<Manage/>}/>
+    <Route path="/profiles" element={<Profiles/>}/>
+    <Route path="/reports" element={<Reports/>}/>
+    <Route path="/environment" element={<Environment/>}/>
+    <Route path="*" element={<Navigate to="/recommend" replace/>}/>
+  </Routes></Shell></WorkbenchProvider>
 }

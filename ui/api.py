@@ -1,206 +1,426 @@
-"""FastAPI backend for the StackWinnow web UI."""
+"""Local workbench API over the same discovery and lifecycle functions as the CLI."""
 
 from __future__ import annotations
 
+import secrets
+import threading
+import time
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from stackwinnow import __version__
+from stackwinnow.adapters.graphify import RelationshipExpectation
 from stackwinnow.catalog import (
-    CatalogError,
     Category,
     EligibilityContext,
+    Platform,
     evaluate_eligibility,
     filter_catalog,
     load_catalog,
 )
-from stackwinnow.detect import InspectionError, inspect_project
-from stackwinnow.recommend import RecommendationError, recommend_tools
+from stackwinnow.detect import inspect_project
+from stackwinnow.profiles import PortableProfile, export_profile, import_profile
+from stackwinnow.recommend import recommend_tools
+from stackwinnow.removal import apply_removal, plan_removal_lifecycle
+from stackwinnow.report import build_report
+from stackwinnow.runtime import inspect_environment
+from stackwinnow.source_discovery import MAX_FILE_BYTES, MAX_FILES, MAX_TOTAL_BYTES, SUFFIXES
 from stackwinnow.supported import select_tool, supported_modes
-from stackwinnow.workflow import WorkflowError, WorkflowRequest, explain_workflow, plan_workflow
+from stackwinnow.verify import check_project
+from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
 
-app = FastAPI(title="StackWinnow UI", version="0.1.0")
-
+API_REVISION = 2
+ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+app = FastAPI(title="StackWinnow Workbench", version=str(API_REVISION))
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=sorted(ORIGINS),
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "X-StackWinnow-Token"],
 )
-
 _catalog = load_catalog()
+_action_token = secrets.token_urlsafe(32)
+_plans: dict[str, dict] = {}
+_plan_lock = threading.Lock()
 
 
-# ---------------------------------------------------------------------------
-# Catalog
-# ---------------------------------------------------------------------------
+@app.middleware("http")
+async def local_requests(request: Request, call_next):
+    if request.url.hostname not in {"localhost", "127.0.0.1", "::1"}:
+        return JSONResponse(
+            {"detail": "This workbench accepts localhost requests only."}, status_code=403
+        )
+    origin = request.headers.get("origin")
+    if origin and origin not in ORIGINS:
+        return JSONResponse(
+            {"detail": "Open the workbench from its local UI address."}, status_code=403
+        )
+    return await call_next(request)
 
 
-@app.get("/api/catalog")
-def list_catalog(category: str | None = None, q: str | None = None):
-    cat = category.lower() if category else None
-    entries = filter_catalog(_catalog, category=Category(cat) if cat else None)
-    if q:
-        q_lower = q.lower()
-        entries = [
-            e
-            for e in entries
-            if q_lower in e.tool_id or q_lower in e.name.lower() or q_lower in e.description.lower()
-        ]
-    context = EligibilityContext(registered_adapters=[m.tool_id for m in supported_modes()])
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request, exc):
+    return JSONResponse(
+        {
+            "detail": "Invalid request fields. Check selections, paths and JSON format.",
+            "fields": [".".join(str(p) for p in e["loc"]) for e in exc.errors()],
+        },
+        status_code=422,
+    )
+
+
+@app.exception_handler(ValueError)
+async def invalid_operation(request, exc):
+    message = (
+        "Invalid selections or document. Generate a fresh plan."
+        if isinstance(exc, ValidationError)
+        else str(exc)
+    )
+    return JSONResponse({"detail": message}, status_code=422)
+
+
+@app.exception_handler(OSError)
+async def file_error(request, exc):
+    return JSONResponse(
+        {"detail": "Could not access project files. Check the path, permissions and file types."},
+        status_code=422,
+    )
+
+
+class Input(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProjectInput(Input):
+    project_root: str = Field(min_length=1)
+
+
+def root_for(req: ProjectInput) -> Path:
+    root = Path(req.project_root).expanduser().resolve(strict=True)
+    if not root.is_dir():
+        raise HTTPException(422, "Choose an existing project directory.")
+    return root
+
+
+class DiscoveryInput(ProjectInput):
+    goals: list[str] = Field(default_factory=list)
+    assistant: str | None = None
+    model_preference: Literal["local", "hosted", "any"] | None = None
+    platform: Platform | None = None
+    config_path: str | None = None
+    scan_source: bool = True
+    selected_tools: list[str] = Field(default_factory=list)
+
+
+def inspection_for(req: DiscoveryInput):
+    validate_discovery(req)
+    return inspect_project(
+        root_for(req),
+        goals=req.goals,
+        assistant=req.assistant,
+        model_preference=req.model_preference,
+        config_path=req.config_path,
+        selected_tools=req.selected_tools,
+        scan_source=req.scan_source,
+    )
+
+
+def validate_discovery(req: DiscoveryInput):
+    assistants = {a for tool in _catalog.tools for a in tool.supported_assistants}
+    if req.assistant is not None and req.assistant not in assistants:
+        raise HTTPException(
+            422, "Choose a documented coding assistant from the compatibility targets."
+        )
+
+
+def inspection_payload(result):
+    return {**result.model_dump(mode="json"), "complete": result.complete}
+
+
+def recommendation_payload(result):
     return {
-        "count": len(entries),
-        "tools": [
-            {
-                "tool_id": e.tool_id,
-                "name": e.name,
-                "category": e.category,
-                "availability": e.availability,
-                "description": e.description,
-                "eligibility": evaluate_eligibility(e, context).model_dump(),
-            }
-            for e in entries
+        **result.model_dump(mode="json"),
+        "complete": result.complete,
+        "inspection": inspection_payload(result.inspection),
+    }
+
+
+@app.get("/api/meta")
+def metadata():
+    return {
+        "api_revision": API_REVISION,
+        "version": __version__,
+        "action_token": _action_token,
+        "engine": "Local static source analysis",
+        "provider_calls": False,
+        "assistants": sorted({a for tool in _catalog.tools for a in tool.supported_assistants}),
+        "assistant_effect": "Changes catalog compatibility checks. Does not select an AI model or change source findings. Managed client setup currently targets Codex.",
+        "platforms": [p.value for p in Platform],
+        "categories": [c.value for c in Category],
+        "modes": [m.model_dump(mode="json") for m in supported_modes()],
+        "scan": {
+            "extensions": sorted(SUFFIXES),
+            "max_files": MAX_FILES,
+            "max_file_bytes": MAX_FILE_BYTES,
+            "max_total_bytes": MAX_TOTAL_BYTES,
+        },
+        "features": [
+            "source-discovery",
+            "file-coverage",
+            "catalog",
+            "workflow-plan",
+            "workflow-apply",
+            "verification",
+            "removal",
+            "profiles",
+            "reports",
+            "environment",
         ],
     }
 
 
-@app.get("/api/catalog/{tool_id}")
-def get_tool(tool_id: str, platform: str | None = None, assistant: str | None = None):
-    try:
-        entry = _catalog.get(tool_id)
-    except KeyError:
-        raise HTTPException(status_code=404, detail=f"Tool '{tool_id}' not found.")
-    context = EligibilityContext(
-        platform=platform,
-        assistant=assistant,
-        registered_adapters=[m.tool_id for m in supported_modes()],
-    )
-    eligibility = evaluate_eligibility(entry, context)
-    return {**entry.model_dump(), "eligibility": eligibility.model_dump()}
-
-
-# ---------------------------------------------------------------------------
-# Inspect
-# ---------------------------------------------------------------------------
-
-
-class InspectRequest(BaseModel):
-    project_root: str
-    goals: list[str] = []
-    assistant: str | None = None
-    model_preference: Literal["local", "hosted", "any"] | None = None
-
-
 @app.post("/api/inspect")
-def inspect(req: InspectRequest):
-    root = Path(req.project_root).expanduser().resolve()
-    if not root.exists():
-        raise HTTPException(status_code=422, detail=f"Path does not exist: {root}")
-    try:
-        result = inspect_project(
-            root,
-            goals=req.goals or None,
-            assistant=req.assistant,
-            model_preference=req.model_preference,
-        )
-    except InspectionError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return result.model_dump(mode="json")
-
-
-# ---------------------------------------------------------------------------
-# Recommend
-# ---------------------------------------------------------------------------
-
-
-class RecommendRequest(BaseModel):
-    project_root: str
-    goals: list[str] = []
-    assistant: str | None = None
-    model_preference: Literal["local", "hosted", "any"] | None = None
+def inspect(req: DiscoveryInput):
+    return inspection_payload(inspection_for(req))
 
 
 @app.post("/api/recommend")
-def recommend(req: RecommendRequest):
-    root = Path(req.project_root).expanduser().resolve()
-    if not root.exists():
-        raise HTTPException(status_code=422, detail=f"Path does not exist: {root}")
+def recommend(req: DiscoveryInput):
+    return recommendation_payload(
+        recommend_tools(inspection_for(req), catalog=_catalog, platform=req.platform)
+    )
+
+
+@app.post("/api/workflow/discover")
+def discover(req: DiscoveryInput):
+    result = recommend(req)
+    return {
+        "inspection": result["inspection"],
+        "recommendations": result,
+        "executable_modes": workflow_modes(),
+    }
+
+
+@app.get("/api/catalog")
+def catalog(
+    category: Category | None = None,
+    q: str = "",
+    assistant: str | None = None,
+    platform: Platform | None = None,
+):
+    context = EligibilityContext(
+        assistant=assistant,
+        platform=platform,
+        registered_adapters=[m.tool_id for m in supported_modes()],
+    )
+    entries = filter_catalog(_catalog, category=category)
+    modes = {m.tool_id: m.model_dump(mode="json") for m in supported_modes()}
+    return {
+        "tools": [
+            {
+                **t.model_dump(mode="json"),
+                "eligibility": evaluate_eligibility(t, context).model_dump(mode="json"),
+                "managed_mode": modes.get(t.tool_id),
+            }
+            for t in entries
+            if q.casefold() in (t.name + " " + t.description + " " + t.tool_id).casefold()
+        ]
+    }
+
+
+@app.get("/api/catalog/{tool_id}")
+def tool_detail(tool_id: str, assistant: str | None = None, platform: Platform | None = None):
     try:
-        inspection = inspect_project(
-            root,
-            goals=req.goals or None,
-            assistant=req.assistant,
-            model_preference=req.model_preference,
-        )
-        result = recommend_tools(inspection, catalog=_catalog)
-    except (InspectionError, RecommendationError, CatalogError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return result.model_dump(mode="json")
-
-
-# ---------------------------------------------------------------------------
-# Workflow
-# ---------------------------------------------------------------------------
+        tool = _catalog.get(tool_id)
+    except KeyError:
+        raise HTTPException(404, "Tool not found.") from None
+    context = EligibilityContext(
+        assistant=assistant,
+        platform=platform,
+        registered_adapters=[m.tool_id for m in supported_modes()],
+    )
+    return {
+        **tool.model_dump(mode="json"),
+        "eligibility": evaluate_eligibility(tool, context).model_dump(mode="json"),
+    }
 
 
 @app.get("/api/workflow/modes")
 def workflow_modes():
-    return [
-        {
-            "tool_id": m.tool_id,
-            "mode": m.mode,
-            "version": m.version,
-            "description": m.description,
-            "requirements": list(m.requirements),
-        }
-        for m in supported_modes()
-    ]
+    return [m.model_dump(mode="json") for m in supported_modes()]
 
 
-class WorkflowDiscoverRequest(BaseModel):
-    project_root: str
-    goals: list[str] = []
+class SelectionInput(ProjectInput):
+    tool_ids: list[str] = Field(min_length=1, max_length=4)
+
+
+def selections(req):
+    selected = tuple(select_tool(t) for t in req.tool_ids)
+    if len(set(req.tool_ids)) != len(req.tool_ids):
+        raise HTTPException(422, "Select each tool once.")
+    return selected
+
+
+class PlanInput(SelectionInput):
+    goals: list[str] = Field(default_factory=list)
     model_preference: Literal["local", "hosted", "any"] = "local"
+    expectation: RelationshipExpectation | None = None
 
 
-@app.post("/api/workflow/discover")
-def workflow_discover(req: WorkflowDiscoverRequest):
-    root = Path(req.project_root).expanduser().resolve()
-    if not root.exists():
-        raise HTTPException(status_code=422, detail=f"Path does not exist: {root}")
-    try:
-        data = explain_workflow(root, goals=req.goals, model_preference=req.model_preference)
-    except (InspectionError, CatalogError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return data
+def remember(kind: str, document, phases: list[str] | None = None):
+    now = time.monotonic()
+    with _plan_lock:
+        for key in list(_plans):
+            if now - _plans[key]["created"] > 3600:
+                del _plans[key]
+        if len(_plans) >= 100:
+            raise HTTPException(
+                409, "Too many review plans. Restart the local backend to clear them."
+            )
+        key = secrets.token_urlsafe(24)
+        _plans[key] = {"kind": kind, "document": document, "created": now, "attempted": False}
+    return {
+        "plan_id": key,
+        "kind": kind,
+        "document": document.model_dump(mode="json"),
+        "phases": phases or [],
+        "created_at": datetime.now(UTC).isoformat(),
+        "expires_in_seconds": 3600,
+    }
 
 
-class WorkflowPlanRequest(BaseModel):
-    project_root: str
-    tool_ids: list[str]
-    goals: list[str] = []
-    model_preference: Literal["local", "hosted", "any"] = "local"
+def reviewed(key: str, kind: str | None = None, *, consume: bool = False):
+    with _plan_lock:
+        saved = _plans.get(key)
+        if not saved or time.monotonic() - saved["created"] > 3600:
+            raise HTTPException(
+                409, "Review plan expired or backend restarted. Generate a fresh plan."
+            )
+        if kind and saved["kind"] != kind:
+            raise HTTPException(422, "This action requires a different kind of review plan.")
+        if consume:
+            if saved["attempted"]:
+                raise HTTPException(409, "This plan was already attempted. Review a fresh plan.")
+            saved["attempted"] = True
+        return saved
+
+
+def require_action(request: Request):
+    if not secrets.compare_digest(request.headers.get("x-stackwinnow-token", ""), _action_token):
+        raise HTTPException(403, "Refresh the local workbench before running this action.")
 
 
 @app.post("/api/workflow/plan")
-def workflow_plan(req: WorkflowPlanRequest):
-    root = Path(req.project_root).expanduser().resolve()
-    if not root.exists():
-        raise HTTPException(status_code=422, detail=f"Path does not exist: {root}")
-    try:
-        selections = tuple(select_tool(t) for t in req.tool_ids)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    try:
-        request = WorkflowRequest(
-            selections=selections,
+def workflow_plan(req: PlanInput):
+    plan = plan_workflow(
+        root_for(req),
+        WorkflowRequest(
+            selections=selections(req),
             goals=tuple(req.goals),
             model_preference=req.model_preference,
-        )
-        plan = plan_workflow(root, request)
-    except (WorkflowError, ValueError) as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return plan.model_dump(mode="json")
+            expectation=req.expectation,
+        ),
+    )
+    return remember("workflow", plan, plan.phases)
+
+
+class ApplyInput(Input):
+    plan_id: str
+    confirm: bool = False
+    dry_run: bool = False
+
+
+@app.post("/api/workflow/apply")
+def workflow_apply(req: ApplyInput, request: Request):
+    require_action(request)
+    if not req.dry_run and not req.confirm:
+        raise HTTPException(422, "Review the plan and confirm application first.")
+    plan = reviewed(req.plan_id, "workflow", consume=not req.dry_run)["document"]
+    return apply_workflow(plan, dry_run=req.dry_run).as_payload()
+
+
+@app.post("/api/workflow/status")
+def workflow_status(req: SelectionInput):
+    selections(req)
+    return check_project(root_for(req), tool_ids=req.tool_ids).as_payload()
+
+
+class CheckInput(SelectionInput):
+    confirm: bool = False
+
+
+@app.post("/api/workflow/check")
+def workflow_check(req: CheckInput, request: Request):
+    require_action(request)
+    if not req.confirm:
+        raise HTTPException(422, "Confirm running functional checks on the selected tools.")
+    selections(req)
+    return check_project(root_for(req), tool_ids=req.tool_ids, run_functional=True).as_payload()
+
+
+@app.post("/api/removal/plan")
+def removal_plan(req: SelectionInput):
+    selections(req)
+    return remember("removal", plan_removal_lifecycle(root_for(req), req.tool_ids))
+
+
+@app.post("/api/removal/apply")
+def removal_apply(req: ApplyInput, request: Request):
+    require_action(request)
+    if not req.dry_run and not req.confirm:
+        raise HTTPException(422, "Review retained/removed paths and confirm removal first.")
+    plan = reviewed(req.plan_id, "removal", consume=not req.dry_run)["document"]
+    return apply_removal(plan, dry_run=req.dry_run).model_dump(mode="json")
+
+
+class ProfileExport(Input):
+    plan_id: str
+
+
+@app.post("/api/profiles/export")
+def profile_export(req: ProfileExport):
+    return export_profile(reviewed(req.plan_id, "workflow")["document"]).model_dump(mode="json")
+
+
+class ProfileImport(ProjectInput):
+    profile: PortableProfile
+
+
+@app.post("/api/profiles/import")
+def profile_import(req: ProfileImport):
+    plan = import_profile(req.profile, root_for(req))
+    return remember("workflow", plan, plan.phases)
+
+
+@app.post("/api/reports")
+def report(req: DiscoveryInput):
+    # Use the report implementation to preserve consistent CLI Markdown and JSON.
+    validate_discovery(req)
+    result = build_report(
+        root_for(req),
+        goals=req.goals,
+        assistant=req.assistant,
+        selected_tools=req.selected_tools,
+        model_preference=req.model_preference,
+        config_path=req.config_path,
+        platform=req.platform,
+        scan_source=req.scan_source,
+    )
+    return {"markdown": result.to_markdown(), "json": result.to_payload()}
+
+
+@app.post("/api/environment")
+def environment(req: ProjectInput):
+    profile, diagnostics = inspect_environment(str(root_for(req)))
+    return {
+        "profile": profile.model_dump(mode="json"),
+        "diagnostics": [d.model_dump(mode="json") for d in diagnostics],
+        "modes": workflow_modes(),
+    }

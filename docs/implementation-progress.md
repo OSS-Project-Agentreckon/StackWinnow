@@ -1,5 +1,52 @@
 # StackWinnow implementation progress
 
+## Workbench redesign checkpoint — 24 November 2026
+
+Active branch: feat/source-discovery-ui, based on main 5670244 (source discovery
+merged through PR #47). User requested diagnosis of apparent manifest-only scans
+and a complete, refined UI. A live source-only probe confirmed the running backend
+was already scanning source. The earlier UI hid scan coverage; its assistant choices
+mixed provider names with coding-assistant targets and did not explain their effect.
+
+Implemented locally: shared project workbench, recursive file ledger/counts,
+compatibility targets from the catalog, selected-mode planning with Graphify
+expectation inputs, reviewed apply/dry-run/status/check/removal, profile import/export,
+Markdown/JSON reports, environment inspection, local-origin/action-token gates,
+and a source-checkout UI launcher. Extended source recognition to class-held SDK
+clients and direct LangChain chat-model calls. See docs/ui-workbench.md for scope.
+
+Validation: 178 relevant tests across focused API/source and existing discovery/report
+coverage; frontend build; Python lint/format; live desktop/mobile Chromium journey
+(scan, coverage, selection, plan, dry run, report, assistant target; no page errors).
+Screenshots visually checked. No real installation/removal/provider execution or
+broad lifecycle suite. Two dependency deprecation warnings, no test failures.
+Local changes are not committed/pushed/merged. Prior source feature was merged;
+this UI follow-up remains on the feature branch. Preserve unrelated modified
+chronological-commit-plan.md and untracked docs/superpowers/. UI/backend remain
+available at localhost:5173/8000. Next: user visual review, then commit/publish when
+requested; specific external repository behavior still requires its project path.
+
+
+## UI follow-up — 24 November 2026
+
+Source discovery is committed as 712e19d and merged through PR #47 into main
+5670244. The user requested that the UI make scanning without goals the main
+flow. Implemented locally on feat/source-discovery-ui: discovery as the landing
+page, path-only required forms, shared optional refinements with saved goals/
+assistant preferences visible, source findings first, recommendation reason
+labels, and workflow guidance with optional plan goals. Typed workflow goals
+are included when generating the plan even without clicking Add first.
+
+Validation: frontend production build passed; lightweight React server-render
+checks passed for Inspect/Recommend forms with empty and saved goals and for
+saved assistant preferences. Git diff whitespace check passed. No browser
+interaction suite or backend regression suite was run for this UI follow-up.
+Changes are not committed, pushed or merged. Preserve unrelated changes in
+chronological-commit-plan.md and docs/superpowers/. Next: review the UI changes
+and commit/publish when requested. Source-analysis limits and deferred release
+acceptance remain documented in source-discovery.md and the sequential plan.
+
+
 ## Source discovery checkpoint — 24 November 2026
 
 Latest user request authorizes source-based discovery on a new feature branch.

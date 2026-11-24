@@ -227,6 +227,7 @@ def build_report(
     include_verification: bool = False,
     generated_at: str | None = None,
     catalog: Catalog | None = None,
+    scan_source: bool = True,
 ) -> ProjectReport:
     """Assemble a read-only project report.
 
@@ -246,6 +247,7 @@ def build_report(
         model_preference=model_preference,
         config_path=config_path,
         catalog=resolved,
+        scan_source=scan_source,
     )
     recommendation = recommend_tools(inspection, catalog=resolved, platform=platform)
     verification: VerificationReport | None = None

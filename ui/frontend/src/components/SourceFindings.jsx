@@ -2,10 +2,15 @@ export default function SourceFindings({ discovery }) {
   if (!discovery || discovery.status === 'not-scanned') return null
   return (
     <section className="bg-white rounded-lg border p-4 shadow-sm space-y-3">
-      <h2 className="font-semibold text-gray-700">Source discovery</h2>
+      <h2 className="font-semibold text-gray-700">What the source scan found</h2>
       <p className="text-sm text-gray-500">
-        Coverage: {discovery.status} · {discovery.files_scanned} files scanned
+        {discovery.files_scanned} files scanned · {discovery.findings.length} finding{discovery.findings.length === 1 ? '' : 's'} · Coverage: {discovery.status}
       </p>
+      {discovery.status === 'partial' && (
+        <p role="status" className="rounded bg-amber-50 p-3 text-sm text-amber-800">
+          Some source could not be scanned. These findings cover only the files inspected; review the scan notes below.
+        </p>
+      )}
       {discovery.findings.map((finding, i) => (
         <div key={i} className="border-t pt-3 text-sm space-y-1">
           <p className="font-medium">{finding.summary}</p>

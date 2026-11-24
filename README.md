@@ -5,6 +5,21 @@ and managing their setup for a project. The workflow is project
 inspection, explained recommendations, a reviewed setup plan, installation,
 functional verification, and removal that preserves the user's settings.
 
+## Local web workbench
+
+Start with a project path and discover source evidence without goals. The workbench
+includes searchable file coverage, catalog compatibility, reviewed setup/apply,
+status and functional checks, removal, portable profiles, reports and environment
+inspection. See [workbench setup and behavior](docs/ui-workbench.md).
+
+    python -m pip install -e '.[ui]'
+    npm --prefix ui/frontend ci
+    python scripts/run_ui.py
+
+Open http://localhost:5173. Assistant choice is a catalog compatibility target;
+source discovery uses local static analysis. Managed client setup currently targets Codex.
+
+
 ## Current scope
 
 Version `0.1.0.dev0` provides an installable Python package, catalog discovery,

@@ -14,6 +14,15 @@ The Python API accepts inspect_project(path, scan_source=False) for declarations
 only. No source code is imported or executed; discovery performs no network,
 provider, package-manager, or Git commands and writes no project files.
 
+## Web UI
+
+The app opens on Discover tools. Enter the project path and choose Scan and
+discover tools; no goal is required. Inspect source offers a scan-only view.
+Optional refinements contain goals and assistant preferences. Saved refinements
+are shown so it is clear when they affect a new scan; remove goal chips to scan
+without those priorities. Source findings appear before the supporting profile
+or tool list. Workflow also keeps plan goals optional.
+
 ## Findings
 
 | Source rule | Evidence | Suggested investigation |
@@ -42,10 +51,12 @@ establishing quality coverage. Imports alone do not prove that tooling is used.
 ## Supported source patterns
 
 Python uses the standard-library AST, resolving SDK import aliases, straightforward
-client assignments, context-manager clients, and local context expressions. It
+client assignments, context-manager clients, class-held clients initialized directly
+in __init__, and local context expressions. It
 recognizes OpenAI/Azure OpenAI chat completions and Responses create/parse/stream,
 including raw/streaming response wrappers; Anthropic messages create/stream;
-Google GenAI generate_content; and LiteLLM completion/acompletion. Async calls,
+Google GenAI generate_content; LiteLLM completion/acompletion; legacy Google GenerativeModel; and direct
+LangChain OpenAI/Anthropic/Google chat-model invoke, stream and batch calls. Async calls,
 loops, comprehensions, tenacity retry/backoff decorators and exception handlers
 are included. Function parameters and reassigned clients are treated conservatively.
 
@@ -65,6 +76,11 @@ Examples/tests remain visible but receive a production-use caveat and do not
 alone trigger the evaluation-coverage question.
 
 ## File boundaries and coverage
+
+The source_discovery object also includes a file ledger (up to 2,000 entries),
+language counts, recognized model-call counts, excluded-entry/unsupported-file
+counts and an inventory_truncated flag. These observations power the workbench's
+Source coverage page. Filenames and scan reasons are visible; source values stay private.
 
 - Recursive .py, .js, .jsx, .ts, .tsx, .mjs, .cjs files; .d.ts excluded.
 - Hidden paths and known dependency/build directories are excluded, including

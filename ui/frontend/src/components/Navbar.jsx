@@ -1,16 +1,16 @@
 import { NavLink } from 'react-router-dom'
 
 const links = [
+  { to: '/recommend', label: 'Discover tools' },
+  { to: '/inspect', label: 'Inspect source' },
   { to: '/catalog', label: 'Catalog' },
-  { to: '/inspect', label: 'Inspect' },
-  { to: '/recommend', label: 'Recommend' },
   { to: '/workflow', label: 'Workflow' },
 ]
 
 export default function Navbar() {
   return (
     <nav className="bg-indigo-700 text-white shadow">
-      <div className="max-w-6xl mx-auto px-4 flex items-center gap-6 h-14">
+      <div className="max-w-6xl mx-auto px-4 flex flex-wrap items-center gap-x-4 gap-y-2 py-3">
         <span className="font-bold text-lg tracking-tight">StackWinnow</span>
         {links.map(({ to, label }) => (
           <NavLink
