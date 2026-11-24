@@ -653,7 +653,7 @@
         "spend-tracking",
         "prompt-management"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Choose a self-hosted deployment or a service endpoint.",
         "Instrument the application with supported SDKs or OpenTelemetry and configure endpoint credentials."
@@ -997,7 +997,7 @@
         "llm-evaluation",
         "prompt-management"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install an appropriate SDK and configure a tracing/evaluation endpoint.",
         "Self-hosted local development uses the documented Docker-based deployment."
@@ -1186,7 +1186,7 @@
         "rag-evaluation",
         "llm-evaluation"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install the ragas Python package.",
         "Prepare evaluation data and configure LLM or embedding backends required by the selected metrics."
@@ -1316,7 +1316,7 @@
         "rag-evaluation",
         "tracing"
       ],
-      "availability": "catalog_only",
+      "availability": "adapter_available",
       "prerequisites": [
         "Install trulens and the relevant provider/instrumentation packages.",
         "Configure feedback functions and any model credentials they need."
