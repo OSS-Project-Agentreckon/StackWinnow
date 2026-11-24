@@ -55,11 +55,26 @@ class SourceFinding(Contract):
     caveats: list[NonEmptyText] = Field(default_factory=list)
 
 
+class SourceFile(Contract):
+    path: str
+    status: Literal["scanned", "excluded", "unsupported", "error"]
+    language: str | None = None
+    bytes_read: int = 0
+    model_calls: int = 0
+    reason: str
+
+
 class SourceDiscovery(Contract):
     version: Literal[1] = 1
     status: Literal["not-scanned", "complete", "partial"] = "not-scanned"
     files_scanned: int = 0
     bytes_scanned: int = 0
+    files: list[SourceFile] = Field(default_factory=list)
+    inventory_truncated: bool = False
+    excluded_entries: int = 0
+    unsupported_files: int = 0
+    model_calls: int = 0
+    languages: dict[str, int] = Field(default_factory=dict)
     findings: list[SourceFinding] = Field(default_factory=list)
     diagnostics: list[str] = Field(default_factory=list)
     limitations: list[str] = Field(
@@ -98,6 +113,11 @@ _CONSTRUCTORS = {
     "anthropic.Anthropic": "anthropic",
     "anthropic.AsyncAnthropic": "anthropic",
     "google.genai.Client": "google",
+    "google.generativeai.GenerativeModel": "google-legacy",
+    "langchain_openai.ChatOpenAI": "langchain-openai",
+    "langchain_openai.AzureChatOpenAI": "langchain-openai",
+    "langchain_anthropic.ChatAnthropic": "langchain-anthropic",
+    "langchain_google_genai.ChatGoogleGenerativeAI": "langchain-google",
 }
 _METHODS = {
     "openai": {
@@ -111,7 +131,10 @@ _METHODS = {
     },
     "anthropic": {"messages.create", "messages.stream"},
     "google": {"models.generate_content", "aio.models.generate_content"},
+    "google-legacy": {"generate_content", "generate_content_async"},
 }
+for _provider in ("langchain-openai", "langchain-anthropic", "langchain-google"):
+    _METHODS[_provider] = {"invoke", "ainvoke", "stream", "astream", "batch", "abatch"}
 _CONTEXT = re.compile(
     r"(?:^|_)(?:documents?|docs|chunks?|context|history|messages|retrieved)(?:_|$)", re.I
 )
@@ -154,9 +177,12 @@ class _Python(ast.NodeVisitor):
 
     def resolve(self, node: ast.AST) -> str:
         name = _dotted(node)
-        first, _, rest = name.partition(".")
-        base = self.symbols.get(first, "")
-        return base + ("." + rest if rest and base else "")
+        parts = name.split(".")
+        for length in range(len(parts), 0, -1):
+            prefix = ".".join(parts[:length])
+            if prefix in self.symbols:
+                return self.symbols[prefix] + name[len(prefix) :]
+        return ""
 
     def visit_Import(self, node: ast.Import) -> None:
         for alias in node.names:
@@ -178,7 +204,10 @@ class _Python(ast.NodeVisitor):
     def has_context(self, node: ast.AST) -> bool:
         """Trace local assembly, not a variable named messages alone."""
         for child in ast.walk(node):
-            if isinstance(child, ast.Name) and child.id in self.context_names:
+            if (
+                isinstance(child, (ast.Name, ast.Attribute))
+                and _dotted(child) in self.context_names
+            ):
                 return True
             if isinstance(child, ast.Constant) and isinstance(child.value, str):
                 if len(child.value) >= 4000:
@@ -196,20 +225,23 @@ class _Python(ast.NodeVisitor):
         return False
 
     def assign(self, target: ast.AST, value: ast.AST | None) -> None:
-        if not isinstance(target, ast.Name):
+        if not isinstance(target, ast.Name) and not (
+            isinstance(target, ast.Attribute) and _dotted(target).startswith("self.")
+        ):
             return
+        name = _dotted(target)
         resolved = (
             self.resolve(value.func if isinstance(value, ast.Call) else value) if value else ""
         )
         context = value is not None and self.has_context(value)
-        self.symbols.pop(target.id, None)
-        self.context_names.discard(target.id)
+        self.symbols.pop(name, None)
+        self.context_names.discard(name)
         if isinstance(value, ast.Call) and resolved in _CONSTRUCTORS:
-            self.symbols[target.id] = "@" + _CONSTRUCTORS[resolved]
+            self.symbols[name] = "@" + _CONSTRUCTORS[resolved]
         elif isinstance(value, (ast.Name, ast.Attribute)) and resolved:
-            self.symbols[target.id] = resolved
+            self.symbols[name] = resolved
         if context:
-            self.context_names.add(target.id)
+            self.context_names.add(name)
 
     def visit_Assign(self, node: ast.Assign) -> None:
         self.visit(node.value)
@@ -274,6 +306,19 @@ class _Python(ast.NodeVisitor):
         saved = self.symbols, self.context_names, self.scope
         self.symbols, self.context_names = dict(self.symbols), set(self.context_names)
         self.scope = f"{self.scope}/class{node.lineno}"
+        # Common client attributes initialized directly in __init__ are visible to methods.
+        # Keep them inside this class; do not infer arbitrary cross-file object types.
+        for method in node.body:
+            if isinstance(method, ast.FunctionDef) and method.name == "__init__":
+                for stmt in method.body:
+                    if isinstance(stmt, ast.Assign):
+                        for target in stmt.targets:
+                            if isinstance(target, ast.Attribute) and _dotted(target).startswith(
+                                "self."
+                            ):
+                                self.assign(target, stmt.value)
+                    elif isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Attribute):
+                        self.assign(stmt.target, stmt.value)
         for stmt in node.body:
             self.visit(stmt)
         self.symbols, self.context_names, self.scope = saved
@@ -319,6 +364,9 @@ class _Python(ast.NodeVisitor):
                 for kw in node.keywords
                 if kw.arg in {"messages", "input", "prompt", "contents"}
             ]
+            if provider.startswith("langchain-") or provider == "google-legacy":
+                inputs += node.args[:1]
+            provider = provider.removeprefix("langchain-").removesuffix("-legacy")
             self.calls.append(
                 _Call(
                     self.path,
@@ -338,8 +386,9 @@ class _Python(ast.NodeVisitor):
                 )
             )
         if isinstance(node.func, ast.Attribute) and node.func.attr in {"append", "extend"}:
-            if isinstance(node.func.value, ast.Name) and _CONTEXT.search(node.func.value.id):
-                self.context_names.add(node.func.value.id)
+            name = _dotted(node.func.value)
+            if name and _CONTEXT.search(name.replace(".", "_")):
+                self.context_names.add(name)
         self.generic_visit(node)
 
 
@@ -378,6 +427,16 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
     entries = 0
     attempted = 0
 
+    def inventory(path: str, status: str, reason: str, **details) -> None:
+        if status == "excluded":
+            result.excluded_entries += 1
+        elif status == "unsupported":
+            result.unsupported_files += 1
+        if len(result.files) < 2000:
+            result.files.append(SourceFile(path=path, status=status, reason=reason, **details))
+        else:
+            result.inventory_truncated = True
+
     def diagnostic(message: str) -> None:
         result.status = "partial"
         if len(result.diagnostics) < 30 and message not in result.diagnostics:
@@ -414,16 +473,22 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
                     children.append(entry)
             for entry in sorted(children, key=lambda item: item.name):
                 relative = f"{directory}/{entry.name}" if directory else entry.name
+                if not relative.isprintable():
+                    diagnostic("A non-printable source path was skipped.")
+                    continue
                 if (
                     entry.name.startswith(".")
                     or entry.name in EXCLUDED
                     or _ignored(relative, rules)
                 ):
-                    continue
-                if not relative.isprintable():
-                    diagnostic("A non-printable source path was skipped.")
+                    inventory(
+                        relative,
+                        "excluded",
+                        "Hidden, dependency/build path, or ignore rule; directories are not traversed.",
+                    )
                     continue
                 if entry.is_symlink():
+                    inventory(relative, "excluded", "Symbolic links are not followed.")
                     continue
                 if entry.is_dir(follow_symlinks=False):
                     if attempted >= MAX_FILES or result.bytes_scanned >= MAX_TOTAL_BYTES:
@@ -438,6 +503,11 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
                         os.close(child)
                     continue
                 if Path(relative).suffix not in SUFFIXES or relative.endswith(".d.ts"):
+                    inventory(
+                        relative,
+                        "unsupported",
+                        "No source analyzer for this file type; declarations are inspected separately.",
+                    )
                     continue
                 if attempted >= MAX_FILES or result.bytes_scanned >= MAX_TOTAL_BYTES:
                     diagnostic("Source file/byte limit reached; source coverage is partial.")
@@ -456,6 +526,25 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
                         else _javascript(relative, raw.decode("utf-8-sig"))
                     )
                     result.files_scanned += 1
+                    language = (
+                        "Python"
+                        if relative.endswith(".py")
+                        else (
+                            "TypeScript"
+                            if Path(relative).suffix in {".ts", ".tsx"}
+                            else "JavaScript"
+                        )
+                    )
+                    result.languages[language] = result.languages.get(language, 0) + 1
+                    result.model_calls += len(source_calls)
+                    inventory(
+                        relative,
+                        "scanned",
+                        "Parsed for supported model-call and context patterns.",
+                        language=language,
+                        bytes_read=len(raw),
+                        model_calls=len(source_calls),
+                    )
                     mitigations.update(source_mitigations)
                     for call in source_calls:
                         if any(
@@ -465,6 +554,7 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
                             call.mitigations.add("non-production")
                     calls.extend(source_calls)
                 except (OSError, ValueError, SyntaxError, RecursionError):
+                    inventory(relative, "error", "Unreadable, oversized, or unsupported syntax.")
                     diagnostic(
                         f"{relative}: unreadable, oversized, or unsupported source; skipped."
                     )

@@ -1,20 +1,16 @@
 # Remaining implementation: B foundations, then A product work
 
-## Active product request — source discovery
+## Active product request — complete local workbench
 
-The user explicitly requested source-based discovery on a new branch, following
-recognition that manifest/goal matching does not fulfill the project-understanding
-vision. Branch feat/source-discovery starts from main 510f0c4 (including merged
-report #42, handoff #45, and UI #46). The B-to-A handoff is already accepted.
+Source discovery was merged as #47 into main 5670244. The B-to-A handoff remains
+accepted. User requested a refined UI that explains source coverage and exposes
+the existing product workflows. Branch feat/source-discovery-ui now implements
+that workbench, API operations and additional common source-call patterns.
 
-The initial discovery layer is implemented locally: bounded Python/JS/TS scans,
-evidence locations, confidence/questions, source-driven recommendations, and
-CLI/report/UI integration. See [source discovery](source-discovery.md) and the
-[progress log](implementation-progress.md) for exact validation and limitations.
-Changes are not committed, pushed or merged. Review/commit is the next action;
-publication and release acceptance remain separate. The prior schedule below
-is retained as release history, not the active feature request.
-
+See [workbench behavior/validation](ui-workbench.md) and the [progress log](implementation-progress.md).
+Changes are local, not committed/pushed/merged. The live UI is available for user
+review. Specific external repository diagnosis awaits the project path. Existing
+release/lifecycle acceptance remains deferred; earlier milestones below are history.
 
 Current checkpoint: **24 November 2026**, audited against merged main `575a8e6`.
 This is the active schedule; the chronological 36-step schedule is historical.

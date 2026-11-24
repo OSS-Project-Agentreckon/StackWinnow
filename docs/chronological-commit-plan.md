@@ -1,5 +1,12 @@
 # StackWinnow: chronological 36-work-commit plan
 
+**Scheduling update, 22 November 2026:** The active remaining-work plan is
+[B then A: sequential completion](two-person-sequential-plan.md), based on
+pulled main d5ba9be. B completes B01–B08, then A completes A01–A08 through
+release/submission. C has no new assigned work. The old interleaved schedule,
+seven-day forecast and equal-commit target below are historical; the new plan
+maps every remaining acceptance requirement to an owner. PRs #17–#19 are merged.
+
 Recorded from the assignment conversation on 15 November 2026; added to this repository on **16 November 2026**. Actual completion and evidence are in [implementation-progress.md](implementation-progress.md).
 
 The target is **12 substantive work commits per person, 36 total**: a 30-entry OSS catalog and a proposed first release with Graphify, Headroom, promptfoo, and Playwright MCP. Catalog membership does not imply installation support. The relative seven-day schedule is not restarted here.

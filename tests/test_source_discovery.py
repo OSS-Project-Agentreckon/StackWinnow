@@ -236,3 +236,53 @@ with OpenAI() as client:
     )
     found = inspect_project(tmp_path).source_discovery.findings
     assert len([f for f in found if f.rule_id == "source-model-choice"]) == 2
+
+
+def test_class_held_client_and_local_history_are_recognized(tmp_path):
+    write(
+        tmp_path,
+        """from openai import OpenAI
+class Agent:
+    def __init__(self):
+        self.client = OpenAI()
+        self.history = []
+    def answer(self, text):
+        self.history.append({"role": "user", "content": text})
+        return self.client.responses.create(model="example", input=self.history)
+""",
+    )
+    found = findings(tmp_path)
+    assert "source-context-assembly" in found
+    assert found["source-model-choice"].evidence[0].line == 8
+
+
+def test_langchain_invocation_is_source_evidence_without_manifest(tmp_path):
+    write(
+        tmp_path,
+        """from langchain_openai import ChatOpenAI
+model = ChatOpenAI()
+def answer(documents):
+    context = "\\n".join(documents)
+    for _ in range(2):
+        model.invoke(context)
+""",
+    )
+    found = findings(tmp_path)
+    assert {"source-context-assembly", "source-call-volume", "source-evaluation-coverage"} <= set(
+        found
+    )
+
+
+def test_client_attribute_is_not_shared_with_another_class(tmp_path):
+    write(
+        tmp_path,
+        """from openai import OpenAI
+class First:
+    def __init__(self):
+        self.client = OpenAI()
+class Second:
+    def call(self):
+        return self.client.responses.create(model="example", input="hello")
+""",
+    )
+    assert not findings(tmp_path)
