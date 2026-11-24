@@ -94,6 +94,7 @@ def apply_llmlingua(
         if not dry_run and (platform.system() != "Darwin" or platform.machine() != "arm64"):
             raise LlmlinguaError("Llmlingua library mode currently requires macOS arm64.")
         from stackwinnow.runner import run_command
+
         runner = command_runner or run_command
         if not dry_run and runner is None:
             raise LlmlinguaError("Llmlingua requires the shared command runner.")
@@ -104,19 +105,40 @@ def apply_llmlingua(
             return run_verify_step(root, step, runner, _TOOL_ID, _MODULE_NAME, _DIST_NAME, VERSION)
 
         from stackwinnow.adapters._composition import validate_and_guard
+
         record, results = execute_plan(
             checked.installation,
             dry_run=dry_run,
             step_runner=run_step,
             before_execute=lambda: validate_and_guard(lambda: None, before_execute),
         )
-        failures = [r for r in results if r.status in (OperationStatus.FAILED, OperationStatus.BLOCKED)]
+        failures = [
+            r for r in results if r.status in (OperationStatus.FAILED, OperationStatus.BLOCKED)
+        ]
         if dry_run:
             status, message = OperationStatus.SKIPPED, "Dry run; no commands or files were created."
         elif failures:
             status, message = failures[0].status, failures[0].message
         else:
-            status, message = OperationStatus.SUCCEEDED, "llmlingua {VERSION} library installation verified."
-        return LlmlinguaResult(plan=checked, status=status, message=message, dry_run=dry_run, results=results, record=record)
-    except (LlmlinguaError, InstallerError, OSError, EnvironmentBoundaryError, ManagedStateError) as exc:
-        return LlmlinguaResult(plan=checked, status=OperationStatus.BLOCKED, message=str(exc), dry_run=dry_run)
+            status, message = (
+                OperationStatus.SUCCEEDED,
+                "llmlingua {VERSION} library installation verified.",
+            )
+        return LlmlinguaResult(
+            plan=checked,
+            status=status,
+            message=message,
+            dry_run=dry_run,
+            results=results,
+            record=record,
+        )
+    except (
+        LlmlinguaError,
+        InstallerError,
+        OSError,
+        EnvironmentBoundaryError,
+        ManagedStateError,
+    ) as exc:
+        return LlmlinguaResult(
+            plan=checked, status=OperationStatus.BLOCKED, message=str(exc), dry_run=dry_run
+        )

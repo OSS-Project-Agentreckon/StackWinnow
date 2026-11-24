@@ -26,25 +26,25 @@ from stackwinnow.adapters import smolagents as smolagents_adapter
 from stackwinnow.adapters import trulens as trulens_adapter
 
 _ADAPTERS = {
-    "opik":        (opik_adapter.plan_opik,          opik_adapter.apply_opik),
-    "langfuse":    (langfuse_adapter.plan_langfuse,  langfuse_adapter.apply_langfuse),
-    "ragas":       (ragas_adapter.plan_ragas,        ragas_adapter.apply_ragas),
-    "trulens":     (trulens_adapter.plan_trulens,    trulens_adapter.apply_trulens),
-    "deepeval":    (deepeval_adapter.plan_deepeval,  deepeval_adapter.apply_deepeval),
-    "inspect-ai":  (inspect_ai_adapter.plan_inspect_ai, inspect_ai_adapter.apply_inspect_ai),
-    "openlit":     (openlit_adapter.plan_openlit,    openlit_adapter.apply_openlit),
-    "langchain":   (langchain_adapter.plan_langchain, langchain_adapter.apply_langchain),
-    "litellm":     (litellm_adapter.plan_litellm,    litellm_adapter.apply_litellm),
-    "llmlingua":   (llmlingua_adapter.plan_llmlingua, llmlingua_adapter.apply_llmlingua),
-    "gptcache":    (gptcache_adapter.plan_gptcache,  gptcache_adapter.apply_gptcache),
-    "dspy":        (dspy_adapter.plan_dspy,          dspy_adapter.apply_dspy),
+    "opik": (opik_adapter.plan_opik, opik_adapter.apply_opik),
+    "langfuse": (langfuse_adapter.plan_langfuse, langfuse_adapter.apply_langfuse),
+    "ragas": (ragas_adapter.plan_ragas, ragas_adapter.apply_ragas),
+    "trulens": (trulens_adapter.plan_trulens, trulens_adapter.apply_trulens),
+    "deepeval": (deepeval_adapter.plan_deepeval, deepeval_adapter.apply_deepeval),
+    "inspect-ai": (inspect_ai_adapter.plan_inspect_ai, inspect_ai_adapter.apply_inspect_ai),
+    "openlit": (openlit_adapter.plan_openlit, openlit_adapter.apply_openlit),
+    "langchain": (langchain_adapter.plan_langchain, langchain_adapter.apply_langchain),
+    "litellm": (litellm_adapter.plan_litellm, litellm_adapter.apply_litellm),
+    "llmlingua": (llmlingua_adapter.plan_llmlingua, llmlingua_adapter.apply_llmlingua),
+    "gptcache": (gptcache_adapter.plan_gptcache, gptcache_adapter.apply_gptcache),
+    "dspy": (dspy_adapter.plan_dspy, dspy_adapter.apply_dspy),
     "llama-index": (llama_index_adapter.plan_llama_index, llama_index_adapter.apply_llama_index),
     "pydantic-ai": (pydantic_ai_adapter.plan_pydantic_ai, pydantic_ai_adapter.apply_pydantic_ai),
-    "haystack":    (haystack_adapter.plan_haystack,  haystack_adapter.apply_haystack),
-    "langgraph":   (langgraph_adapter.plan_langgraph, langgraph_adapter.apply_langgraph),
-    "crewai":      (crewai_adapter.plan_crewai,      crewai_adapter.apply_crewai),
-    "autogen":     (autogen_adapter.plan_autogen,    autogen_adapter.apply_autogen),
-    "smolagents":  (smolagents_adapter.plan_smolagents, smolagents_adapter.apply_smolagents),
+    "haystack": (haystack_adapter.plan_haystack, haystack_adapter.apply_haystack),
+    "langgraph": (langgraph_adapter.plan_langgraph, langgraph_adapter.apply_langgraph),
+    "crewai": (crewai_adapter.plan_crewai, crewai_adapter.apply_crewai),
+    "autogen": (autogen_adapter.plan_autogen, autogen_adapter.apply_autogen),
+    "smolagents": (smolagents_adapter.plan_smolagents, smolagents_adapter.apply_smolagents),
 }
 
 
@@ -111,7 +111,9 @@ def library_command(args, parser) -> int:
                 print(f"  {step.description}")
             print()
             print("Save the plan and apply it:")
-            print(f"  stackwinnow library plan {plan.project_root} --tool {plan.tool_id} --json > plan.json")
+            print(
+                f"  stackwinnow library plan {plan.project_root} --tool {plan.tool_id} --json > plan.json"
+            )
             print("  stackwinnow library apply plan.json")
         return 0
 
@@ -135,6 +137,7 @@ def library_command(args, parser) -> int:
     try:
         plan = plan_fn.__module__
         import importlib
+
         mod = importlib.import_module(plan_fn.__module__)
         plan_cls_name = tool_id.replace("-", "_").title().replace("_", "") + "Plan"
         # handle names like LlamaIndex → LlamaIndexPlan, PydanticAi → PydanticAiPlan

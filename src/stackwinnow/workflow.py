@@ -593,7 +593,30 @@ def apply_workflow(
                     original, _ = validate_graphify_installation(root)
                     if original != checked.graphify:
                         raise WorkflowError("Installed Graphify recipe differs from the review.")
-            elif phase in ("headroom", "promptfoo", "playwright-mcp", "opik", "langfuse", "ragas", "trulens", "deepeval", "inspect-ai", "openlit", "langchain", "litellm", "llmlingua", "gptcache", "dspy", "llama-index", "pydantic-ai", "haystack", "langgraph", "crewai", "autogen", "smolagents"):
+            elif phase in (
+                "headroom",
+                "promptfoo",
+                "playwright-mcp",
+                "opik",
+                "langfuse",
+                "ragas",
+                "trulens",
+                "deepeval",
+                "inspect-ai",
+                "openlit",
+                "langchain",
+                "litellm",
+                "llmlingua",
+                "gptcache",
+                "dspy",
+                "llama-index",
+                "pydantic-ai",
+                "haystack",
+                "langgraph",
+                "crewai",
+                "autogen",
+                "smolagents",
+            ):
                 leaf, apply = {
                     "headroom": (checked.headroom, headroom.apply_headroom),
                     "promptfoo": (checked.promptfoo, promptfoo.apply_promptfoo),
@@ -623,7 +646,28 @@ def apply_workflow(
                     outcome.status == "succeeded",
                     {s.step_id for s in leaf.installation.steps},
                 )
-                if phase not in ("headroom", "opik", "langfuse", "ragas", "trulens", "deepeval", "inspect-ai", "openlit", "langchain", "litellm", "llmlingua", "gptcache", "dspy", "llama-index", "pydantic-ai", "haystack", "langgraph", "crewai", "autogen", "smolagents"):
+                if phase not in (
+                    "headroom",
+                    "opik",
+                    "langfuse",
+                    "ragas",
+                    "trulens",
+                    "deepeval",
+                    "inspect-ai",
+                    "openlit",
+                    "langchain",
+                    "litellm",
+                    "llmlingua",
+                    "gptcache",
+                    "dspy",
+                    "llama-index",
+                    "pydantic-ai",
+                    "haystack",
+                    "langgraph",
+                    "crewai",
+                    "autogen",
+                    "smolagents",
+                ):
                     patch = leaf.configuration
             elif phase == "graphify-index":
                 index = plan_graphify_index(

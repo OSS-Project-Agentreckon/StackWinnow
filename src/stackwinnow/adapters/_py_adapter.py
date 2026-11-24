@@ -118,9 +118,7 @@ print(json.dumps({{
 """
 
 
-def inspect_installation(
-    root: Path, tool_id: str, version: str
-) -> tuple[dict, str] | None:
+def inspect_installation(root: Path, tool_id: str, version: str) -> tuple[dict, str] | None:
     """Return (manifest, digest) if the tool is installed, else None; raise on corruption."""
     env = _env_path(root, tool_id)
     manifest = _manifest_relative(tool_id)
@@ -197,9 +195,7 @@ def run_install_step(
                 message=f"{package_name} {version} reused (installation verified).",
                 owned_paths=[env_rel, state_rel],
                 evidence=[
-                    EvidenceRef(
-                        source=_manifest_relative(tool_id), detail="sha256:" + existing[1]
-                    )
+                    EvidenceRef(source=_manifest_relative(tool_id), detail="sha256:" + existing[1])
                 ],
             )
         _reject_link(env.parent, "tool directory")
@@ -217,7 +213,11 @@ def run_install_step(
         for args, timeout, label in (
             (_isolated(creation), 60, "venv creation"),
             (_isolated(bootstrap_pip_args(env)), 60, "pip bootstrap"),
-            (_isolated(pip_install_args(env, package_name, version)), 600, f"{package_name} install"),
+            (
+                _isolated(pip_install_args(env, package_name, version)),
+                600,
+                f"{package_name} install",
+            ),
         ):
             outcome = runner(
                 args, cwd=root, timeout=timeout, extra_env=build_environment(root, tool_id)
@@ -271,9 +271,7 @@ def run_verify_step(
             status=OperationStatus.SUCCEEDED,
             message=f"{tool_id} {version} import and version verified.",
             owned_paths=[],
-            evidence=[
-                EvidenceRef(source=_manifest_relative(tool_id), detail="sha256:" + digest)
-            ],
+            evidence=[EvidenceRef(source=_manifest_relative(tool_id), detail="sha256:" + digest)],
         )
     except (OSError, ValueError, RuntimeError, InstallerError, ManagedStateError) as exc:
         return RunnerOutcome(
