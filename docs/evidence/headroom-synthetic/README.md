@@ -3,7 +3,9 @@
 Captured 23 November 2026; published here without rerunning the experiment.
 This is separate from the managed lifecycle in [headroom-library.md](../headroom-library.md).
 `summary.json` is the unchanged recorded summary; inputs and output messages
-are the original synthetic files. Its source hashes identify the original local
+are the original synthetic files. Only the first-run output for each fixture is
+retained: second-run outputs were byte-identical and omitted to avoid duplication.
+The summary retains results and hashes for both trials. Its source hashes identify the original local
 experiment scripts, not scripts distributed with this snapshot.
 
 | Fixture | Before (tokens) | After (tokens) | Saving |
