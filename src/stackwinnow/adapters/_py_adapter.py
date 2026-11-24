@@ -9,26 +9,16 @@ No network calls beyond the initial pip install are made during verification.
 from __future__ import annotations
 
 import json
-import os
-import platform
-from collections.abc import Callable
 from pathlib import Path
-from typing import Literal
-from uuid import uuid4
-
-from pydantic import Field
 
 from stackwinnow.adapters._managed import ManagedStateError, directories, record_for
 from stackwinnow.adapters.graphify_index import _publish
 from stackwinnow.adapters.graphify_plan import _digest, _json, _read_at
 from stackwinnow.contracts import (
-    Contract,
     EvidenceRef,
     InstallPlan,
-    OperationResult,
     OperationStatus,
     PlanStep,
-    UntrimmedText,
 )
 from stackwinnow.environments import (
     EnvironmentBoundaryError,
@@ -38,7 +28,7 @@ from stackwinnow.environments import (
     python_env_path,
     python_executable,
 )
-from stackwinnow.installer import ExecutionRecord, InstallerError, RunnerOutcome, execute_plan
+from stackwinnow.installer import InstallerError, RunnerOutcome
 
 
 def _env_relative(tool_id: str) -> str:
