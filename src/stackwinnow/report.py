@@ -14,7 +14,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Literal
 
-from stackwinnow.catalog import Catalog, load_catalog
+from stackwinnow.catalog import Catalog, Platform, load_catalog
 from stackwinnow.contracts import Contract, NonEmptyText
 from stackwinnow.detect import ModelPreference, inspect_project
 from stackwinnow.recommend import RecommendationResult, recommend_tools
@@ -223,7 +223,7 @@ def build_report(
     selected_tools: list[str] | None = None,
     model_preference: ModelPreference | None = None,
     config_path: str | None = None,
-    platform: str | None = None,
+    platform: Platform | None = None,
     include_verification: bool = False,
     generated_at: str | None = None,
     catalog: Catalog | None = None,

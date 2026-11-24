@@ -571,7 +571,12 @@ def _show(tool: CatalogEntry, context: EligibilityContext) -> None:
 
 def _remove(args, parser) -> int:
     from stackwinnow.installer import InstallerError
-    from stackwinnow.removal import apply_removal, load_removal_plan, plan_removal_lifecycle
+    from stackwinnow.removal import (
+        RemovalPlan,
+        apply_removal,
+        load_removal_plan,
+        plan_removal_lifecycle,
+    )
     from stackwinnow.state.lock import ProjectLockError
 
     try:
@@ -581,7 +586,7 @@ def _remove(args, parser) -> int:
             result = apply_removal(load_removal_plan(args.plan_file), dry_run=args.dry_run)
         if args.json:
             print(result.model_dump_json(indent=2))
-        elif args.remove_command == "plan":
+        elif isinstance(result, RemovalPlan):
             print("Removal preview for " + result.project_root)
             for item in result.runtimes:
                 print(f"  {item.action}: {item.path} — {item.reason}")
@@ -594,7 +599,7 @@ def _remove(args, parser) -> int:
             if result.journal:
                 print("  Journal: " + result.journal)
         return (
-            0 if args.remove_command == "plan" or result.status in {"succeeded", "skipped"} else 1
+            0 if isinstance(result, RemovalPlan) or result.status in {"succeeded", "skipped"} else 1
         )
     except (OSError, ValueError, InstallerError, ProjectLockError) as exc:
         parser.error(str(exc))

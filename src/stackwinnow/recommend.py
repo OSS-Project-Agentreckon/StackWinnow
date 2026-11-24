@@ -384,7 +384,7 @@ def recommend_tools(
         )
 
     recommendations.sort(key=order)
-    relationships: set[tuple[str, tuple[str, str]]] = set()
+    relationships: set[tuple[Literal["alternative", "conflict"], tuple[str, str]]] = set()
     for item in recommendations:
         for kind, related in (
             ("alternative", item.alternatives),
@@ -392,7 +392,11 @@ def recommend_tools(
         ):
             for other in related:
                 if other in reasons:
-                    relationships.add((kind, tuple(sorted((item.tool_id, other)))))
+                    relationship_kind: Literal["alternative", "conflict"] = (
+                        "alternative" if kind == "alternative" else "conflict"
+                    )
+                    first, second = sorted((item.tool_id, other))
+                    relationships.add((relationship_kind, (first, second)))
     preference = inspection.model_preference
     preference_status = (
         "not-requested"

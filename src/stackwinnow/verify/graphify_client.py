@@ -86,7 +86,7 @@ def run_client_check(
     state = {"requests": 0, "error": False}
 
     class Handler(BaseHTTPRequestHandler):
-        def log_message(self, *_args):
+        def log_message(self, format: str, *args: object) -> None:
             pass
 
         def do_POST(self):

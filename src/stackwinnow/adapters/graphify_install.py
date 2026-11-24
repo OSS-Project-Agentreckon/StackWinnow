@@ -265,13 +265,14 @@ def validate_graphify_installation(
     manifest = _json(raw)
     if not _manifest_shape(manifest):
         raise GraphifyError("Invalid installation manifest requires inspection before indexing.")
-    if manifest["schema_version"] == 1 and installation_plan is None:
-        raise GraphifyError(
-            "Legacy installation needs its original saved execution plan via --installation-plan."
-        )
-    plan = GraphifyExecutionPlan.model_validate(
-        manifest["plan"] if manifest["schema_version"] == 2 else installation_plan.model_dump()
-    )
+    if manifest["schema_version"] == 2:
+        plan = GraphifyExecutionPlan.model_validate(manifest["plan"])
+    else:
+        if installation_plan is None:
+            raise GraphifyError(
+                "Legacy installation needs its original saved execution plan via --installation-plan."
+            )
+        plan = GraphifyExecutionPlan.model_validate(installation_plan.model_dump())
     if installation_plan is not None and installation_plan != plan:
         raise GraphifyError("Supplied installation plan differs from the owned recipe.")
     current = _prepare_graphify_execution(
