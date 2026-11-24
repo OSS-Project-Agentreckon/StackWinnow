@@ -13,6 +13,10 @@ from uuid import uuid4
 from pydantic import Field, model_validator
 
 from stackwinnow.adapters import headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.adapters._managed import directories, read_json, record_for
 from stackwinnow.adapters.graphify import RelationshipExpectation, _root
 from stackwinnow.adapters.graphify_configure import (
@@ -46,6 +50,10 @@ from stackwinnow.adapters.graphify_plan import (
 from stackwinnow.adapters.headroom import HeadroomPlan
 from stackwinnow.adapters.playwright_mcp import PlaywrightPlan
 from stackwinnow.adapters.promptfoo import PromptfooPlan
+from stackwinnow.adapters.opik import OpikPlan
+from stackwinnow.adapters.langfuse import LangfusePlan
+from stackwinnow.adapters.ragas import RagasPlan
+from stackwinnow.adapters.trulens import TrulensPlan
 from stackwinnow.configure.codex import plan_graphify_codex_server
 from stackwinnow.contracts import ConfigPatch, Contract, OperationStatus
 from stackwinnow.detect import ModelPreference, inspect_project
@@ -100,6 +108,10 @@ class WorkflowPlan(Contract):
     graphify: GraphifyExecutionPlan | None = None
     graphify_reuse: bool = False
     graphify_configuration: ConfigPatch | None = None
+    opik: OpikPlan | None = None
+    langfuse: LangfusePlan | None = None
+    ragas: RagasPlan | None = None
+    trulens: TrulensPlan | None = None
     checksum: str = Field(pattern=r"^[a-f0-9]{64}$")
 
     @property
@@ -111,6 +123,10 @@ class WorkflowPlan(Contract):
                 ("headroom", self.headroom),
                 ("promptfoo", self.promptfoo),
                 ("playwright-mcp", self.playwright),
+                ("opik", self.opik),
+                ("langfuse", self.langfuse),
+                ("ragas", self.ragas),
+                ("trulens", self.trulens),
             )
             if plan
         ]
@@ -245,6 +261,10 @@ def plan_workflow(project_root: str | Path, request: WorkflowRequest) -> Workflo
         graphify=graphify,
         graphify_reuse=reuse,
         graphify_configuration=graph_config,
+        opik=opik_adapter.plan_opik(root) if "opik" in ids else None,
+        langfuse=langfuse_adapter.plan_langfuse(root) if "langfuse" in ids else None,
+        ragas=ragas_adapter.plan_ragas(root) if "ragas" in ids else None,
+        trulens=trulens_adapter.plan_trulens(root) if "trulens" in ids else None,
         checksum="0" * 64,
     )
     if snapshot(root, ids) != state:
@@ -290,6 +310,10 @@ def _validate(plan: WorkflowPlan) -> Path:
         "promptfoo": plan.promptfoo,
         "playwright-mcp": plan.playwright,
         "graphify": plan.graphify,
+        "opik": plan.opik,
+        "langfuse": plan.langfuse,
+        "ragas": plan.ragas,
+        "trulens": plan.trulens,
     }
     if {name for name, leaf in leaves.items() if leaf is not None} != set(plan.request.tool_ids):
         raise WorkflowError("Workflow selections and reviewed adapters disagree.")
@@ -479,18 +503,22 @@ def apply_workflow(
                     original, _ = validate_graphify_installation(root)
                     if original != checked.graphify:
                         raise WorkflowError("Installed Graphify recipe differs from the review.")
-            elif phase in ("headroom", "promptfoo", "playwright-mcp"):
+            elif phase in ("headroom", "promptfoo", "playwright-mcp", "opik", "langfuse", "ragas", "trulens"):
                 leaf, apply = {
                     "headroom": (checked.headroom, headroom.apply_headroom),
                     "promptfoo": (checked.promptfoo, promptfoo.apply_promptfoo),
                     "playwright-mcp": (checked.playwright, playwright_mcp.apply_playwright),
+                    "opik": (checked.opik, opik_adapter.apply_opik),
+                    "langfuse": (checked.langfuse, langfuse_adapter.apply_langfuse),
+                    "ragas": (checked.ragas, ragas_adapter.apply_ragas),
+                    "trulens": (checked.trulens, trulens_adapter.apply_trulens),
                 }[phase]
                 outcome = apply(leaf, command_runner=runner, before_execute=guard)
                 success, steps = (
                     outcome.status == "succeeded",
                     {s.step_id for s in leaf.installation.steps},
                 )
-                if phase != "headroom":
+                if phase not in ("headroom", "opik", "langfuse", "ragas", "trulens"):
                     patch = leaf.configuration
             elif phase == "graphify-index":
                 index = plan_graphify_index(

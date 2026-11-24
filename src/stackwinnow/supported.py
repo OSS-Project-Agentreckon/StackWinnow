@@ -8,6 +8,10 @@ from packaging.version import Version
 from pydantic import Field, model_validator
 
 from stackwinnow.adapters import graphify, headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.contracts import Contract
 
 
@@ -55,6 +59,34 @@ def supported_modes() -> tuple[SupportedMode, ...]:
                 "CPython >=3.11.5,<3.12",
                 "Codex " + playwright_mcp.CODEX_VERSION,
             ),
+        ),
+        SupportedMode(
+            tool_id="opik",
+            mode="library",
+            version=opik_adapter.VERSION,
+            description="Install opik and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
+        ),
+        SupportedMode(
+            tool_id="langfuse",
+            mode="library",
+            version=langfuse_adapter.VERSION,
+            description="Install langfuse and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.11",),
+        ),
+        SupportedMode(
+            tool_id="ragas",
+            mode="library",
+            version=ragas_adapter.VERSION,
+            description="Install ragas and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.9",),
+        ),
+        SupportedMode(
+            tool_id="trulens",
+            mode="library",
+            version=trulens_adapter.VERSION,
+            description="Install trulens and verify the library import works locally.",
+            requirements=host + ("manager Python >=3.10",),
         ),
     )
 
