@@ -17,7 +17,7 @@ configuration and actual client relationship checks. Headroom exposes managed
 library compression and fresh token/preservation measurements.
 `check` reports installation, configuration, connection, and fresh functionality
 for selected tools; all four narrow modes have verification adapters. The `inspect` command reads
-project declarations; host runtime inspection and setup preflight remain Python
+project declarations and supported source patterns; host runtime inspection and setup preflight remain Python
 APIs. Explicit [removal plans and apply](docs/coordinated-removal.md) restore clean
 owned settings, remove unreferenced runtime scopes and retain project data.
 The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) combines explicit selection, planning, apply, fresh verification and passive status. [Portable profiles](docs/portable-profiles.md) carry supported selections to a fresh destination review. A read-only [project report](docs/report.md) summarizes a project's inspection, recommendations and readiness as one Markdown or JSON document. Final combination and release acceptance remain next.
@@ -103,7 +103,7 @@ stackwinnow inspect ./my-project --tool graphify --model-preference local --json
 stackwinnow inspect ./my-project --config assistant-settings.json
 ```
 
-Inspection reports root `pyproject.toml` and `package.json` declarations, dependency
+Inspection reports root `pyproject.toml`, `requirements.txt`, and `package.json` declarations, dependency
 names, declared runtime constraints, and names from an explicitly selected
 `mcpServers` configuration. It keeps user goals and tool choices separate from
 observations. It performs no installations or provider calls. Missing information
@@ -124,8 +124,13 @@ stackwinnow recommend . --goal "Reduce context tokens" --model-preference local
 stackwinnow recommend . --goal "Browser automation"
 ```
 
-Recommendations explain matches using declared dependencies, explicit choices,
-and documented goal phrases. Existing frameworks rank ahead of new suggestions;
+Recommendations explain matches using source findings, declared dependencies, explicit
+choices, and documented goal phrases. Run `stackwinnow recommend ./my-project`
+without goals to discover supported source patterns. Findings include file/line
+evidence, confidence and focused questions about compression, caching, call volume,
+routing and evaluation. See [source discovery](docs/source-discovery.md) for supported
+SDKs, scan limits and uncertainty. Goals refine these recommendations.
+Existing frameworks rank ahead of new suggestions;
 alternatives and conflicts stay visible. The command runs offline and makes no
 model calls. It reports incomplete inspection and unmatched goals explicitly.
 

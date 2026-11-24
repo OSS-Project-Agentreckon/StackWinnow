@@ -352,6 +352,7 @@ def _read_inspection(
         model_preference=args.model_preference,
         config_path=args.config,
         catalog=catalog,
+        scan_source=not args.no_source,
     )
 
 
@@ -414,7 +415,13 @@ def _show_recommendations(result: RecommendationResult) -> None:
     print("Recommendations:")
     for item in result.recommendations:
         label = (
-            "selected" if item.selected else "declared" if item.already_declared else "goal match"
+            "selected"
+            if item.selected
+            else "declared"
+            if item.already_declared
+            else "source match"
+            if any(r.kind == "source" for r in item.reasons)
+            else "goal match"
         )
         print(f"  {item.name} ({item.tool_id}) [{label}]: {item.description}")
         for reason in item.reasons:
@@ -424,6 +431,14 @@ def _show_recommendations(result: RecommendationResult) -> None:
                 else "; ".join(reason.goals)
             )
             print(f"    Why: {reason.message}" + (f" ({detail})" if detail else ""))
+            if reason.finding:
+                finding = reason.finding
+                print(f"      Confidence: {finding.confidence}")
+                for location in finding.evidence:
+                    print(f"      {location.path}:{location.line}")
+                print(f"      Question: {finding.question}")
+                for caveat in finding.caveats:
+                    print(f"      {caveat}")
             if reason.matched_capabilities:
                 print("      Matched capabilities: " + ", ".join(reason.matched_capabilities))
         print(
@@ -456,6 +471,7 @@ def _add_inspection_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--model-preference", choices=["local", "hosted", "any"])
     parser.add_argument("--config", help="Project-relative JSON file; read mcpServers names only.")
     parser.add_argument("--json", action="store_true", help="Emit structured JSON.")
+    parser.add_argument("--no-source", action="store_true", help="Inspect declarations only.")
 
 
 def _show_inspection(result: InspectionResult) -> None:
@@ -474,6 +490,17 @@ def _show_inspection(result: InspectionResult) -> None:
     print("Evidence:")
     for evidence in profile.evidence:
         print(f"  {evidence.source}: {evidence.detail}")
+    discovery = result.source_discovery
+    print(f"Source discovery: {discovery.status} ({discovery.files_scanned} files)")
+    for finding in discovery.findings:
+        print(f"  [{finding.confidence}] {finding.summary}")
+        for location in finding.evidence:
+            print(f"    {location.path}:{location.line}: {location.detail}")
+        print(f"    Question: {finding.question}")
+        for caveat in finding.caveats:
+            print(f"    {caveat}")
+    for message in discovery.diagnostics + discovery.limitations:
+        print(f"  {message}")
     print("Diagnostics:")
     for item in result.diagnostics:
         print(f"  [{item.status}] {item.message}")
@@ -780,7 +807,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--json", action="store_true", help="Emit structured results and receipts."
     )
     inspection = commands.add_parser(
-        "inspect", help="Read project manifests and record explicit goals.", allow_abbrev=False
+        "inspect",
+        help="Inspect declarations and source patterns; optionally record goals.",
+        allow_abbrev=False,
     )
     _add_inspection_arguments(inspection)
     recommendations = commands.add_parser(

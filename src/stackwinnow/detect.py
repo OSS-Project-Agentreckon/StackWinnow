@@ -1,4 +1,4 @@
-"""Bounded, offline inspection of declared project metadata and explicit intent."""
+"""Bounded, offline inspection of declarations, source patterns, and explicit intent."""
 
 from __future__ import annotations
 
@@ -26,6 +26,7 @@ from stackwinnow.contracts import (
     OperationStatus,
     ProjectProfile,
 )
+from stackwinnow.source_discovery import SourceDiscovery, discover_source
 
 MAX_MANIFEST_BYTES = 1024 * 1024
 ModelPreference = Literal["local", "hosted", "any"]
@@ -44,10 +45,11 @@ class InspectionResult(Contract):
     selected_tools: list[Identifier] = Field(default_factory=list)
     model_preference: ModelPreference | None = None
     diagnostics: list[OperationResult] = Field(default_factory=list)
+    source_discovery: SourceDiscovery = Field(default_factory=SourceDiscovery)
 
     @property
     def complete(self) -> bool:
-        return all(
+        return self.source_discovery.status != "partial" and all(
             item.status not in (OperationStatus.FAILED, OperationStatus.BLOCKED)
             for item in self.diagnostics
         )
@@ -72,7 +74,7 @@ def _config_path(path: str) -> str:
     return path
 
 
-def _read(root: Path, relative: str) -> bytes:
+def _read(root: Path, relative: str, *, max_bytes: int = MAX_MANIFEST_BYTES) -> bytes:
     """Read real files through directory descriptors; never follow child symlinks."""
     if os.name != "posix":
         raise _ReadError("Project file inspection currently supports macOS and Linux.")
@@ -99,13 +101,13 @@ def _read(root: Path, relative: str) -> bytes:
             raise _ReadError(
                 "Use a regular file with one hard link; linked/special files are skipped."
             )
-        if before.st_size > MAX_MANIFEST_BYTES:
-            raise _ReadError("File exceeds the 1 MiB inspection limit.")
+        if before.st_size > max_bytes:
+            raise _ReadError("File exceeds the inspection size limit.")
         with os.fdopen(descriptor, "rb", closefd=False) as stream:
-            raw = stream.read(MAX_MANIFEST_BYTES + 1)
+            raw = stream.read(max_bytes + 1)
         after = os.fstat(descriptor)
-        if len(raw) > MAX_MANIFEST_BYTES:
-            raise _ReadError("File exceeds the 1 MiB inspection limit.")
+        if len(raw) > max_bytes:
+            raise _ReadError("File exceeds the inspection size limit.")
         if (before.st_size, before.st_mtime_ns, before.st_ctime_ns) != (
             after.st_size,
             after.st_mtime_ns,
@@ -391,8 +393,9 @@ def inspect_project(
     model_preference: ModelPreference | None = None,
     config_path: str | None = None,
     catalog: Catalog | None = None,
+    scan_source: bool = True,
 ) -> InspectionResult:
-    """Read project declarations. Invalid requests raise; file problems become diagnostics."""
+    """Inspect declarations and source. Invalid requests raise; file problems become diagnostics."""
     try:
         root = Path(project_root).resolve(strict=True)
         if not root.is_dir():
@@ -415,7 +418,11 @@ def inspect_project(
             raise InspectionError(
                 "Unknown tool ID; use 'stackwinnow catalog list' to see valid choices."
             ) from exc
-    inputs = [("pyproject.toml", "python"), ("package.json", "node"), ("requirements.txt", "requirements")]
+    inputs = [
+        ("pyproject.toml", "python"),
+        ("package.json", "node"),
+        ("requirements.txt", "requirements"),
+    ]
     if config_path is not None:
         inputs.append((config_path, "config"))
     for source, kind in inputs:
@@ -464,4 +471,6 @@ def inspect_project(
                 "Read declared metadata; no installed or functional state was checked.",
                 "succeeded",
             )
+    if scan_source:
+        result.source_discovery = discover_source(root, read=_read)
     return result

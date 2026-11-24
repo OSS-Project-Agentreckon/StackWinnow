@@ -1,7 +1,8 @@
 # Project inspection
 
 `stackwinnow inspect PROJECT` reads project declarations and captures the user's
-explicit intent. It supplies context for future recommendations. It does not
+explicit intent. It also performs bounded [source discovery](source-discovery.md)
+for recommendations without requiring goals. It does not
 scan installed packages, execute project scripts, call providers, or determine
 whether a selected tool can be installed. Implementation and tests were AI-assisted.
 
@@ -14,7 +15,8 @@ stackwinnow inspect . --assistant codex --tool graphify --tool promptfoo
 stackwinnow inspect . --model-preference local --config assistant-settings.json
 ```
 
-The project directory must exist. Inspection considers only root manifests.
+The project directory must exist. Declaration parsing considers root manifests;
+source discovery recursively scans supported files. Use `--no-source` for declarations only.
 Long options must be written in full. Goals and tools can be repeated; tool IDs
 are deduplicated in selection order and checked against the catalog. A catalog-only
 tool is a valid selection, but selection gives no installation permission/readiness.
@@ -39,7 +41,9 @@ not included in output. Registration presence does not prove client connectivity
 ## Result and evidence
 
 The CLI JSON envelope contains `schema_version: 1`, `complete`, `profile`,
-`selected_tools`, `model_preference`, and `diagnostics`. Nested model schema
+`selected_tools`, `model_preference`, `diagnostics`, and `source_discovery`. Partial
+source coverage makes inspection incomplete; source diagnostics and limitations
+are included in the source_discovery object. Nested model schema
 versions are omitted from CLI output. The Python models retain their own versions.
 
 `profile` is the existing `ProjectProfile` contract: canonical project path,
@@ -92,7 +96,7 @@ does not imply complete project knowledge or validate the entire package manifes
 - Python constraints are limited to 256 characters and parsed with `packaging`.
   Arbitrary equality (`===`) is supported only when its value parses as a
   PEP 440 version; arbitrary non-version strings are rejected without echoing them.
-- No recursive workspace scan, lockfile resolution, requirements-file expansion,
+- No recursive workspace manifest scan, lockfile resolution, requirements-file expansion,
   Poetry-specific dependency extraction, or execution of dynamic build metadata.
   Unsupported structures remain unknown with an explanation. Static/dynamic
   declarations that conflict for an inspected Python field are rejected.
