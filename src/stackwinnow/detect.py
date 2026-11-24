@@ -269,6 +269,38 @@ def _python(result: InspectionResult, source: str, document: dict[str, object]) 
             )
 
 
+def _requirements_txt(result: InspectionResult, source: str, raw: bytes) -> None:
+    """Parse a requirements.txt file and record python dependencies."""
+    names = []
+    invalid = False
+    for raw_line in raw.decode("utf-8", errors="replace").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or line.startswith("-"):
+            continue
+        try:
+            names.append(canonicalize_name(Requirement(line).name))
+        except (InvalidRequirement, RecursionError):
+            invalid = True
+    if names:
+        _fact(result, source, "python.dependencies", names, "dependencies")
+        _fact(result, source, "manifests", [source], "Manifest")
+        _fact(result, source, "ecosystems", ["python"], "Manifest")
+    if invalid:
+        _diagnostic(
+            result,
+            source,
+            "Some requirements.txt entries could not be parsed; valid names retained.",
+            "failed",
+        )
+    if names and not invalid:
+        _diagnostic(
+            result,
+            source,
+            "Read declared metadata; no installed or functional state was checked.",
+            "succeeded",
+        )
+
+
 def _node(result: InspectionResult, source: str, document: dict[str, object]) -> None:
     for group in ("dependencies", "devDependencies", "optionalDependencies", "peerDependencies"):
         if group not in document:
@@ -383,7 +415,7 @@ def inspect_project(
             raise InspectionError(
                 "Unknown tool ID; use 'stackwinnow catalog list' to see valid choices."
             ) from exc
-    inputs = [("pyproject.toml", "python"), ("package.json", "node")]
+    inputs = [("pyproject.toml", "python"), ("package.json", "node"), ("requirements.txt", "requirements")]
     if config_path is not None:
         inputs.append((config_path, "config"))
     for source, kind in inputs:
@@ -404,6 +436,9 @@ def inspect_project(
                 "Cannot read file; check permissions and use real directories/files, not symlinks.",
                 "blocked",
             )
+            continue
+        if kind == "requirements":
+            _requirements_txt(result, source, raw)
             continue
         try:
             document = tomllib.loads(raw.decode("utf-8")) if kind == "python" else _json(raw)
