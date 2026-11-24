@@ -19,7 +19,7 @@ from stackwinnow.adapters._py_adapter import (
     run_install_step,
     run_verify_step,
 )
-from stackwinnow.contracts import Contract, OperationResult, OperationStatus, UntrimmedText
+from stackwinnow.contracts import Contract, InstallPlan, OperationResult, OperationStatus, UntrimmedText
 from stackwinnow.environments import EnvironmentBoundaryError
 from stackwinnow.installer import ExecutionRecord, InstallerError, execute_plan
 
@@ -41,7 +41,7 @@ class LitellmPlan(Contract):
     mode: Literal["library"] = "library"
     run_id: str
     project_root: UntrimmedText
-    installation: object
+    installation: InstallPlan
 
 
 class LitellmResult(Contract):
@@ -110,7 +110,7 @@ def apply_litellm(
         elif failures:
             status, message = failures[0].status, failures[0].message
         else:
-            status, message = OperationStatus.SUCCEEDED, f"litellm {VERSION} library installation verified."
+            status, message = OperationStatus.SUCCEEDED, f"litellm {{VERSION}} library installation verified."
         return LitellmResult(plan=checked, status=status, message=message, dry_run=dry_run, results=results, record=record)
     except (LitellmError, InstallerError, OSError, EnvironmentBoundaryError, ManagedStateError) as exc:
         return LitellmResult(plan=checked, status=OperationStatus.BLOCKED, message=str(exc), dry_run=dry_run)

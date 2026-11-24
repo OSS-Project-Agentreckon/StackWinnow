@@ -611,11 +611,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     commands = parser.add_subparsers(dest="command")
+    from stackwinnow.library_cli import add_library_parser, library_command
     from stackwinnow.profile_cli import add_profile_parser, profile_command
     from stackwinnow.report_cli import add_report_parser, report_command
     from stackwinnow.workflow_cli import add_workflow_parser, workflow_command
 
     add_workflow_parser(commands)
+    add_library_parser(commands)
     add_profile_parser(commands)
     add_report_parser(commands)
     removal = commands.add_parser(
@@ -846,6 +848,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     if args.command == "workflow":
         return workflow_command(args, parser)
+    if args.command == "library":
+        return library_command(args, parser)
     if args.command == "profile":
         return profile_command(args, parser)
     if args.command == "report":

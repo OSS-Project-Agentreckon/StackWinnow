@@ -1,7 +1,7 @@
-"""TruLens evaluation adapter — library mode.
+"""Trulens adapter — library mode.
 
 Installs the trulens package in a managed venv and verifies the import works.
-No API key or provider connection is required; this checks library availability only.
+No API key or running backend is required; this checks library availability only.
 """
 
 from __future__ import annotations
@@ -19,7 +19,7 @@ from stackwinnow.adapters._py_adapter import (
     run_install_step,
     run_verify_step,
 )
-from stackwinnow.contracts import Contract, OperationResult, OperationStatus, UntrimmedText
+from stackwinnow.contracts import Contract, InstallPlan, OperationResult, OperationStatus, UntrimmedText
 from stackwinnow.environments import EnvironmentBoundaryError
 from stackwinnow.installer import ExecutionRecord, InstallerError, execute_plan
 
@@ -41,7 +41,7 @@ class TrulensPlan(Contract):
     mode: Literal["library"] = "library"
     run_id: str
     project_root: UntrimmedText
-    installation: object
+    installation: InstallPlan
 
 
 class TrulensResult(Contract):
@@ -86,11 +86,11 @@ def apply_trulens(
     try:
         root = _root(checked.project_root)
         if not dry_run and (platform.system() != "Darwin" or platform.machine() != "arm64"):
-            raise TrulensError("TruLens library mode currently requires macOS arm64.")
+            raise TrulensError("Trulens library mode currently requires macOS arm64.")
         from stackwinnow.runner import run_command
         runner = command_runner or run_command
         if not dry_run and runner is None:
-            raise TrulensError("TruLens requires the shared command runner.")
+            raise TrulensError("Trulens requires the shared command runner.")
 
         def run_step(step):
             if step.step_id.endswith("-install"):
@@ -110,7 +110,7 @@ def apply_trulens(
         elif failures:
             status, message = failures[0].status, failures[0].message
         else:
-            status, message = OperationStatus.SUCCEEDED, f"trulens {VERSION} library installation verified."
+            status, message = OperationStatus.SUCCEEDED, f"trulens {{VERSION}} library installation verified."
         return TrulensResult(plan=checked, status=status, message=message, dry_run=dry_run, results=results, record=record)
     except (TrulensError, InstallerError, OSError, EnvironmentBoundaryError, ManagedStateError) as exc:
         return TrulensResult(plan=checked, status=OperationStatus.BLOCKED, message=str(exc), dry_run=dry_run)
