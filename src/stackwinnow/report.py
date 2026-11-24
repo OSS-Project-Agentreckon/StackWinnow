@@ -108,15 +108,33 @@ class ProjectReport(Contract):
             lines += [f"- [{item.status}] {item.message}" for item in inspection.diagnostics]
             lines.append("")
 
-        lines += ["## Recommended tools", ""]
+        discovery = inspection.source_discovery
+        lines += [
+            "## Source discovery",
+            "",
+            f"Coverage: {discovery.status}; {discovery.files_scanned} files scanned.",
+            "",
+        ]
+        for finding in discovery.findings:
+            lines += [f"- [{finding.confidence}] {finding.summary}"]
+            lines += [f"  - {e.path}:{e.line}: {e.detail}" for e in finding.evidence]
+            lines += [f"  - Question: {finding.question}"]
+            lines += [f"  - {caveat}" for caveat in finding.caveats]
+        lines += [f"- {message}" for message in discovery.diagnostics + discovery.limitations]
+        lines += ["", "## Recommended tools", ""]
         if not self.recommendation.recommendations:
-            lines += ["No tools matched the declared goals and selections.", ""]
+            lines += [
+                "No tools matched the available source evidence, declarations, goals or selections.",
+                "",
+            ]
         for item in self.recommendation.recommendations:
             label = (
                 "selected"
                 if item.selected
                 else "declared"
                 if item.already_declared
+                else "source match"
+                if any(r.kind == "source" for r in item.reasons)
                 else "goal match"
             )
             lines += [f"### {item.name} (`{item.tool_id}`) — {label}", "", item.description, ""]
@@ -128,6 +146,11 @@ class ProjectReport(Contract):
                 )
                 suffix = f" ({detail})" if detail else ""
                 lines.append(f"- Why: {reason.message}{suffix}")
+                if reason.finding:
+                    finding = reason.finding
+                    locations = ", ".join(f"{e.path}:{e.line}" for e in finding.evidence)
+                    lines.append(f"  - Evidence ({finding.confidence}): {locations}")
+                    lines.append(f"  - Question: {finding.question}")
                 if reason.matched_capabilities:
                     lines.append(
                         f"  - Matched capabilities: {', '.join(reason.matched_capabilities)}"

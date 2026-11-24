@@ -1,5 +1,34 @@
 # StackWinnow implementation progress
 
+## Source discovery checkpoint — 24 November 2026
+
+Latest user request authorizes source-based discovery on a new feature branch.
+Observed main is 510f0c4: report #42, final handoff #45, and web UI #46 are merged.
+B-to-A foundation acceptance remains complete. This source-discovery request is
+the active product work and supersedes the earlier claim that no broad discovery
+gap had been established. Release/lifecycle acceptance is still deferred.
+
+Implemented locally on feat/source-discovery: bounded Python AST and JavaScript/
+TypeScript token scanning, six evidence/question rules, source-driven catalog
+matches without goals, terminal/report/web displays, and declarations-only opt-out.
+Source evidence preserves catalog/installation gates and makes no savings claims.
+See docs/source-discovery.md for supported patterns, limitations and pinned
+upstream-example evidence. Tests/examples receive a production-use caveat.
+
+Validation: 21 focused discovery tests; 146 existing detection/recommendation/
+report tests; frontend production build. Two pinned upstream examples scanned
+without execution (three OpenAI and two Anthropic literal-model findings).
+No broad regression suite, real provider calls, lifecycle integrations or benchmarks.
+Implemented and locally tested; not committed, pushed or merged. No PR created.
+Preserved unrelated chronological-commit-plan.md and docs/superpowers/ changes.
+Next: review this branch and commit/publish when requested. Further external
+repository coverage can extend the documented SDK patterns; static inspection
+still cannot prove runtime behavior or replace quality/cost measurements.
+
+---
+Previous checkpoint (historical; superseded by the source-discovery request):
+
+
 ## Current audit — 24 November 2026
 
 Main `575a8e6` contains merged #30–#40 and #43–#44. Optional project-report

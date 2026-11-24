@@ -1,4 +1,4 @@
-"""Deterministic tool discovery from declared dependencies and explicit goals."""
+"""Deterministic tool discovery from source evidence, declarations and optional goals."""
 
 from __future__ import annotations
 
@@ -20,6 +20,7 @@ from stackwinnow.catalog import (
 )
 from stackwinnow.contracts import Contract, Identifier, NonEmptyText
 from stackwinnow.detect import InspectionResult
+from stackwinnow.source_discovery import SourceFinding
 from stackwinnow.supported import supported_modes
 
 
@@ -28,13 +29,14 @@ class RecommendationError(ValueError):
 
 
 class MatchReason(Contract):
-    kind: Literal["selection", "dependency", "goal"]
+    kind: Literal["selection", "dependency", "goal", "source"]
     rule_id: Identifier
     message: NonEmptyText
     goals: list[NonEmptyText] = Field(default_factory=list)
     fact_key: str | None = None
     values: list[str] = Field(default_factory=list)
     matched_capabilities: list[NonEmptyText] = Field(default_factory=list)
+    finding: SourceFinding | None = None
 
 
 class ToolRecommendation(Contract):
@@ -292,6 +294,19 @@ def recommend_tools(
                     "This does not prove installation or use at runtime.",
                 )
             )
+    for finding in inspection.source_discovery.findings:
+        for tool in catalog.tools:
+            capabilities = sorted(set(finding.capabilities).intersection(tool.capabilities))
+            if capabilities:
+                reasons.setdefault(tool.tool_id, []).append(
+                    MatchReason(
+                        kind="source",
+                        rule_id=finding.rule_id,
+                        message=finding.summary,
+                        matched_capabilities=capabilities,
+                        finding=finding,
+                    )
+                )
     goals = {goal: _goal_text(goal) for goal in dict.fromkeys(inspection.profile.goals)}
     matched_goals: set[str] = set()
     for rule in _RULES:
@@ -364,7 +379,7 @@ def recommend_tools(
             return 0, selected_order[item.tool_id], item.tool_id
         return (
             1 if item.already_declared else 2,
-            -sum(reason.kind == "goal" for reason in item.reasons),
+            -sum(reason.kind in {"goal", "source"} for reason in item.reasons),
             item.tool_id,
         )
 
@@ -389,6 +404,11 @@ def recommend_tools(
         "Catalog eligibility describes upstream metadata and supplied observations; "
         "use 'workflow modes' and a fresh workflow plan for executable support.",
     ]
+    if inspection.source_discovery.status != "not-scanned":
+        notes.append(
+            "Source findings are review opportunities with bounded static evidence. "
+            "Answer their questions before choosing tools; no runtime savings are established."
+        )
     if not inspection.complete:
         notes.append(
             "Inspection is incomplete; recommendations use only the valid findings available."

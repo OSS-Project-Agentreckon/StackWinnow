@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import SourceFindings from '../components/SourceFindings'
 
 const ASSISTANTS = ['none', 'claude', 'openai', 'gemini', 'copilot']
 
@@ -134,11 +135,12 @@ function RecommendResult({ data }) {
 
   return (
     <div className="mt-6 space-y-4">
+      <SourceFindings discovery={data.inspection?.source_discovery} />
 
       {/* Already installed — just a compact notice */}
       {existing.length > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
-          <span className="font-medium text-green-800">Already in your project: </span>
+          <span className="font-medium text-green-800">Declared dependencies (usage unverified): </span>
           <span className="text-green-700">{existing.map(r => r.tool_id).join(', ')}</span>
         </div>
       )}
@@ -160,7 +162,15 @@ function RecommendResult({ data }) {
             <div className="mb-3">
               <p className="text-xs font-semibold text-gray-500 uppercase mb-1">Why add this</p>
               <ul className="text-sm text-gray-700 space-y-1">
-                {rec.reasons.map((r, j) => <li key={j} className="flex gap-2"><span className="text-indigo-400">→</span>{r.message ?? r}</li>)}
+                {rec.reasons.map((r, j) => (
+                  <li key={j}>
+                    <span className="text-indigo-400">→ </span>{r.message ?? r}
+                    {r.finding && <p className="text-xs text-gray-500">
+                      {r.finding.confidence} confidence · {r.finding.evidence.map(e => e.path + ':' + e.line).join(', ')}
+                    </p>}
+                    {r.finding && <p className="text-xs text-indigo-700">{r.finding.question}</p>}
+                  </li>
+                ))}
               </ul>
             </div>
           )}
@@ -181,7 +191,7 @@ function RecommendResult({ data }) {
       ))}
 
       {newTools.length === 0 && (
-        <p className="text-gray-400 text-sm">No new tools to recommend — your project already covers these goals.</p>
+        <p className="text-gray-400 text-sm">No new tools matched the available evidence. This does not establish that all opportunities are covered.</p>
       )}
     </div>
   )

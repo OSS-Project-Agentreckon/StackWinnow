@@ -1,0 +1,153 @@
+{
+  "scope": "Narrow upstream source-example smoke checks, not whole-repository or runtime validation.",
+  "cases": [
+    {
+      "repository": "https://github.com/openai/openai-python",
+      "revision": "abbd37925aa749ec35cd45cd94722e449f909388",
+      "path": "examples/demo.py",
+      "sha256": "0e865ecb926db050de3107176bbfc44902cf7906d87e6175a858a01ccee3dfac",
+      "scope": "Only this unchanged upstream example was downloaded and statically scanned; no SDK code was executed.",
+      "source_discovery": {
+        "version": 1,
+        "status": "complete",
+        "files_scanned": 1,
+        "bytes_scanned": 1291,
+        "findings": [
+          {
+            "rule_id": "source-model-choice",
+            "confidence": "low",
+            "summary": "A model call uses a literal model choice.",
+            "evidence": [
+              {
+                "path": "examples/demo.py",
+                "line": 11,
+                "detail": "Recognized model call supporting this pattern."
+              }
+            ],
+            "question": "Should this model be configurable, or could a routing policy meet quality and latency requirements?",
+            "capabilities": [
+              "model-routing",
+              "provider-gateway"
+            ],
+            "caveats": [
+              "Includes test/example source; confirm whether this pattern occurs in production."
+            ]
+          },
+          {
+            "rule_id": "source-model-choice",
+            "confidence": "low",
+            "summary": "A model call uses a literal model choice.",
+            "evidence": [
+              {
+                "path": "examples/demo.py",
+                "line": 24,
+                "detail": "Recognized model call supporting this pattern."
+              }
+            ],
+            "question": "Should this model be configurable, or could a routing policy meet quality and latency requirements?",
+            "capabilities": [
+              "model-routing",
+              "provider-gateway"
+            ],
+            "caveats": [
+              "Includes test/example source; confirm whether this pattern occurs in production."
+            ]
+          },
+          {
+            "rule_id": "source-model-choice",
+            "confidence": "low",
+            "summary": "A model call uses a literal model choice.",
+            "evidence": [
+              {
+                "path": "examples/demo.py",
+                "line": 43,
+                "detail": "Recognized model call supporting this pattern."
+              }
+            ],
+            "question": "Should this model be configurable, or could a routing policy meet quality and latency requirements?",
+            "capabilities": [
+              "model-routing",
+              "provider-gateway"
+            ],
+            "caveats": [
+              "Includes test/example source; confirm whether this pattern occurs in production."
+            ]
+          }
+        ],
+        "diagnostics": [],
+        "limitations": [
+          "Static patterns identify review opportunities, not runtime cost, correctness, or savings.",
+          "Only supported Python and JavaScript/TypeScript SDK patterns in the scanned files are visible; wrappers, dynamic dispatch, other languages and external evaluation services may be missed.",
+          "Confidence describes evidence for the pattern, not confidence that another tool is needed."
+        ]
+      },
+      "recommended_tool_ids": [
+        "litellm"
+      ]
+    },
+    {
+      "repository": "https://github.com/anthropics/anthropic-sdk-python",
+      "revision": "bda18c620dbec4c7febed947d7b8367d84c9171d",
+      "path": "examples/messages.py",
+      "sha256": "daaa7b8f2ee5cd0a54125ec6793f8c3075d5a2de75ffd38c7835fa33af6efe6a",
+      "scope": "Only this unchanged upstream example was downloaded and statically scanned; no SDK code was executed.",
+      "source_discovery": {
+        "version": 1,
+        "status": "complete",
+        "files_scanned": 1,
+        "bytes_scanned": 660,
+        "findings": [
+          {
+            "rule_id": "source-model-choice",
+            "confidence": "low",
+            "summary": "A model call uses a literal model choice.",
+            "evidence": [
+              {
+                "path": "examples/messages.py",
+                "line": 5,
+                "detail": "Recognized model call supporting this pattern."
+              }
+            ],
+            "question": "Should this model be configurable, or could a routing policy meet quality and latency requirements?",
+            "capabilities": [
+              "model-routing",
+              "provider-gateway"
+            ],
+            "caveats": [
+              "Includes test/example source; confirm whether this pattern occurs in production."
+            ]
+          },
+          {
+            "rule_id": "source-model-choice",
+            "confidence": "low",
+            "summary": "A model call uses a literal model choice.",
+            "evidence": [
+              {
+                "path": "examples/messages.py",
+                "line": 17,
+                "detail": "Recognized model call supporting this pattern."
+              }
+            ],
+            "question": "Should this model be configurable, or could a routing policy meet quality and latency requirements?",
+            "capabilities": [
+              "model-routing",
+              "provider-gateway"
+            ],
+            "caveats": [
+              "Includes test/example source; confirm whether this pattern occurs in production."
+            ]
+          }
+        ],
+        "diagnostics": [],
+        "limitations": [
+          "Static patterns identify review opportunities, not runtime cost, correctness, or savings.",
+          "Only supported Python and JavaScript/TypeScript SDK patterns in the scanned files are visible; wrappers, dynamic dispatch, other languages and external evaluation services may be missed.",
+          "Confidence describes evidence for the pattern, not confidence that another tool is needed."
+        ]
+      },
+      "recommended_tool_ids": [
+        "litellm"
+      ]
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
+import SourceFindings from '../components/SourceFindings'
 
 const ASSISTANTS = ['none', 'claude', 'openai', 'gemini', 'copilot']
 
@@ -58,7 +59,7 @@ export default function Inspect() {
     <div className="max-w-2xl">
       <h1 className="text-2xl font-bold mb-1">Inspect Project</h1>
       <p className="text-gray-500 text-sm mb-6">
-        Detect what AI tooling is in use and profile your project.
+        Inspect declarations and source patterns to discover AI tooling opportunities.
       </p>
 
       <form onSubmit={submit} className="space-y-5 bg-white rounded-lg border p-5 shadow-sm">
@@ -181,6 +182,8 @@ function InspectResult({ data }) {
           </dl>
         </Section>
       )}
+
+      <SourceFindings discovery={data.source_discovery} />
 
       {evidence.length > 0 && (
         <Section title="Evidence">

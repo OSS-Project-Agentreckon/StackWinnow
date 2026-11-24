@@ -1,7 +1,8 @@
 # Explainable recommendations
 
-The recommendation command reads the supported project declarations and matches
-explicit goals to catalog capabilities. It runs offline, makes no model calls,
+The recommendation command reads supported project declarations and source patterns,
+then matches their evidence and optional explicit goals to catalog capabilities.
+It runs offline, makes no model calls,
 and performs no installation. Implementation and tests were AI-assisted.
 
 ```sh
@@ -17,7 +18,7 @@ The platform is a user-declared target; this command does not inspect the host.
 
 ## Matches and ordering
 
-Three sources can explain a tool:
+Four sources can explain a tool:
 
 1. **Explicit selection:** `--tool` retains a catalog entry even without a goal
    match. Selections appear first, in the user's order, with duplicates removed
@@ -27,10 +28,15 @@ Three sources can explain a tool:
    A declaration, including an optional/dev dependency or conditional Python
    requirement, does not establish that the package is installed or active.
 3. **Goal phrase:** supported phrases match catalog capability tags. Within the
-   declared and goal-only groups, tools matching more distinct goal rules come
+   declared and new-suggestion groups, tools matching more source findings and goal rules come
    first; ties use tool ID. Repeating a phrase does not increase its weight.
 
-Each reason includes its rule ID and either the matched goals or the fact key
+4. **Source evidence:** [source discovery](source-discovery.md) maps observed code
+   patterns to capabilities without goals. Reasons include the full finding,
+   file/line locations, confidence, caveats and a focused question. Goals can add
+   reasons and refine ranking; selections and dependency reuse retain priority.
+
+Each reason includes its rule ID and either source findings, matched goals or the fact key
 and package names. Goal reasons also include sorted `matched_capabilities` from
 the tool's catalog entry; selection/dependency reasons leave this list empty.
 For example, Headroom matches `context-compression` and `token-optimization`,
