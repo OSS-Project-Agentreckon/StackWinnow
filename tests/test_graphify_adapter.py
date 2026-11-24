@@ -56,7 +56,8 @@ def test_preview_is_read_only_pinned_and_explicitly_blocked(fixture_project, mon
     assert not plan.preflight.is_ready_to_apply
     assert {check.status for check in plan.preflight.checks} == {"blocked"}
     assert plan.installation.tool_ids == ["graphify"]
-    assert load_catalog().get("graphify").availability == "catalog_only"
+    # Executable modes now exist, but this old command remains a non-executable preview.
+    assert load_catalog().get("graphify").availability == "adapter_available"
     assert GraphifyPlan.model_validate_json(plan.model_dump_json()) == plan
     assert before == {
         str(p.relative_to(root)): p.read_bytes() for p in root.rglob("*") if p.is_file()
@@ -208,7 +209,8 @@ def test_external_preflight_observation_never_enables_apply(tmp_path, monkeypatc
     executable.write_text("external tool")
     monkeypatch.setattr("stackwinnow.plan.shutil.which", lambda name: str(executable))
     plan = plan_graphify(tmp_path, platform="macos", assistant="codex")
-    assert {check.status for check in plan.preflight.checks} == {"external-install-detected"}
+    assert {check.status for check in plan.preflight.checks} == {"blocked"}
+    assert not plan.preflight.is_ready_to_apply
     assert not plan.ready_to_apply and plan.blockers
     assert not (tmp_path / ".stackwinnow").exists()
 

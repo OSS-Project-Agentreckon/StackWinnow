@@ -50,6 +50,7 @@ diagnostics. No arbitrary confidence percentages or estimated savings are used.
 | Response caching | reduce model calls; response caching; cache responses; semantic caching | response-caching, semantic-caching |
 | Spend monitoring | track costs; track spending; monitor costs; monitor spend; spend tracking | spend-tracking |
 | Model routing | model routing; route models; provider gateway | model-routing, provider-gateway |
+| Browser automation | browser automation; automate the browser; automate browser; browser testing | browser-automation |
 | Agent workflows | agent orchestration; agent workflows; multi agent; build agents | agent-orchestration, typed-agents, code-agents |
 
 Matching is case-insensitive and uses whole phrases after Unicode normalization
@@ -81,6 +82,7 @@ The initial aliases are deliberately explicit:
 
 | Python distribution names | Catalog tool |
 | --- | --- |
+| headroom-ai (including normalized headroom_ai/headroom.ai spellings) | headroom |
 | graphifyy | graphify |
 | dspy, dspy-ai | dspy |
 | langchain, langchain-core | langchain |
@@ -113,10 +115,17 @@ silently filter or label tools as compatible. `any` means unrestricted; an omitt
 preference means not requested. In particular, promptfoo's deterministic fixture
 is not proof of compatibility with a local language model.
 
-Eligibility comes from the existing catalog API. The command does not invent
-adapter registration or prerequisite results. All entries currently remain
-catalog-only while runner integration is pending, including promptfoo. A
-recommendation is not an executable plan, setup approval, or functionality check.
+Eligibility comes from the existing catalog API. Registration is derived from
+the actual supported-mode registry; runtime prerequisites remain unverified.
+Headroom, Graphify, promptfoo and Playwright MCP have adapters, each limited to
+the exact mode/version/host requirements shown by `workflow modes`. The other
+catalog entries are research/discovery options. Catalog platforms and assistants
+describe upstream compatibility, which can be broader than our executable modes.
+Each recommendation explains whether a mode exists and lists its requirements.
+Human output labels these preliminary results as **Catalog gates**. JSON retains
+the existing eligibility shape. A recommendation is not an executable plan,
+setup approval, or functionality check. Use `workflow plan` for current project
+and executable-mode checks; no recommendation is selected automatically.
 
 Project inspection does not infer a target OS from the machine running the CLI.
 Supply `--platform macos`, `--platform linux`, or `--platform windows` when known.

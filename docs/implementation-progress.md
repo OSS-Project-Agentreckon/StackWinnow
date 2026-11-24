@@ -1,8 +1,68 @@
 # StackWinnow implementation progress
 
+## Current audit — 24 November 2026
+
+Main `575a8e6` contains merged #30–#40 and #43–#44. Optional project-report
+PR #42 is still open. Core B/A01–A04/A06 capabilities are delivered; A05 remains
+explicitly deferred. Older branch/PR statuses below are historical observations.
+
+Follow-up `docs/final-plan-handoff` corrects unsupported demo flags and profile
+inputs, recovery guidance, historical contribution misattribution, and token
+measurement units/provenance. It publishes existing synthetic inputs/results,
+reconciles the active plan and prepares source-bound development artifacts.
+Lightweight validation: seven documented CLI commands passed without managed
+state; eight prior input/output hashes matched the recorded summary. The new
+parameterized measurement runner received lint/syntax/help checks only. No new
+integrations, full regression suites or benchmarks are claimed. Final
+acceptance, fresh inventories, report formatting/student details, publication
+and faculty submission remain open; see [release handoff](release-handoff.md).
+
 Last updated: **23 November 2026**. This records observed history and actual work status. The [sequential B→A checkpoint](two-person-sequential-plan.md) is the active remaining-work schedule; the [36-work-commit plan](chronological-commit-plan.md) is historical. A planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
+
+## A06 manager distribution, notices and CI
+
+Implemented on build/a06-release-tooling, stacked on A04 PR #39. A04's single
+stale CLI label expectation is separately repaired and pushed as 97a74f5.
+A06 adds historical license evidence (d5b2a22), committed-source build/verification
+(a802747), original notice byte preservation and profile-resource closure
+(6e5f4ff, c569154). Packaging CI and explicit opt-in macOS no-paid-provider
+integration are prepared; community/security guidance and an unreleased changelog
+are included. Manager version remains 0.1.0.dev0; no tag/release/publication.
+
+Minimal validation: the A04 editable CLI sanity passed 1 case; an initial run
+against the stale installed A03 wheel failed and is not current-code evidence.
+Ruff lint/format and syntax checks passed. Static wheel/sdist build and manifest
+verification passed at c569154: 63 wheel files, 158 source-archive files. Required
+source/resources/notices match the exact commit. The data-package discovery
+warning is resolved; harmless MANIFEST exclusion warnings remain. A first build
+caught a missing profile README, and Git notice newline conversion was corrected.
+No clean-install checks, full suites, integrations or benchmarks were run locally.
+Those checks and fresh transitive inventory reconciliation remain deferred; existing
+GitHub CI stays enabled. Source hashes do not certify downloaded runtime versions.
+
+Next: A07 user/recovery/demo/report documentation using prior bounded evidence,
+then A08 artifact preparation and a clear deferred-testing backlog. A05 exhaustive
+acceptance is deferred, not completed. Publish through the stacked PR without
+merging, tagging, releasing or submitting to faculty.
+
+## A04 recommendations and preliminary setup checks
+
+A04 is implemented on `feat/a04-recommendation-acceptance`, stacked on A03 PR #38.
+Discovery commit `17e98be` adds Headroom/browser matches and registry-derived mode
+explanations. Preflight commit `9570581` removes receipt/environment/PATH readiness
+shortcuts and validates actual host, target and assistant constraints. CLI acceptance
+cases and portable Headroom logic checks are prepared; incomplete workflow inspection
+now returns exit 1. See [implementation evidence](evidence/recommendation-acceptance.md).
+
+The user explicitly deferred rigorous testing. Earlier focused runs passed 284 and
+102 overlapping cases; final mode-gate sanity passed 7 cases. Lint/format/diff checks
+passed. Final full suite, installed package/CLI, Python 3.14, actual profile combinations,
+new benchmarks and release acceptance are deferred. CI stays enabled. Implementation
+proceeds directly to A06 packaging/licenses/CI, then A07 docs/report and A08 artifact
+preparation; A05 validation remains a backlog, not a completed acceptance milestone.
+Publication uses a stacked PR; no merge/release/submission is implied.
 
 ## A03 portable selections and destination review
 

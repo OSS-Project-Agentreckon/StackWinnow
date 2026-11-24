@@ -121,6 +121,7 @@ limits, and API handoff.
 stackwinnow recommend . --goal "Understand relationships across source files"
 stackwinnow recommend . --goal "Evaluate answers" --tool promptfoo --json
 stackwinnow recommend . --goal "Reduce context tokens" --model-preference local
+stackwinnow recommend . --goal "Browser automation"
 ```
 
 Recommendations explain matches using declared dependencies, explicit choices,
@@ -132,6 +133,12 @@ Tool fit and installation readiness are separate. Local/hosted model support is
 reported as unverified where the catalog lacks evidence. See
 [recommendation rules](docs/recommendation-rules.md) for supported phrases,
 ranking, dependency aliases, JSON output, and the Python API.
+
+Headroom declarations (`headroom-ai`, including normalized spellings) and browser
+automation goals are recognized. Catalog gates describe preliminary eligibility;
+`workflow modes` lists the four executable modes and their narrower requirements.
+Recommendations and PATH executables never establish a working managed setup.
+Use a reviewed workflow plan for installation and fresh checks for readiness.
 
 ## Generate a project report
 
@@ -432,7 +439,23 @@ or successful functional verification for a particular project. Result statuses
 are `succeeded`, `failed`, `blocked`, and `skipped`. They describe the reported
 operation; a success value alone is not proof that an integration works.
 
+## Guides and documentation
+
+| Guide | Contents |
+| --- | --- |
+| [Installation guide](docs/guide-installation.md) | Prerequisites, install from source/wheel/editable, verify, upgrade |
+| [Troubleshooting guide](docs/guide-troubleshooting.md) | Common errors and fixes; filing an issue |
+| [Architecture overview](docs/guide-architecture.md) | Package layout, core modules, adapter pattern, ownership model |
+| [Demo instructions](docs/demo-instructions.md) | Repeatable walkthrough of catalog, inspect, recommend, workflow commands |
+| [Support matrix](docs/support-matrix.md) | Pinned tool versions, supported integration targets |
+| [Evidence index](docs/evidence/index.md) | All published evidence files with measurement conditions |
+| [Release and assignment handoff](docs/release-handoff.md) | Source-bound artifacts, report/demo materials and remaining gates |
+
 ## Team handoff and contributions
+
+The original role split below is historical. The active schedule is
+[B01–B08 followed by A01–A08](docs/two-person-sequential-plan.md); C has no future
+assigned work. Actual authorship is recorded in the contribution matrix.
 
 - **A:** catalog, project profiles, recommendations, CLI, and Graphify adapter.
 - **B:** environment inspection, execution/version management, installation plans
@@ -440,12 +463,12 @@ operation; a success value alone is not proof that an integration works.
 - **C:** configuration ownership, verification/removal, promptfoo and Playwright
   MCP adapters, integration fixtures, and CI.
 
-Discuss shared-contract changes in a focused issue or pull request with the
-affected component owner. Keep each change tied to a working outcome, include
-appropriate tests, and run the checks above. Each contributor uses their own Git
-identity; commits and reviews should reflect the work actually performed.
-Detailed contribution and governance documentation will follow in the planned
-documentation commit.
+See [docs/contribution-matrix.md](docs/contribution-matrix.md) for the full
+role/step/PR table using public GitHub identities. Discuss shared-contract
+changes in a focused issue or pull request with the affected component owner.
+Keep each change tied to a working outcome, include appropriate tests, and run
+the checks above. Each contributor uses their own Git identity; commits and
+reviews should reflect the work actually performed.
 
 ## License
 

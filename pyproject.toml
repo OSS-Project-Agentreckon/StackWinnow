@@ -9,7 +9,7 @@ description = "Project-aware selection and managed setup of open-source AI tools
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
-license-files = ["LICENSE"]
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 dependencies = ["pydantic>=2.10,<3", "packaging>=24,<27"]
 
 [project.optional-dependencies]
