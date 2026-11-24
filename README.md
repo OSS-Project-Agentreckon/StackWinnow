@@ -20,7 +20,7 @@ for selected tools; all four narrow modes have verification adapters. The `inspe
 project declarations; host runtime inspection and setup preflight remain Python
 APIs. Explicit [removal plans and apply](docs/coordinated-removal.md) restore clean
 owned settings, remove unreferenced runtime scopes and retain project data.
-The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) combines explicit selection, planning, apply, fresh verification and passive status. [Portable profiles](docs/portable-profiles.md) carry supported selections to a fresh destination review. Final combination and release acceptance remain next.
+The assembled real foundation handoff is accepted. The [unified reviewed workflow](docs/unified-workflow.md) combines explicit selection, planning, apply, fresh verification and passive status. [Portable profiles](docs/portable-profiles.md) carry supported selections to a fresh destination review. A read-only [project report](docs/report.md) summarizes a project's inspection, recommendations and readiness as one Markdown or JSON document. Final combination and release acceptance remain next.
 
 The team's first-release target is 30 researched catalog entries and four
 working integrations: Graphify, Headroom, promptfoo, and Playwright MCP. Catalog
@@ -139,6 +139,22 @@ automation goals are recognized. Catalog gates describe preliminary eligibility;
 `workflow modes` lists the four executable modes and their narrower requirements.
 Recommendations and PATH executables never establish a working managed setup.
 Use a reviewed workflow plan for installation and fresh checks for readiness.
+
+## Generate a project report
+
+```sh
+stackwinnow report . --goal "Evaluate answers" --tool promptfoo --platform macos > report.md
+stackwinnow report . --goal "Evaluate answers" --tool promptfoo --check --json
+```
+
+`report` composes inspection, recommendations, catalog eligibility, and an
+optional passive verification (`--check`) into one read-only document. The default
+output is Markdown (redirect it to a file); `--json` emits a structured payload
+with a single envelope `schema_version`. It installs nothing, runs no project
+scripts, makes no model calls, and writes nothing to the project. Exit **0** means
+the inspection completed and any requested checks are ready; **1** means the
+inspection was incomplete or a checked tool is not ready; **2** means invalid
+input. `--check` requires at least one `--tool`. See [project report](docs/report.md).
 
 ## Preview Graphify setup
 
