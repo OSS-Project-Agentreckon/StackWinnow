@@ -17,7 +17,8 @@ command outputs and are not forward-looking acceptance claims.
 | [docs/evidence/graphify-managed-index.md](graphify-managed-index.md) | Managed Graphify install/index/query/reindex fixture evidence |
 | [docs/evidence/graphify-probe.json](graphify-probe.json) | Known directed-call probe result for greet → normalize_name |
 | [docs/evidence/headroom-library.md](headroom-library.md) | Headroom managed library compression evidence |
-| [docs/evidence/headroom-library.json](headroom-library.json) | Headroom measurement results (control 282→282; PrettyJSON 5105→1980) |
+| [docs/evidence/headroom-library.json](headroom-library.json) | Managed lifecycle control: 282→282 tokens, no saving |
+| [Synthetic Headroom snapshot](headroom-synthetic/README.md) | Separate direct-library experiment; original summary, inputs and outputs |
 | [docs/evidence/playwright-acceptance.json](playwright-acceptance.json) | Playwright MCP + Codex CLI actual browser fixture acceptance |
 | [docs/evidence/playwright-artifacts.json](playwright-artifacts.json) | Playwright artifact inventory |
 | [docs/evidence/portable-profiles.json](portable-profiles.json) | Portable profile CLI round-trip evidence (4 profiles, 20 actual CLI commands) |
@@ -45,12 +46,13 @@ command outputs and are not forward-looking acceptance claims.
 
 ## Measurement conditions
 
-Headroom measurements from `docs/evidence/headroom-library.json` were taken on
-macOS arm64 using the pinned Headroom 0.44.0 release. Two repeat runs each:
-- Control (plain text 282 chars): 282 → 282 (no compression saving)
-- PrettyJSON (5105 chars): 5105 → 1980
-- EquivalentCompactJSON (3276 chars): 3276 → 1980
-- ProtectedText (1241 chars): 1241 → 1241
+The [separate synthetic snapshot](headroom-synthetic/README.md) records two trials
+per fixture using Headroom 0.44.0 on macOS arm64. All counts below are tokens:
+
+- Protected control: 282 → 282 (no saving)
+- Pretty JSON: 5,105 → 1,980
+- Equivalent compact JSON: 3,276 → 1,980
+- Protected error text: 1,241 → 1,241
 
 These are synthetic direct-library measurements on fixed inputs, not arbitrary
 project cost-reduction claims. Human setup-effort comparison against an equivalent

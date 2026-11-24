@@ -433,8 +433,13 @@ operation; a success value alone is not proof that an integration works.
 | [Demo instructions](docs/demo-instructions.md) | Repeatable walkthrough of catalog, inspect, recommend, workflow commands |
 | [Support matrix](docs/support-matrix.md) | Pinned tool versions, supported integration targets |
 | [Evidence index](docs/evidence/index.md) | All published evidence files with measurement conditions |
+| [Release and assignment handoff](docs/release-handoff.md) | Source-bound artifacts, report/demo materials and remaining gates |
 
 ## Team handoff and contributions
+
+The original role split below is historical. The active schedule is
+[B01–B08 followed by A01–A08](docs/two-person-sequential-plan.md); C has no future
+assigned work. Actual authorship is recorded in the contribution matrix.
 
 - **A:** catalog, project profiles, recommendations, CLI, and Graphify adapter.
 - **B:** environment inspection, execution/version management, installation plans

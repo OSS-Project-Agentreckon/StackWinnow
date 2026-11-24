@@ -10,11 +10,13 @@
 - User guides: installation, troubleshooting, architecture overview, demo instructions.
 - Evidence index and contribution matrix (public GitHub identities; no private identifiers).
 - Assignment report draft (not submitted; known limitations and deferred work noted).
+- Corrected demo/profile commands, contribution attribution and token-evidence provenance.
+- Current milestone checkpoint and development artifact/assignment handoff.
 
-This development line is being prepared through stacked PRs. Earlier narrow
+The planned implementation PRs through #44 are merged (optional #42 remains separate). Earlier narrow
 foundation/workflow evidence is recorded in docs; final combined acceptance,
 fresh runtime inventories, release version/tag, publication and submission are pending.
 
 Deferred items: A05 exhaustive combined lifecycle acceptance; managed vs. manual setup
-benchmarks (infrastructure exists, human-effort comparison not measured); fresh
+benchmarks (human-effort comparison not measured); fresh
 transitive dependency inventory; PyPI publication and faculty submission.

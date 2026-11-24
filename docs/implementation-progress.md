@@ -1,5 +1,22 @@
 # StackWinnow implementation progress
 
+## Current audit — 24 November 2026
+
+Main `575a8e6` contains merged #30–#40 and #43–#44. Optional project-report
+PR #42 is still open. Core B/A01–A04/A06 capabilities are delivered; A05 remains
+explicitly deferred. Older branch/PR statuses below are historical observations.
+
+Follow-up `docs/final-plan-handoff` corrects unsupported demo flags and profile
+inputs, recovery guidance, historical contribution misattribution, and token
+measurement units/provenance. It publishes existing synthetic inputs/results,
+reconciles the active plan and prepares source-bound development artifacts.
+Lightweight validation: seven documented CLI commands passed without managed
+state; eight prior input/output hashes matched the recorded summary. The new
+parameterized measurement runner received lint/syntax/help checks only. No new
+integrations, full regression suites or benchmarks are claimed. Final
+acceptance, fresh inventories, report formatting/student details, publication
+and faculty submission remain open; see [release handoff](release-handoff.md).
+
 Last updated: **23 November 2026**. This records observed history and actual work status. The [sequential B→A checkpoint](two-person-sequential-plan.md) is the active remaining-work schedule; the [36-work-commit plan](chronological-commit-plan.md) is historical. A planned step is not completed work.
 
 Repository: [OSS-Project-Agentreckon/StackWinnow](https://github.com/OSS-Project-Agentreckon/StackWinnow).
