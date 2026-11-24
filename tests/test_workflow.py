@@ -355,7 +355,7 @@ def test_change_between_check_and_adapter_lock_blocks_before_write(project, monk
 
 def test_cli_modes_plan_dry_run_and_validation(project, tmp_path, capsys):
     assert main(["workflow", "modes", "--json"]) == 0
-    assert len(json.loads(capsys.readouterr().out)["modes"]) == 4
+    assert len(json.loads(capsys.readouterr().out)["modes"]) == 23
     assert main(["workflow", "plan", str(project), "--tool", "headroom", "--json"]) == 0
     saved = tmp_path / "workflow.json"
     saved.write_text(capsys.readouterr().out)

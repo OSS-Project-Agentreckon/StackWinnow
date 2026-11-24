@@ -43,7 +43,7 @@ def test_markdown_is_deterministic_and_has_expected_sections(tmp_path: Path) -> 
         "## Project",
         "## Recommended tools",
         "### promptfoo (`promptfoo`) — selected",
-        "- Integration: catalog only (no StackWinnow adapter)",
+        "- Integration: adapter available",
         "## Caveats",
     ):
         assert fragment in first

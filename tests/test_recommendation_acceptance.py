@@ -204,6 +204,6 @@ dependencies = ["Headroom_AI"]
     payload = json.loads(result.stdout)
     recs = payload["recommendations"]["recommendations"]
     assert [r["tool_id"] for r in recs] == ["headroom", "playwright-mcp"]
-    assert len(payload["executable_modes"]) == 4
+    assert len(payload["executable_modes"]) == 23
     assert all(not r["eligibility"]["installable"] for r in recs)
     assert snapshot(tmp_path) == before
