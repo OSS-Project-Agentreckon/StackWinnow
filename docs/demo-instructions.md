@@ -34,7 +34,7 @@ Filter by category:
 
 ```sh
 stackwinnow catalog list --category evaluation
-stackwinnow catalog list --category context-aware-navigation
+stackwinnow catalog list --category context
 ```
 
 Inspect one entry with eligibility details:
@@ -88,7 +88,7 @@ and any conflicts. Catalog-only tools are reported as not installation-ready.
 ## 5. Unified workflow preview
 
 ```sh
-stackwinnow workflow inspect . --goal "Test prompt quality" --assistant codex
+stackwinnow workflow inspect . --goal "Test prompt quality"
 stackwinnow workflow modes
 ```
 
@@ -101,7 +101,6 @@ Planning a workflow (read-only, produces a reviewable JSON plan):
 ```sh
 stackwinnow workflow plan . \
     --tool promptfoo \
-    --platform macos \
     --goal "Test prompt quality" \
     --json > /tmp/sw-plan.json
 cat /tmp/sw-plan.json
@@ -131,24 +130,27 @@ stackwinnow check . --tool promptfoo --run-functional
 
 ## 7. Portable profiles
 
-Export the inspection result as a portable profile (no secrets, no local paths):
+Export the saved workflow plan as a portable profile (no secrets, no local paths):
 
 ```sh
-stackwinnow profile export . --json > /tmp/sw-profile.json
+stackwinnow profile export /tmp/sw-plan.json --json > /tmp/sw-profile.json
 cat /tmp/sw-profile.json
 ```
 
 Import on a fresh destination to plan from an existing selection:
 
 ```sh
-stackwinnow profile import /tmp/sw-profile.json /tmp/demo-dest \
-    --goal "Test prompt quality" --dry-run --json
+mkdir -p /tmp/demo-dest
+stackwinnow profile import /tmp/sw-profile.json /tmp/demo-dest --json > /tmp/sw-destination-plan.json
+stackwinnow workflow apply /tmp/sw-destination-plan.json --dry-run --json
 ```
 
 ## Notes
 
-- All commands that write to disk accept `--dry-run` and `--json`.
+- Profile export/import only produce documents; neither accepts `--dry-run`.
+- Use unique temporary paths for each demo and keep plans outside the project.
 - Plans are saved to a file and reviewed before `apply` is called.
-- Exit status 0 = success; 1 = check/apply failure; 2 = argument/catalog error.
+- Exit status 0 = command success; 1 can indicate incomplete inspection or
+  unavailable readiness; 2 = invalid input. Passive checks do not prove functionality.
 - Real tool integration (apply, functional verification) requires the target
   machine's prerequisites; see [support-matrix.md](support-matrix.md).

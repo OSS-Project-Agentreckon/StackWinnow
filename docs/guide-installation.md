@@ -6,8 +6,10 @@
 - **pip** (bundled with Python 3.11+).
 - An internet connection the first time, to download declared dependencies.
 
-Supported integration targets additionally require Node 24 and Codex CLI 0.169.0
-(macOS arm64 only). Catalog discovery and project inspection work offline and need
+The integration target is macOS arm64. Prerequisites differ by mode: Headroom
+uses Python; promptfoo uses Node; Playwright MCP and Graphify use Codex. Check
+exact versions and Graphify constraints in [support-matrix.md](support-matrix.md).
+Catalog discovery and project inspection work offline and need
 no assistant or external service.
 
 ## Install from source
@@ -50,7 +52,8 @@ stackwinnow --version
 ```
 
 Always use the wheel that matches the manager version you intend to run. The
-released wheel was verified against committed source hashes; see
+prepared wheel must be verified against its source-bound manifest; no public
+release is claimed. See
 [releasing.md](releasing.md) for reproduction steps.
 
 ## Install from an editable checkout (development)
@@ -82,6 +85,6 @@ python -m pip install .              # regular install
 python -m pip uninstall stackwinnow
 ```
 
-This removes the manager package from the environment. Tool integrations managed
-through the CLI (Graphify, Headroom, promptfoo, Playwright MCP) are removed
-separately via `stackwinnow remove plan` and `stackwinnow remove apply`.
+Remove unwanted managed integrations first, while the CLI is still installed,
+using `stackwinnow remove plan` and `stackwinnow remove apply`. Uninstalling the
+manager alone leaves managed environments, receipts and retained data intact.

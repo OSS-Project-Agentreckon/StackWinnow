@@ -61,7 +61,8 @@ Applies deterministic rules over the inspection result and catalog to produce
 ### `configure.py`
 
 Provides `ConfigurationChange` with original/written digests, diff previews, and
-ownership records. All writes are under a project-scoped file lock. A preview
+ownership records. Adapter mutations run under a project-scoped lock; configuration
+primitives require their caller to supply lifecycle coordination. A preview
 (no write) and an apply path are both available; the apply only proceeds when
 the current file matches the recorded original digest.
 
@@ -69,13 +70,13 @@ the current file matches the recorded original digest.
 
 A guarded state machine for the managed tool lifecycle:
 `inspect → recommend → select → plan → apply → verify → status`.
-Transitions are enforced: `apply` requires a reviewed plan; `verify` requires a
-successful `apply`. Partial failures are reported individually.
+Apply requires a saved plan; verification can report missing or partially
+installed state. Partial failures are reported individually.
 
 ### `profiles.py`
 
-Exports and imports portable selection profiles — a subset of an inspection
-result sufficient to plan a fresh setup on a different host. Secrets, ownership
+Exports and imports portable selection profiles — an allowlisted projection of a
+saved workflow plan for a fresh setup on a different host. Secrets, ownership
 state, and local path assumptions are excluded.
 
 ### `verify/`
@@ -120,7 +121,7 @@ it blocks when the current content differs from both original and written states
 ## Project lock
 
 Concurrent tool operations within the same project root use a file lock
-(`<project>/.stackwinnow/project.lock`). The lock prevents interleaved receipt
+(inside `<project>/.stackwinnow`). The lock prevents interleaved receipt
 writes across simultaneous adapter runs; it is not held across unrelated manager
 invocations.
 
