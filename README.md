@@ -423,6 +423,17 @@ or successful functional verification for a particular project. Result statuses
 are `succeeded`, `failed`, `blocked`, and `skipped`. They describe the reported
 operation; a success value alone is not proof that an integration works.
 
+## Guides and documentation
+
+| Guide | Contents |
+| --- | --- |
+| [Installation guide](docs/guide-installation.md) | Prerequisites, install from source/wheel/editable, verify, upgrade |
+| [Troubleshooting guide](docs/guide-troubleshooting.md) | Common errors and fixes; filing an issue |
+| [Architecture overview](docs/guide-architecture.md) | Package layout, core modules, adapter pattern, ownership model |
+| [Demo instructions](docs/demo-instructions.md) | Repeatable walkthrough of catalog, inspect, recommend, workflow commands |
+| [Support matrix](docs/support-matrix.md) | Pinned tool versions, supported integration targets |
+| [Evidence index](docs/evidence/index.md) | All published evidence files with measurement conditions |
+
 ## Team handoff and contributions
 
 - **A:** catalog, project profiles, recommendations, CLI, and Graphify adapter.
@@ -431,12 +442,12 @@ operation; a success value alone is not proof that an integration works.
 - **C:** configuration ownership, verification/removal, promptfoo and Playwright
   MCP adapters, integration fixtures, and CI.
 
-Discuss shared-contract changes in a focused issue or pull request with the
-affected component owner. Keep each change tied to a working outcome, include
-appropriate tests, and run the checks above. Each contributor uses their own Git
-identity; commits and reviews should reflect the work actually performed.
-Detailed contribution and governance documentation will follow in the planned
-documentation commit.
+See [docs/contribution-matrix.md](docs/contribution-matrix.md) for the full
+role/step/PR table using public GitHub identities. Discuss shared-contract
+changes in a focused issue or pull request with the affected component owner.
+Keep each change tied to a working outcome, include appropriate tests, and run
+the checks above. Each contributor uses their own Git identity; commits and
+reviews should reflect the work actually performed.
 
 ## License
 
