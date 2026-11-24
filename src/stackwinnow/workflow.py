@@ -12,27 +12,32 @@ from uuid import uuid4
 
 from pydantic import Field, model_validator
 
-from stackwinnow.adapters import headroom, playwright_mcp, promptfoo
-from stackwinnow.adapters import langfuse as langfuse_adapter
-from stackwinnow.adapters import opik as opik_adapter
-from stackwinnow.adapters import ragas as ragas_adapter
-from stackwinnow.adapters import trulens as trulens_adapter
-from stackwinnow.adapters import deepeval as deepeval_adapter
-from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
-from stackwinnow.adapters import openlit as openlit_adapter
-from stackwinnow.adapters import langchain as langchain_adapter
-from stackwinnow.adapters import litellm as litellm_adapter
-from stackwinnow.adapters import llmlingua as llmlingua_adapter
-from stackwinnow.adapters import gptcache as gptcache_adapter
-from stackwinnow.adapters import dspy as dspy_adapter
-from stackwinnow.adapters import llama_index as llama_index_adapter
-from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
-from stackwinnow.adapters import haystack as haystack_adapter
-from stackwinnow.adapters import langgraph as langgraph_adapter
-from stackwinnow.adapters import crewai as crewai_adapter
 from stackwinnow.adapters import autogen as autogen_adapter
+from stackwinnow.adapters import crewai as crewai_adapter
+from stackwinnow.adapters import deepeval as deepeval_adapter
+from stackwinnow.adapters import dspy as dspy_adapter
+from stackwinnow.adapters import gptcache as gptcache_adapter
+from stackwinnow.adapters import haystack as haystack_adapter
+from stackwinnow.adapters import headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
+from stackwinnow.adapters import langchain as langchain_adapter
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import langgraph as langgraph_adapter
+from stackwinnow.adapters import litellm as litellm_adapter
+from stackwinnow.adapters import llama_index as llama_index_adapter
+from stackwinnow.adapters import llmlingua as llmlingua_adapter
+from stackwinnow.adapters import openlit as openlit_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
 from stackwinnow.adapters import smolagents as smolagents_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.adapters._managed import directories, read_json, record_for
+from stackwinnow.adapters.autogen import AutogenPlan
+from stackwinnow.adapters.crewai import CrewaiPlan
+from stackwinnow.adapters.deepeval import DeepevalPlan
+from stackwinnow.adapters.dspy import DspyPlan
+from stackwinnow.adapters.gptcache import GptcachePlan
 from stackwinnow.adapters.graphify import RelationshipExpectation, _root
 from stackwinnow.adapters.graphify_configure import (
     CONFIGURE_STEP_ID,
@@ -62,28 +67,23 @@ from stackwinnow.adapters.graphify_plan import (
     _digest,
     plan_graphify_execution,
 )
+from stackwinnow.adapters.haystack import HaystackPlan
 from stackwinnow.adapters.headroom import HeadroomPlan
+from stackwinnow.adapters.inspect_ai import InspectAiPlan
+from stackwinnow.adapters.langchain import LangchainPlan
+from stackwinnow.adapters.langfuse import LangfusePlan
+from stackwinnow.adapters.langgraph import LanggraphPlan
+from stackwinnow.adapters.litellm import LitellmPlan
+from stackwinnow.adapters.llama_index import LlamaIndexPlan
+from stackwinnow.adapters.llmlingua import LlmlinguaPlan
+from stackwinnow.adapters.openlit import OpenlitPlan
+from stackwinnow.adapters.opik import OpikPlan
 from stackwinnow.adapters.playwright_mcp import PlaywrightPlan
 from stackwinnow.adapters.promptfoo import PromptfooPlan
-from stackwinnow.adapters.opik import OpikPlan
-from stackwinnow.adapters.langfuse import LangfusePlan
-from stackwinnow.adapters.ragas import RagasPlan
-from stackwinnow.adapters.trulens import TrulensPlan
-from stackwinnow.adapters.deepeval import DeepevalPlan
-from stackwinnow.adapters.inspect_ai import InspectAiPlan
-from stackwinnow.adapters.openlit import OpenlitPlan
-from stackwinnow.adapters.langchain import LangchainPlan
-from stackwinnow.adapters.litellm import LitellmPlan
-from stackwinnow.adapters.llmlingua import LlmlinguaPlan
-from stackwinnow.adapters.gptcache import GptcachePlan
-from stackwinnow.adapters.dspy import DspyPlan
-from stackwinnow.adapters.llama_index import LlamaIndexPlan
 from stackwinnow.adapters.pydantic_ai import PydanticAiPlan
-from stackwinnow.adapters.haystack import HaystackPlan
-from stackwinnow.adapters.langgraph import LanggraphPlan
-from stackwinnow.adapters.crewai import CrewaiPlan
-from stackwinnow.adapters.autogen import AutogenPlan
+from stackwinnow.adapters.ragas import RagasPlan
 from stackwinnow.adapters.smolagents import SmolagentsPlan
+from stackwinnow.adapters.trulens import TrulensPlan
 from stackwinnow.configure.codex import plan_graphify_codex_server
 from stackwinnow.contracts import ConfigPatch, Contract, OperationStatus
 from stackwinnow.detect import ModelPreference, inspect_project

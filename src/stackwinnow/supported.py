@@ -7,26 +7,26 @@ from packaging.specifiers import SpecifierSet
 from packaging.version import Version
 from pydantic import Field, model_validator
 
-from stackwinnow.adapters import graphify, headroom, playwright_mcp, promptfoo
-from stackwinnow.adapters import langfuse as langfuse_adapter
-from stackwinnow.adapters import opik as opik_adapter
-from stackwinnow.adapters import ragas as ragas_adapter
-from stackwinnow.adapters import trulens as trulens_adapter
-from stackwinnow.adapters import deepeval as deepeval_adapter
-from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
-from stackwinnow.adapters import openlit as openlit_adapter
-from stackwinnow.adapters import langchain as langchain_adapter
-from stackwinnow.adapters import litellm as litellm_adapter
-from stackwinnow.adapters import llmlingua as llmlingua_adapter
-from stackwinnow.adapters import gptcache as gptcache_adapter
-from stackwinnow.adapters import dspy as dspy_adapter
-from stackwinnow.adapters import llama_index as llama_index_adapter
-from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
-from stackwinnow.adapters import haystack as haystack_adapter
-from stackwinnow.adapters import langgraph as langgraph_adapter
-from stackwinnow.adapters import crewai as crewai_adapter
 from stackwinnow.adapters import autogen as autogen_adapter
+from stackwinnow.adapters import crewai as crewai_adapter
+from stackwinnow.adapters import deepeval as deepeval_adapter
+from stackwinnow.adapters import dspy as dspy_adapter
+from stackwinnow.adapters import gptcache as gptcache_adapter
+from stackwinnow.adapters import graphify, headroom, playwright_mcp, promptfoo
+from stackwinnow.adapters import haystack as haystack_adapter
+from stackwinnow.adapters import inspect_ai as inspect_ai_adapter
+from stackwinnow.adapters import langchain as langchain_adapter
+from stackwinnow.adapters import langfuse as langfuse_adapter
+from stackwinnow.adapters import langgraph as langgraph_adapter
+from stackwinnow.adapters import litellm as litellm_adapter
+from stackwinnow.adapters import llama_index as llama_index_adapter
+from stackwinnow.adapters import llmlingua as llmlingua_adapter
+from stackwinnow.adapters import openlit as openlit_adapter
+from stackwinnow.adapters import opik as opik_adapter
+from stackwinnow.adapters import pydantic_ai as pydantic_ai_adapter
+from stackwinnow.adapters import ragas as ragas_adapter
 from stackwinnow.adapters import smolagents as smolagents_adapter
+from stackwinnow.adapters import trulens as trulens_adapter
 from stackwinnow.contracts import Contract
 
 
