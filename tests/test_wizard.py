@@ -119,3 +119,13 @@ def test_parse_selection_mixed_valid_invalid(sample_tools):
 def test_parse_selection_empty(sample_tools):
     result = parse_selection("", sample_tools)
     assert result is None
+
+
+def test_parse_selection_duplicate_letters(sample_tools):
+    result = parse_selection("a,a", sample_tools)
+    assert result == [sample_tools[0]]
+
+
+def test_parse_selection_whitespace_padded(sample_tools):
+    result = parse_selection("  a , c  ", sample_tools)
+    assert result == [sample_tools[0], sample_tools[2]]

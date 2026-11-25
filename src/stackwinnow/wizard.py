@@ -58,11 +58,14 @@ def parse_selection(raw: str, tools: list[ToolRecommendation]) -> list[ToolRecom
     if not text:
         return None
     letters = [part.strip() for part in text.split(",")]
+    seen: set[int] = set()
     selected = []
     max_letter = chr(ord("a") + len(tools) - 1)
     for letter in letters:
         if len(letter) != 1 or letter < "a" or letter > max_letter:
             return None
         index = ord(letter) - ord("a")
-        selected.append(tools[index])
+        if index not in seen:
+            seen.add(index)
+            selected.append(tools[index])
     return selected
