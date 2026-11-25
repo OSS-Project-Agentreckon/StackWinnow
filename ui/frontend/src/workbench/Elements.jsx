@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 export function Icon({name = 'scan', size = 20}) {
@@ -23,6 +24,16 @@ export function Empty({title, children, action}) {
 }
 export function JsonDetails({value, label = 'Inspect full JSON'}) {
   return <details className="json-details"><summary>{label}</summary><pre>{JSON.stringify(value, null, 2)}</pre></details>
+}
+export function CopyButton({text}) {
+  const [copied, setCopied] = useState(false)
+  function copy() {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
+  return <button className="copy-button" onClick={copy} title="Copy to clipboard">{copied ? 'Copied!' : 'Copy'}</button>
 }
 export function NeedsProject() { return <Empty title="Choose a project to begin">Enter a local project path in the workspace bar above.</Empty> }
 export function SectionTitle({title, count, children}) { return <div className="section-title"><h2>{title} {count !== undefined && <span>{count}</span>}</h2>{children}</div> }
