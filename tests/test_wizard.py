@@ -49,3 +49,27 @@ def test_group_by_category_display_order():
     assert list(groups.keys()) == [
         "observability", "evaluation", "context", "model-gateway"
     ]
+
+
+def test_group_by_category_fallback_order():
+    recs = [
+        _rec("gptcache", Category.CACHING),
+        _rec("langfuse", Category.OBSERVABILITY),
+    ]
+    library_ids = {"gptcache", "langfuse"}
+    groups = group_by_category(recs, library_ids)
+    keys = list(groups.keys())
+    # observability is in _CATEGORY_ORDER; caching falls back to alphabetical after
+    assert keys[0] == "observability"
+    assert "caching" in keys
+
+
+def test_group_by_category_empty_recommendations():
+    groups = group_by_category([], {"langfuse"})
+    assert groups == {}
+
+
+def test_group_by_category_all_excluded():
+    recs = [_rec("langfuse", Category.OBSERVABILITY)]
+    groups = group_by_category(recs, set())  # empty library_ids
+    assert groups == {}

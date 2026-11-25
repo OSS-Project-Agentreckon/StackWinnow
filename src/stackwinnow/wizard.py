@@ -13,6 +13,7 @@ _CATEGORY_ORDER = [
     Category.MODEL_GATEWAY,
 ]
 
+# Used by display functions (_print_category_menu, _print_selection_summary) added in wizard.py.
 _CATEGORY_LABELS = {
     Category.OBSERVABILITY: ("OBSERVABILITY", "Trace LLM calls, track spend, monitor AI performance"),
     Category.EVALUATION: ("EVALUATION", "Test prompts, measure output quality, validate responses"),
@@ -30,11 +31,11 @@ def group_by_category(
     for rec in recommendations:
         if rec.tool_id not in library_tool_ids:
             continue
-        key = str(rec.category)
+        key = rec.category
         buckets.setdefault(key, []).append(rec)
     ordered: dict[str, list[ToolRecommendation]] = {}
     for cat in _CATEGORY_ORDER:
-        key = str(cat)
+        key = cat
         if key in buckets:
             ordered[key] = buckets.pop(key)
     for key, tools in sorted(buckets.items()):
