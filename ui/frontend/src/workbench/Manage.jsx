@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useWorkbench, download } from './Context'
-import { Badge, Heading, JsonDetails, Notice, NeedsProject, SectionTitle } from './Elements'
+import { Badge, Heading, JsonDetails, Notice, NeedsProject, SectionTitle, CopyButton } from './Elements'
 
 export function OperationResult({operation}) {
   if (!operation) return null
@@ -37,7 +37,7 @@ export function PlanReview() {
   return <section className="panel review-panel"><SectionTitle title={removal ? 'Review removal plan' : 'Review setup plan'}><Badge tone={attempted ? 'neutral' : 'teal'}>{attempted ? 'Attempt submitted — see result' : 'Prepared · not applied'}</Badge></SectionTitle>
     <p className="small muted">Project: <code>{doc.project_root}</code></p><div className="tags">{tools.map(t=><Badge key={t}>{t}</Badge>)}</div>
     {plan.phases.length > 0 && <ol className="phase-list">{plan.phases.map((p,i)=><li key={p}><span>{i+1}</span>{p}</li>)}</ol>}
-    {!removal && <>{['headroom','promptfoo','playwright','graphify'].filter(k=>doc[k]).map(k=><div key={k} className="review-tool"><h4>{k === 'playwright' ? 'playwright-mcp' : k}</h4>{doc[k].installation?.steps?.map((step,i)=><p key={i} className="small">{step.description || step.step_id}</p>)}<JsonDetails value={doc[k]} label="Commands, configuration & prerequisites"/></div>)}{doc.graphify_configuration && <JsonDetails value={doc.graphify_configuration} label="Graphify client configuration changes"/>}</>}
+    {!removal && <>{['headroom','promptfoo','playwright','graphify'].filter(k=>doc[k]).map(k=><div key={k} className="review-tool"><h4>{k === 'playwright' ? 'playwright-mcp' : k}</h4>{doc[k].installation?.steps?.map((step,i)=><div key={i} className="cli-step"><p className="small">{step.description || step.step_id}</p>{step.step_id && step.description && <div className="cli-command"><pre><code>{step.step_id}</code></pre><CopyButton text={step.step_id}/></div>}</div>)}<JsonDetails value={doc[k]} label="Commands, configuration & prerequisites"/></div>)}{doc.graphify_configuration && <JsonDetails value={doc.graphify_configuration} label="Graphify client configuration changes"/>}</>}
     {removal && <><div className="table-panel"><table><thead><tr><th>Runtime path</th><th>Action</th><th>Reason</th></tr></thead><tbody>{doc.runtimes.map((r,i)=><tr key={i}><td><code>{r.path}</code></td><td><Badge tone={r.action === 'remove' ? 'amber' : 'neutral'}>{r.action}</Badge></td><td>{r.reason}</td></tr>)}</tbody></table></div><p className="small">Retained paths: {doc.retained_paths.join(', ') || 'None listed'}</p><JsonDetails value={doc.configuration} label="Configuration restoration preview"/></>}
     <div className="action-row"><button className="button secondary" onClick={()=>download(removal ? 'removal-plan.json' : 'workflow-plan.json',doc)}>Download plan</button>{!removal && <button className="button secondary" onClick={exportProfile} disabled={!!busy}>Export profile</button>}<button className="button secondary" onClick={()=>apply(true)} disabled={!!busy || attempted}>Validate dry run</button></div>
     <JsonDetails value={doc} label="Full reviewed plan"/>
