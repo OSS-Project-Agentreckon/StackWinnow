@@ -179,3 +179,128 @@ def split_batches(
     if not tools:
         return []
     return [tools[i : i + batch_size] for i in range(0, len(tools), batch_size)]
+
+
+from stackwinnow.detect import InspectionError, inspect_project
+from stackwinnow.recommend import RecommendationError, recommend_tools
+from stackwinnow.supported import select_tool, supported_modes
+from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
+from stackwinnow.workflow_state import WorkflowError
+
+_DEFAULT_GOALS = ["evaluation", "track costs", "compress context", "model routing"]
+
+_PROMPTFOO_NOTE = (
+    "  promptfoo is available via 'stackwinnow promptfoo' — not installed by this wizard."
+)
+
+
+def run_wizard(project_root: str, goals: list[str] | None = None) -> int:
+    """Interactive wizard: inspect → select → install. Returns 0 on success, 1 on error."""
+    tty = sys.stdout.isatty()
+    effective_goals = goals or _DEFAULT_GOALS
+
+    _print_header(project_root, tty)
+    print("Scanning project and loading recommendations...\n")
+
+    try:
+        inspection = inspect_project(project_root, goals=effective_goals, assistant="codex")
+        result = recommend_tools(inspection)
+    except (InspectionError, RecommendationError, OSError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 1
+
+    library_ids = {m.tool_id for m in supported_modes() if m.mode == "library"}
+    groups = group_by_category(result.recommendations, library_ids)
+
+    if not groups:
+        print("No matching library-mode tools found for this project.")
+        print("Tip: supply goals with --goal to widen the search.")
+        return 0
+
+    total_tools = sum(len(v) for v in groups.values())
+    has_promptfoo = any(r.tool_id == "promptfoo" for r in result.recommendations)
+    print(f"Found {total_tools} tools across {len(groups)} categories.")
+    if has_promptfoo:
+        print(_PROMPTFOO_NOTE)
+    print()
+
+    selections: list[ToolRecommendation] = []
+
+    while True:
+        selections = []
+        category_keys = list(groups.keys())
+        for i, cat_key in enumerate(category_keys, 1):
+            tools = groups[cat_key]
+            _print_category_menu(i, len(category_keys), cat_key, tools, tty)
+            while True:
+                try:
+                    raw = input("  Select (a / a,b / all / skip): ").strip()
+                except EOFError:
+                    raw = "skip"
+                chosen = parse_selection(raw, tools)
+                if chosen is None:
+                    print("  Invalid — enter letters from the list, 'all', or 'skip':")
+                    continue
+                selections.extend(chosen)
+                break
+
+        if not selections:
+            print("Nothing selected. Exiting.")
+            return 0
+
+        _print_selection_summary(selections, groups, tty)
+        try:
+            confirm = input("Proceed with installation? [y/n]: ").strip().lower()
+        except EOFError:
+            confirm = "n"
+        if confirm == "y":
+            break
+        print()
+
+    batches = split_batches(selections)
+    total_rounds = len(batches)
+    installed: list[ToolRecommendation] = []
+    failed: list[ToolRecommendation] = []
+
+    for round_n, batch in enumerate(batches, 1):
+        _print_divider(f"Installing — Round {round_n} of {total_rounds}", tty=tty)
+        _print_step_previews(batch, tty)
+        print()
+
+        try:
+            request = WorkflowRequest(
+                selections=tuple(select_tool(rec.tool_id) for rec in batch),
+                goals=tuple(effective_goals),
+                assistant="codex",
+                model_preference="local",
+            )
+            plan = plan_workflow(project_root, request)
+            wf_result = apply_workflow(plan)
+        except (WorkflowError, ValueError, OSError) as exc:
+            print(f"  {_fail(tty)} Round {round_n} failed to plan: {exc}", file=sys.stderr)
+            failed.extend(batch)
+            continue
+
+        _print_round_results(batch, wf_result.outcomes, tty)
+        for rec in batch:
+            outcome = next((o for o in wf_result.outcomes if o.phase == rec.tool_id), None)
+            if outcome and outcome.status == "succeeded":
+                installed.append(rec)
+            else:
+                failed.append(rec)
+
+    _print_divider("Results", tty=tty)
+    for rec in installed:
+        print(f"  {_ok(tty)} {rec.name:<14} installed")
+    for rec in failed:
+        print(f"  {_fail(tty)} {rec.name:<14} failed")
+
+    total = len(installed) + len(failed)
+    n_ok = len(installed)
+    print(f"\n{n_ok} of {total} tools installed.", end=" ")
+    if n_ok == total:
+        print("Run 'stackwinnow check PROJECT' to verify anytime.")
+    else:
+        print("Review errors above. Run 'stackwinnow check PROJECT' to retry.")
+
+    return 0 if len(failed) == 0 else 1
