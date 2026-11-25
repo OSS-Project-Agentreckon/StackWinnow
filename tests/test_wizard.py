@@ -2,7 +2,8 @@
 import pytest
 from unittest.mock import MagicMock
 from stackwinnow.catalog import Category
-from stackwinnow.wizard import group_by_category, parse_selection
+from stackwinnow.recommend import ToolRecommendation
+from stackwinnow.wizard import group_by_category, parse_selection, split_batches
 
 
 def _rec(tool_id, category):
@@ -129,3 +130,51 @@ def test_parse_selection_duplicate_letters(sample_tools):
 def test_parse_selection_whitespace_padded(sample_tools):
     result = parse_selection("  a , c  ", sample_tools)
     assert result == [sample_tools[0], sample_tools[2]]
+
+
+@pytest.fixture
+def sample_tools_extended():
+    def _make(n: int):
+        tools = []
+        for i in range(n):
+            m = MagicMock(spec=ToolRecommendation)
+            m.tool_id = f"tool_{i}"
+            tools.append(m)
+        return tools
+    return _make
+
+
+def test_split_batches_seven(sample_tools_extended):
+    tools = sample_tools_extended(7)
+    result = split_batches(tools)
+    assert len(result) == 2
+    assert result[0] == tools[:4]
+    assert result[1] == tools[4:]
+
+
+def test_split_batches_four(sample_tools_extended):
+    tools = sample_tools_extended(4)
+    result = split_batches(tools)
+    assert len(result) == 1
+    assert result[0] == tools
+
+
+def test_split_batches_one(sample_tools_extended):
+    tools = sample_tools_extended(1)
+    result = split_batches(tools)
+    assert len(result) == 1
+    assert result[0] == tools
+
+
+def test_split_batches_empty():
+    result = split_batches([])
+    assert result == []
+
+
+def test_split_batches_custom_size(sample_tools_extended):
+    tools = sample_tools_extended(5)
+    result = split_batches(tools, batch_size=2)
+    assert len(result) == 3
+    assert result[0] == tools[:2]
+    assert result[1] == tools[2:4]
+    assert result[2] == tools[4:]

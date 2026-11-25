@@ -69,3 +69,12 @@ def parse_selection(raw: str, tools: list[ToolRecommendation]) -> list[ToolRecom
             seen.add(index)
             selected.append(tools[index])
     return selected
+
+
+def split_batches(
+    tools: list[ToolRecommendation], batch_size: int = 4
+) -> list[list[ToolRecommendation]]:
+    """Split tools into ordered batches of at most batch_size."""
+    if not tools:
+        return []
+    return [tools[i : i + batch_size] for i in range(0, len(tools), batch_size)]
