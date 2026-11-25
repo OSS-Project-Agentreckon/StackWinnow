@@ -3,8 +3,109 @@
 
 from __future__ import annotations
 
+import sys
+
 from stackwinnow.catalog import Category
 from stackwinnow.recommend import ToolRecommendation
+
+_RESET = "\033[0m"
+_BOLD = "\033[1m"
+_GREEN = "\033[32m"
+_RED = "\033[31m"
+_CYAN = "\033[36m"
+_DIM = "\033[2m"
+_DIVIDER = "─" * 50
+
+
+def _c(code: str, text: str, *, tty: bool) -> str:
+    return f"{code}{text}{_RESET}" if tty else text
+
+
+def _ok(tty: bool) -> str:
+    return _c(_GREEN, "✓", tty=tty)
+
+
+def _fail(tty: bool) -> str:
+    return _c(_RED, "✗", tty=tty)
+
+
+def _print_header(project_root: str, tty: bool) -> None:
+    if tty:
+        print(_c(_BOLD, "╔══════════════════════════════════════════════════╗", tty=tty))
+        print(_c(_BOLD, "║        StackWinnow — Installation Wizard         ║", tty=tty))
+        print(_c(_BOLD, "╚══════════════════════════════════════════════════╝", tty=tty))
+    else:
+        print("StackWinnow — Installation Wizard")
+    print(f"\nProject : {project_root}")
+
+
+def _print_divider(label: str, tty: bool) -> None:
+    print(_c(_DIM, _DIVIDER, tty=tty))
+    print(_c(_BOLD, f" {label}", tty=tty))
+    print(_c(_DIM, _DIVIDER, tty=tty))
+
+
+def _print_category_menu(
+    n: int,
+    total: int,
+    category_key: str,
+    tools: list[ToolRecommendation],
+    tty: bool,
+) -> None:
+    label, desc = _CATEGORY_LABELS.get(
+        category_key,
+        (category_key.upper().replace("-", " "), ""),
+    )
+    _print_divider(f"{n} / {total}  {_c(_CYAN, label, tty=tty)}", tty=tty)
+    if desc:
+        print(f" {_c(_DIM, desc, tty=tty)}")
+    print()
+    for i, rec in enumerate(tools):
+        letter = chr(ord("a") + i)
+        print(f"  {_c(_BOLD, letter + ')', tty=tty)} {rec.name:<14} — {rec.description}")
+    print()
+
+
+def _print_selection_summary(
+    selections: list[ToolRecommendation],
+    groups: dict[str, list[ToolRecommendation]],
+    tty: bool,
+) -> None:
+    _print_divider(f"Your selection ({len(selections)} tools)", tty=tty)
+    cat_lookup = {
+        rec.tool_id: cat_key
+        for cat_key, recs in groups.items()
+        for rec in recs
+    }
+    for rec in selections:
+        label, _ = _CATEGORY_LABELS.get(
+            cat_lookup.get(rec.tool_id, ""),
+            (cat_lookup.get(rec.tool_id, "").upper(), ""),
+        )
+        print(f"  {_ok(tty)} {rec.name:<14} {label}")
+    print()
+
+
+def _print_step_previews(batch: list[ToolRecommendation], tty: bool) -> None:
+    for rec in batch:
+        print(f"  {_c(_DIM, rec.name, tty=tty):<20} Installing {rec.name}...")
+
+
+def _print_round_results(
+    batch: list[ToolRecommendation],
+    outcomes: list,
+    tty: bool,
+) -> None:
+    outcome_map = {o.phase: o.status for o in outcomes}
+    for rec in batch:
+        status = outcome_map.get(rec.tool_id, "blocked")
+        if status == "succeeded":
+            print(f"  {_ok(tty)} {rec.name:<14} installed")
+        else:
+            msg = next((o.message for o in outcomes if o.phase == rec.tool_id), "failed")
+            short = msg.split("\n")[0][:60]
+            print(f"  {_fail(tty)} {rec.name:<14} {_c(_DIM, short, tty=tty)}")
+
 
 _CATEGORY_ORDER = [
     Category.OBSERVABILITY,
