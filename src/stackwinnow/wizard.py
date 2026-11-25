@@ -41,3 +41,28 @@ def group_by_category(
     for key, tools in sorted(buckets.items()):
         ordered[key] = tools
     return ordered
+
+
+def parse_selection(raw: str, tools: list[ToolRecommendation]) -> list[ToolRecommendation] | None:
+    """Parse a category selection string.
+
+    Returns:
+        list[ToolRecommendation] — selected tools (empty list for 'skip', all tools for 'all')
+        None — if input is invalid or references out-of-range letters
+    """
+    text = raw.strip().lower()
+    if text == "skip":
+        return []
+    if text == "all":
+        return list(tools)
+    if not text:
+        return None
+    letters = [part.strip() for part in text.split(",")]
+    selected = []
+    max_letter = chr(ord("a") + len(tools) - 1)
+    for letter in letters:
+        if len(letter) != 1 or letter < "a" or letter > max_letter:
+            return None
+        index = ord(letter) - ord("a")
+        selected.append(tools[index])
+    return selected

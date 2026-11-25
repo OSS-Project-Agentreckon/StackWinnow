@@ -1,7 +1,8 @@
 # tests/test_wizard.py
+import pytest
 from unittest.mock import MagicMock
 from stackwinnow.catalog import Category
-from stackwinnow.wizard import group_by_category
+from stackwinnow.wizard import group_by_category, parse_selection
 
 
 def _rec(tool_id, category):
@@ -73,3 +74,48 @@ def test_group_by_category_all_excluded():
     recs = [_rec("langfuse", Category.OBSERVABILITY)]
     groups = group_by_category(recs, set())  # empty library_ids
     assert groups == {}
+
+
+@pytest.fixture
+def sample_tools():
+    tools = []
+    for tid in ("langfuse", "openlit", "deepeval"):
+        m = MagicMock()
+        m.tool_id = tid
+        tools.append(m)
+    return tools
+
+
+def test_parse_selection_single_letter(sample_tools):
+    result = parse_selection("a", sample_tools)
+    assert result == [sample_tools[0]]
+
+
+def test_parse_selection_multiple_letters(sample_tools):
+    result = parse_selection("a,c", sample_tools)
+    assert result == [sample_tools[0], sample_tools[2]]
+
+
+def test_parse_selection_all(sample_tools):
+    result = parse_selection("all", sample_tools)
+    assert result == sample_tools
+
+
+def test_parse_selection_skip(sample_tools):
+    result = parse_selection("skip", sample_tools)
+    assert result == []
+
+
+def test_parse_selection_invalid_letter(sample_tools):
+    result = parse_selection("z", sample_tools)
+    assert result is None
+
+
+def test_parse_selection_mixed_valid_invalid(sample_tools):
+    result = parse_selection("a,z", sample_tools)
+    assert result is None
+
+
+def test_parse_selection_empty(sample_tools):
+    result = parse_selection("", sample_tools)
+    assert result is None
