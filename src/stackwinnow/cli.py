@@ -619,8 +619,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     from stackwinnow.library_cli import add_library_parser, library_command
     from stackwinnow.profile_cli import add_profile_parser, profile_command
     from stackwinnow.report_cli import add_report_parser, report_command
+    from stackwinnow.wizard_cli import add_wizard_parser, wizard_command
     from stackwinnow.workflow_cli import add_workflow_parser, workflow_command
 
+    add_wizard_parser(commands)
     add_workflow_parser(commands)
     add_library_parser(commands)
     add_profile_parser(commands)
@@ -851,6 +853,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command is None:
         parser.print_help()
         return 0
+    if args.command == "wizard":
+        return wizard_command(args, parser)
     if args.command == "workflow":
         return workflow_command(args, parser)
     if args.command == "library":
