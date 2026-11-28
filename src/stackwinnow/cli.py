@@ -426,7 +426,6 @@ def _show_recommendations_compact(result: RecommendationResult) -> None:
     print(_dim + _divider + _reset)
 
     # Group by category using wizard's grouping logic
-    from stackwinnow.catalog import Category
     _CAT_LABELS = {
         "observability": "OBSERVABILITY",
         "evaluation": "EVALUATION",
@@ -448,7 +447,9 @@ def _show_recommendations_compact(result: RecommendationResult) -> None:
 
     total = len(result.recommendations)
     print(f"\n{_divider}")
-    print(f"{total} tools found. Run {_bold}stackwinnow wizard PROJECT{_reset} to install interactively.\n")
+    print(
+        f"{total} tools found. Run {_bold}stackwinnow wizard PROJECT{_reset} to install interactively.\n"
+    )
 
 
 def _show_recommendations(result: RecommendationResult) -> None:
@@ -514,15 +515,35 @@ def _add_inspection_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="Project-relative JSON file; read mcpServers names only.")
     parser.add_argument("--json", action="store_true", help="Emit structured JSON.")
     parser.add_argument("--no-source", action="store_true", help="Inspect declarations only.")
-    parser.add_argument("--compact", action="store_true", help="Show concise one-line output (demo/CI friendly).")
+    parser.add_argument(
+        "--compact", action="store_true", help="Show concise one-line output (demo/CI friendly)."
+    )
 
 
 _AI_PACKAGES = {
-    "anthropic", "openai", "langchain", "langchain-core", "langchain-community",
-    "litellm", "langfuse", "openlit", "opik", "deepeval", "ragas", "trulens-eval",
-    "llama-index", "llama-index-core", "cohere", "transformers", "huggingface-hub",
-    "google-generativeai", "tiktoken", "sentence-transformers", "inspect-ai",
-    "headroom", "llmlingua",
+    "anthropic",
+    "openai",
+    "langchain",
+    "langchain-core",
+    "langchain-community",
+    "litellm",
+    "langfuse",
+    "openlit",
+    "opik",
+    "deepeval",
+    "ragas",
+    "trulens-eval",
+    "llama-index",
+    "llama-index-core",
+    "cohere",
+    "transformers",
+    "huggingface-hub",
+    "google-generativeai",
+    "tiktoken",
+    "sentence-transformers",
+    "inspect-ai",
+    "headroom",
+    "llmlingua",
 }
 
 
