@@ -86,10 +86,17 @@ class HeadroomError(ValueError):
 
 
 class CommandOutcome(Protocol):
-    returncode: int
-    stdout: str
-    stderr: str
-    timed_out: bool
+    @property
+    def returncode(self) -> int: ...
+
+    @property
+    def stdout(self) -> str: ...
+
+    @property
+    def stderr(self) -> str: ...
+
+    @property
+    def timed_out(self) -> bool: ...
 
     @property
     def succeeded(self) -> bool: ...
@@ -138,7 +145,7 @@ class CompressionEvidence(Contract):
 
 class CompressionRun(CompressionEvidence):
     run_id: str
-    fixture_sha256: Literal[_FIXTURE_SHA256]
+    fixture_sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
     model_target: Literal["gpt-4o"]
     tokenizer: Literal["o200k_base"]
     system_preserved: StrictBool
@@ -146,6 +153,8 @@ class CompressionRun(CompressionEvidence):
 
     @model_validator(mode="after")
     def preserved_fixture(self):
+        if self.fixture_sha256 != _FIXTURE_SHA256:
+            raise ValueError("Fixture input digest mismatch.")
         if self.messages_in != len(_FIXTURE_MESSAGES):
             raise ValueError("Fixture input count mismatch.")
         if not self.system_preserved or not self.failure_preserved:
@@ -472,6 +481,8 @@ def apply_headroom(
 
         def run_step(step):
             nonlocal compression
+            if runner is None:
+                raise HeadroomError("Headroom requires the shared command runner.")
             if step.step_id.endswith("-install"):
                 return _install_step(root, step, runner)
             result, compression = run_headroom_compression(root, step.step_id, runner)

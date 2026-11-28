@@ -334,6 +334,9 @@ def _apply_edits(patch: ConfigPatch, *, prepare=_prepare, format="json") -> Conf
                         message="Configuration already matches; no values were written or adopted.",
                     )
                 )
+            mode = checked.written_file.mode
+            if mode is None:
+                raise ConfigurationConflict("The written configuration must have a file mode.")
             temporary = f".stackwinnow-{uuid4().hex}.tmp"
             descriptor = os.open(
                 temporary, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600, dir_fd=parent
@@ -342,7 +345,7 @@ def _apply_edits(patch: ConfigPatch, *, prepare=_prepare, format="json") -> Conf
                 with os.fdopen(descriptor, "wb") as output:
                     output.write(rendered)
                     output.flush()
-                    os.fchmod(output.fileno(), checked.written_file.mode)
+                    os.fchmod(output.fileno(), mode)
                     os.fsync(output.fileno())
                 _check_current(checked, parent, name)
                 if checked.expected_file.exists:

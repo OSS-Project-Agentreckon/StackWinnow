@@ -121,7 +121,9 @@ def _read(root: Path, relative: str, *, max_bytes: int = MAX_MANIFEST_BYTES) -> 
 
 
 def _diagnostic(result: InspectionResult, source: str, message: str, status: str) -> None:
-    result.diagnostics.append(OperationResult(status=status, message=f"{source}: {message}"))
+    result.diagnostics.append(
+        OperationResult(status=OperationStatus(status), message=f"{source}: {message}")
+    )
 
 
 def _fact(result: InspectionResult, source: str, key: str, values: list[str], field: str) -> None:

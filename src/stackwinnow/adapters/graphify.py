@@ -14,7 +14,7 @@ from typing import Literal
 
 from pydantic import Field, field_validator
 
-from stackwinnow.catalog import EligibilityContext, load_catalog
+from stackwinnow.catalog import EligibilityContext, Platform, load_catalog
 from stackwinnow.contracts import (
     Contract,
     EvidenceRef,
@@ -37,7 +37,7 @@ WHEEL_URL = (
 )
 STATE_PATH = ".stackwinnow/graphify"
 INDEX_PATH = f"{STATE_PATH}/index"
-GRAPH_PATH = f"{INDEX_PATH}/graphify-out/graph.json"
+GRAPH_PATH = ".stackwinnow/graphify/index/graphify-out/graph.json"
 
 
 class GraphifyError(ValueError):
@@ -213,7 +213,7 @@ def plan_graphify(project_root: str | Path, *, platform: str, assistant: str) ->
         ],
     )
     context = EligibilityContext(
-        platform=platform, assistant=assistant, selected_tools=["graphify"]
+        platform=Platform(platform), assistant=assistant, selected_tools=["graphify"]
     )
     preflight = check_plan(installation, catalog=load_catalog(), context=context)
     command_args = [

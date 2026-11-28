@@ -68,20 +68,22 @@ class GraphifyLock(Contract):
         platforms = list(mac_platforms(version=(14, 0), arch="arm64"))
         tags = set(cpython_tags((3, 11), platforms=platforms))
         tags.update(compatible_tags((3, 11), interpreter="cp311", platforms=platforms))
-        environment = default_environment()
+        environment = {key: str(value) for key, value in default_environment().items()}
         environment.update(
-            python_version="3.11",
-            python_full_version="3.11.14",
-            implementation_name="cpython",
-            implementation_version="3.11.14",
-            platform_python_implementation="CPython",
-            sys_platform="darwin",
-            os_name="posix",
-            platform_system="Darwin",
-            platform_machine="arm64",
-            platform_release="23.0.0",
-            platform_version="",
-            extra="",
+            {
+                "python_version": "3.11",
+                "python_full_version": "3.11.14",
+                "implementation_name": "cpython",
+                "implementation_version": "3.11.14",
+                "platform_python_implementation": "CPython",
+                "sys_platform": "darwin",
+                "os_name": "posix",
+                "platform_system": "Darwin",
+                "platform_machine": "arm64",
+                "platform_release": "23.0.0",
+                "platform_version": "",
+                "extra": "",
+            }
         )
         for item in self.packages:
             url = urlsplit(item.url)
@@ -113,7 +115,7 @@ class GraphifyLock(Contract):
                     or not requirement.specifier.contains(dependency.version)
                 ):
                     raise ValueError("Lock is missing a compatible required dependency.")
-        graphify = by_name.get("graphifyy")
+        graphify = by_name.get(canonicalize_name("graphifyy"))
         if graphify is None or (graphify.version, graphify.url, graphify.sha256) != (
             VERSION,
             WHEEL_URL,

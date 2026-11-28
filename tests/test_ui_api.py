@@ -146,13 +146,13 @@ def test_origin_expiry_and_invalid_selections_are_actionable(client, project):
     assert client.get("/api/meta", headers={"Host": "untrusted.example"}).status_code == 403
     assert (
         client.post(
-            "/api/workflow/plan", json={"project_root": project, "tool_ids": ["litellm"]}
+            "/api/workflow/plan", json={"project_root": project, "tool_ids": ["aider"]}
         ).status_code
         == 422
     )
     assert (
         client.post(
-            "/api/workflow/plan", json={"project_root": project, "tool_ids": ["graphify"]}
+            "/api/workflow/plan", json={"project_root": project, "tool_ids": ["serena"]}
         ).status_code
         == 422
     )
