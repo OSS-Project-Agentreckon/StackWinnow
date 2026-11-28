@@ -2,6 +2,7 @@
 
 import argparse
 import json
+import sys
 from collections.abc import Sequence
 
 from pydantic import ValidationError
@@ -404,9 +405,50 @@ def _recommend(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int
             },
         )
         print(json.dumps({**payload, "complete": result.complete}, indent=2))
+    elif getattr(args, "compact", False):
+        _show_recommendations_compact(result)
     else:
         _show_recommendations(result)
     return 0 if result.complete else 1
+
+
+def _show_recommendations_compact(result: RecommendationResult) -> None:
+    tty = sys.stdout.isatty()
+    _bold = "\033[1m" if tty else ""
+    _cyan = "\033[36m" if tty else ""
+    _dim = "\033[2m" if tty else ""
+    _green = "\033[32m" if tty else ""
+    _reset = "\033[0m" if tty else ""
+    _divider = "─" * 50
+
+    profile = result.inspection.profile
+    print(f"\nRecommendations for {_bold}{profile.project_root}{_reset}")
+    print(_dim + _divider + _reset)
+
+    # Group by category using wizard's grouping logic
+    from stackwinnow.catalog import Category
+    _CAT_LABELS = {
+        "observability": "OBSERVABILITY",
+        "evaluation": "EVALUATION",
+        "context": "CONTEXT COMPRESSION",
+        "model-gateway": "MODEL ROUTING",
+    }
+    _CAT_ORDER = ["observability", "evaluation", "context", "model-gateway"]
+    buckets: dict[str, list] = {}
+    for item in result.recommendations:
+        buckets.setdefault(item.category, []).append(item)
+    ordered_keys = [k for k in _CAT_ORDER if k in buckets] + sorted(
+        k for k in buckets if k not in _CAT_ORDER
+    )
+    for cat_key in ordered_keys:
+        label = _CAT_LABELS.get(cat_key, cat_key.upper().replace("-", " "))
+        print(f"\n  {_cyan}{_bold}{label}{_reset}")
+        for item in buckets[cat_key]:
+            print(f"    {_green}✦{_reset} {item.name:<14} {_dim}{item.description}{_reset}")
+
+    total = len(result.recommendations)
+    print(f"\n{_divider}")
+    print(f"{total} tools found. Run {_bold}stackwinnow wizard PROJECT{_reset} to install interactively.\n")
 
 
 def _show_recommendations(result: RecommendationResult) -> None:
@@ -472,9 +514,26 @@ def _add_inspection_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--config", help="Project-relative JSON file; read mcpServers names only.")
     parser.add_argument("--json", action="store_true", help="Emit structured JSON.")
     parser.add_argument("--no-source", action="store_true", help="Inspect declarations only.")
+    parser.add_argument("--compact", action="store_true", help="Show concise one-line output (demo/CI friendly).")
+
+
+_AI_PACKAGES = {
+    "anthropic", "openai", "langchain", "langchain-core", "langchain-community",
+    "litellm", "langfuse", "openlit", "opik", "deepeval", "ragas", "trulens-eval",
+    "llama-index", "llama-index-core", "cohere", "transformers", "huggingface-hub",
+    "google-generativeai", "tiktoken", "sentence-transformers", "inspect-ai",
+    "headroom", "llmlingua",
+}
 
 
 def _show_inspection(result: InspectionResult) -> None:
+    tty = sys.stdout.isatty()
+    _bold = "\033[1m" if tty else ""
+    _yellow = "\033[33m" if tty else ""
+    _green = "\033[32m" if tty else ""
+    _dim = "\033[2m" if tty else ""
+    _reset = "\033[0m" if tty else ""
+
     profile = result.profile
     print(f"Project: {profile.project_root}")
     print(f"Inspection: {'complete' if result.complete else 'incomplete'}")
@@ -485,8 +544,21 @@ def _show_inspection(result: InspectionResult) -> None:
     print("Declared facts:")
     if not profile.facts:
         print("  No supported declarations found; project details remain unknown.")
+    ai_deps_found: list[str] = []
     for key, values in sorted(profile.facts.items()):
-        print(f"  {key}: {', '.join(values) if values else '(explicitly empty)'}")
+        if key == "python.dependencies" and values:
+            colored = []
+            for dep in values:
+                if dep in _AI_PACKAGES:
+                    colored.append(f"{_green}{_bold}{dep}{_reset}")
+                    ai_deps_found.append(dep)
+                else:
+                    colored.append(f"{_yellow}{dep}{_reset}")
+            print(f"  {key}: {', '.join(colored)}")
+            if not ai_deps_found:
+                print(f"  {_dim}↳ No AI/LLM tools detected in dependencies{_reset}")
+        else:
+            print(f"  {key}: {', '.join(values) if values else '(explicitly empty)'}")
     print("Evidence:")
     for evidence in profile.evidence:
         print(f"  {evidence.source}: {evidence.detail}")

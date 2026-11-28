@@ -181,17 +181,29 @@ def split_batches(
     return [tools[i : i + batch_size] for i in range(0, len(tools), batch_size)]
 
 
+from pathlib import Path
+
 from stackwinnow.detect import InspectionError, inspect_project
 from stackwinnow.recommend import RecommendationError, recommend_tools
 from stackwinnow.supported import select_tool, supported_modes
 from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
 from stackwinnow.workflow_state import WorkflowError
+from stackwinnow.state.lock import ProjectLockError
 
 _DEFAULT_GOALS = ["evaluation", "track costs", "compress context", "model routing"]
 
 _PROMPTFOO_NOTE = (
     "  promptfoo is available via 'stackwinnow promptfoo' — not installed by this wizard."
 )
+
+_LOCK_PATH = ".stackwinnow/operation.lock"
+
+
+def _clear_stale_lock(project_root: str) -> None:
+    """Remove a leftover lock file from a previously interrupted run."""
+    lock = Path(project_root) / _LOCK_PATH
+    if lock.exists() and not lock.is_symlink():
+        lock.unlink(missing_ok=True)
 
 
 def run_wizard(project_root: str, goals: list[str] | None = None) -> int:
@@ -262,6 +274,9 @@ def run_wizard(project_root: str, goals: list[str] | None = None) -> int:
     installed: list[ToolRecommendation] = []
     failed: list[ToolRecommendation] = []
 
+    # Clear any stale lock left by a previously interrupted run.
+    _clear_stale_lock(project_root)
+
     for round_n, batch in enumerate(batches, 1):
         _print_divider(f"Installing — Round {round_n} of {total_rounds}", tty=tty)
         _print_step_previews(batch, tty)
@@ -276,7 +291,7 @@ def run_wizard(project_root: str, goals: list[str] | None = None) -> int:
             )
             plan = plan_workflow(project_root, request)
             wf_result = apply_workflow(plan)
-        except (WorkflowError, ValueError, OSError) as exc:
+        except (WorkflowError, ProjectLockError, ValueError, OSError) as exc:
             print(f"  {_fail(tty)} Round {round_n} failed to plan: {exc}", file=sys.stderr)
             failed.extend(batch)
             continue
