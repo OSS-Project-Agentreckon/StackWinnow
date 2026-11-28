@@ -57,10 +57,17 @@ class PromptfooError(ValueError):
 
 
 class CommandOutcome(Protocol):
-    returncode: int
-    stdout: str
-    stderr: str
-    timed_out: bool
+    @property
+    def returncode(self) -> int: ...
+
+    @property
+    def stdout(self) -> str: ...
+
+    @property
+    def stderr(self) -> str: ...
+
+    @property
+    def timed_out(self) -> bool: ...
 
     @property
     def succeeded(self) -> bool: ...

@@ -14,6 +14,8 @@ dist/
 .coverage
 .coverage.*
 htmlcov/
+coverage.xml
+audit-results/
 
 # Local credentials and configuration
 .stackwinnow/

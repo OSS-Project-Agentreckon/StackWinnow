@@ -358,10 +358,17 @@ Inside the virtual environment:
 
 ```bash
 python -m pip install -e ".[dev]"
-python -m pytest
 python -m ruff check .
 python -m ruff format --check .
+python -m pyright
+python -m pytest --cov --cov-report=term-missing --cov-report=html
 ```
+
+CI also enforces Pyright's standard type checks, an **80% line coverage floor**,
+and `pip-audit` checks of the resolved Python environment, direct Python tool
+pins and Graphify's dependency lock. Coverage and audit reports are downloadable
+from each workflow run. See [testing](docs/testing.md#quality-gates) for local audit
+commands and the limits of each check.
 
 The default tests exercise the installed CLI from temporary working directories and use
 copied project/configuration fixtures. They install no agent tools and leave

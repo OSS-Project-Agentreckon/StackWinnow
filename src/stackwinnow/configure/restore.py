@@ -226,9 +226,18 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
                 else tuple(e.key_path for e in patch.edits),
                 restored_file=plan.expected_file,
             )
-        expected = patch.model_copy(update={"expected_file": plan.expected_file})
+        file_state = plan.expected_file
+        if file_state is None or file_state.mode is None:
+            raise patches.ConfigurationConflict(
+                "Restoration requires an existing file with a mode."
+            )
+        expected = patch.model_copy(update={"expected_file": file_state})
         with patches._parent(patch.project_root, patch.relative_path) as (parent, name):
             raw = patches._check_current(expected, parent, name, limit=4 * 1024 * 1024)
+            if raw is None:
+                raise patches.ConfigurationConflict(
+                    "The configuration disappeared before restoration."
+                )
             rendered = _render(raw, patch, set(plan.restore_keys))
             temporary = f".stackwinnow-restore-{uuid4().hex}.tmp"
             descriptor = os.open(
@@ -239,7 +248,7 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
                     with os.fdopen(descriptor, "wb", closefd=False) as output:
                         output.write(rendered)
                         output.flush()
-                        os.fchmod(descriptor, plan.expected_file.mode)
+                        os.fchmod(descriptor, file_state.mode)
                         os.fsync(descriptor)
                 finally:
                     os.close(descriptor)
@@ -249,7 +258,7 @@ def apply_config_restore(plan: ConfigRestorePlan) -> ConfigRestoreResult:
                 restored_file = ConfigFileState(
                     exists=True,
                     sha256=hashlib.sha256(rendered).hexdigest(),
-                    mode=plan.expected_file.mode,
+                    mode=file_state.mode,
                 )
                 released = plan.restore_keys + tuple(
                     key.key_path

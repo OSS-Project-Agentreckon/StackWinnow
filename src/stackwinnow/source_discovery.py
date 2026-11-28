@@ -427,7 +427,12 @@ def discover_source(root: Path, *, read: Callable) -> SourceDiscovery:
     entries = 0
     attempted = 0
 
-    def inventory(path: str, status: str, reason: str, **details) -> None:
+    def inventory(
+        path: str,
+        status: Literal["scanned", "excluded", "unsupported", "error"],
+        reason: str,
+        **details,
+    ) -> None:
         if status == "excluded":
             result.excluded_entries += 1
         elif status == "unsupported":
@@ -588,7 +593,7 @@ def _findings(calls: list[_Call], mitigations: set[str]) -> list[SourceFinding]:
         summary: str,
         question: str,
         capabilities: list[str],
-        confidence: str = "medium",
+        confidence: Literal["low", "medium", "high"] = "medium",
         mitigation: str = "",
     ) -> None:
         caveats = []

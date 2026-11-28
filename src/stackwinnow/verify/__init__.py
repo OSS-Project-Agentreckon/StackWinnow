@@ -8,7 +8,7 @@ from pathlib import Path
 
 from pydantic import ValidationError
 
-from stackwinnow.adapters.promptfoo import CommandRunner
+from stackwinnow.adapters.promptfoo import CommandRunner, Provider, Scenario
 from stackwinnow.catalog import load_catalog
 from stackwinnow.verify.models import (
     CheckKind,
@@ -39,8 +39,8 @@ def check_project(
     *,
     tool_ids: Sequence[str],
     run_functional: bool = False,
-    provider: str = "deterministic",
-    scenario: str = "pass",
+    provider: Provider = "deterministic",
+    scenario: Scenario = "pass",
     allow_provider_usage: bool = False,
     command_runner: CommandRunner | None = None,
 ) -> VerificationReport:
@@ -52,7 +52,7 @@ def check_project(
 
     try:
         options = VerificationOptions(
-            tool_ids=tool_ids,
+            tool_ids=tuple(tool_ids),
             run_functional=run_functional,
             provider=provider,
             scenario=scenario,

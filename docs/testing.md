@@ -13,10 +13,84 @@ python -m pip install -e ".[dev]"
 python -m pip check
 python -m ruff check .
 python -m ruff format --check .
-python -m pytest
+python -m pyright
+python -m pytest --cov --cov-report=term-missing --cov-report=xml --cov-report=html
 ```
 
 Dependency installation needs package-index access. Default tests need no provider credentials or installed agent tools. One fixture test serves copied HTML on an ephemeral 127.0.0.1 port: loopback HTTP, not the Internet. CI runs these checks on Ubuntu/Python 3.11 and 3.14. This is a package/testing matrix, not an upstream integration compatibility claim.
+
+## Quality gates
+
+The pull-request and main-branch CI runs on Python 3.11 and 3.14. Each matrix
+entry checks dependency compatibility, Ruff, Pyright and the offline fixture
+suite. An independent audit job queries known Python vulnerabilities.
+
+| Check | What fails CI | Report |
+| --- | --- | --- |
+| Pyright | Type errors in every manager module and the audit exporter | CI log |
+| pytest-cov | A failing test or less than 80% total line coverage | Terminal, `coverage.xml`, `htmlcov/` |
+| pip-audit | Known vulnerabilities, an unauditable package, or lookup failure | Exact-version inventories and JSON reports |
+
+Pyright uses **standard mode**, targeting the minimum Python 3.11 API. Its version
+is pinned in the development extra so checker upgrades are reviewed. It checks
+argument/return types, `Literal` values, optional member access and annotated
+model fields. This catches misuse such as treating an `installation: object`
+field as an `InstallPlan`. It is not `mypy --strict`: unannotated legacy helpers
+and dynamically loaded adapter dispatch still have weaker typing. Runtime
+Pydantic validation and round-trip tests remain necessary. The optional web UI
+and test fixtures are outside this initial static-check scope.
+
+Coverage includes **all manager Python modules**, including adapters that are
+never imported by a test; it does not exclude installation or verification code
+to improve the number. `pyproject.toml` sets `fail_under = 80`, which applies
+whenever coverage is requested. Plain `python -m pytest` remains available for a
+quick test-only run. The floor is an aggregate regression gate, not a guarantee
+that every new adapter has adequate tests. Reviews must still require relevant
+adapter tests, and coverage does not prove actual upstream integration.
+
+The coverage table also appears in the GitHub Actions workflow summary.
+Coverage XML/HTML and audit inventories/JSON are uploaded even after a failing
+check, when those files exist. GitHub Actions retains them for 14 days. A network
+error fails the audit instead of reporting a clean result. No advisories are
+silently ignored and the audit never applies dependency fixes automatically.
+
+### Run vulnerability checks locally
+
+Use the project virtual environment, rather than a global Python installation:
+
+```sh
+python -m pip install --upgrade 'pip>=26.2' 'setuptools>=84.1'
+python -m pip install -e ".[dev,audit]"
+python -m pip check
+python scripts/export_audit_requirements.py --output-dir audit-results
+python -m pip_audit -r audit-results/environment.txt --no-deps --disable-pip --strict --format json --output audit-results/environment.json
+python -m pip_audit -r audit-results/python-tools.txt --no-deps --disable-pip --strict --format json --output audit-results/python-tools.json
+python -m pip_audit -r audit-results/graphify-lock.txt --no-deps --disable-pip --strict --format json --output audit-results/graphify-lock.json
+```
+
+These commands need access to PyPI's advisory data, but install no AI tools.
+The exporter writes three exact-version inventories:
+
+- **Environment:** every installed distribution, including transitive runtime,
+  development and audit dependencies, plus pip and setuptools. Only StackWinnow's
+  own unpublished distribution is excluded; its dependencies remain audited.
+- **Python tools:** direct pins from every registered library-mode recipe. New
+  library adapters enter this inventory through the mode registry. Their
+  separately resolved transitive dependencies are not included here.
+- **Graphify lock:** every package in the validated, hash-pinned Graphify lock.
+  Versions are queried without downloading its macOS wheels onto the CI host.
+
+`--no-deps --disable-pip` performs advisory lookups for those exact inventories
+without creating tool environments. The environment inventory is already fully
+resolved; the Python tool inventory is intentionally limited to direct pins.
+These text inventories are audit inputs, not installable release locks.
+
+`pip-audit` finds **known published advisories**. A clean result does not prove
+that a tool is safe, and advisory applicability sometimes needs review. It does
+not audit npm tools (promptfoo/Playwright MCP), frontend JavaScript dependencies,
+tool binaries, model providers, or the unresolved dependencies of Python library
+tools. Audit actual managed Python environments and use `npm audit` on resolved
+Node environments when extending installation coverage.
 
 ## Reusable fixtures
 
@@ -116,6 +190,9 @@ the public contract and [implementation progress](implementation-progress.md) fo
 dated local results and the merged runner's remaining limitations.
 
 ## Baseline and evidence
+
+The initial quality-gate validation and the open GPTCache advisory are recorded
+in [quality-check evidence](evidence/quality-checks.md).
 
 Before this harness, main `6616b86` passed 52 tests on macOS/Python 3.14.0. Ruff reported an unused `pytest` import and import-block spacing in runtime tests. Step 3 includes that minimal test-only cleanup so initial CI can pass; production runtime behavior is unchanged.
 

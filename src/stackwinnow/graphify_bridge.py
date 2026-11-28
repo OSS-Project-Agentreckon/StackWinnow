@@ -39,7 +39,7 @@ TOOL_SCHEMA = {
 }
 
 
-def query_relationship(root: Path, python: str, arguments: dict, *, runner=run_command) -> dict:
+def query_relationship(root: Path, python: str, arguments: object, *, runner=run_command) -> dict:
     """Validate and query under our own lock; callers must not hold that lock."""
     if not isinstance(arguments, dict) or any(
         not isinstance(v, str) or len(v) > 4096 for v in arguments.values()
