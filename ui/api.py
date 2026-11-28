@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json as _json
+import os
 import secrets
 import threading
 import time
@@ -37,7 +39,14 @@ from stackwinnow.verify import check_project
 from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
 
 API_REVISION = 2
-ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+ORIGINS = {
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "http://localhost:5174",
+    "http://127.0.0.1:5174",
+    "http://localhost:5175",
+    "http://127.0.0.1:5175",
+}
 app = FastAPI(title="StackWinnow Workbench", version=str(API_REVISION))
 app.add_middleware(
     CORSMiddleware,
@@ -424,3 +433,65 @@ def environment(req: ProjectInput):
         "diagnostics": [d.model_dump(mode="json") for d in diagnostics],
         "modes": workflow_modes(),
     }
+
+
+class SuggestInput(Input):
+    goals: list[str] = Field(default_factory=list)
+
+
+@app.post("/api/suggest")
+def suggest(req: SuggestInput):
+    """Ask Claude to suggest tools from the catalog based on stated goals."""
+    if not req.goals:
+        return {"tool_ids": [], "reasoning": "No goals provided.", "assisted": False}
+
+    api_key = os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN")
+    base_url = os.environ.get("ANTHROPIC_BASE_URL")
+    if not api_key:
+        return {"tool_ids": [], "reasoning": "ANTHROPIC_API_KEY not configured.", "assisted": False}
+
+    try:
+        import anthropic
+
+        catalog_lines = [
+            f"- {t.tool_id} ({t.category.value}): {t.description}"
+            for t in _catalog.tools
+        ]
+        catalog_text = "\n".join(catalog_lines)
+        goals_text = ", ".join(req.goals)
+
+        prompt = (
+            "You help developers choose AI tooling for their projects.\n\n"
+            f"Available tools:\n{catalog_text}\n\n"
+            f"Developer goals: {goals_text}\n\n"
+            "Which tools from the catalog best match these goals?\n"
+            'Return ONLY a JSON object: {"tool_ids": [...], "reasoning": "..."}\n'
+            "Use only tool_ids exactly as listed above."
+        )
+
+        client_kwargs: dict = {"api_key": api_key}
+        if base_url:
+            client_kwargs["base_url"] = base_url
+        client = anthropic.Anthropic(**client_kwargs)
+        model = os.environ.get("ANTHROPIC_DEFAULT_HAIKU_MODEL", "claude-haiku-4-5")
+        message = client.messages.create(
+            model=model,
+            max_tokens=512,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            text = "\n".join(lines[1:])
+            if text.endswith("```"):
+                text = text[:-3].strip()
+
+        result = _json.loads(text)
+        valid_ids = {t.tool_id for t in _catalog.tools}
+        tool_ids = [tid for tid in result.get("tool_ids", []) if tid in valid_ids]
+
+        return {"tool_ids": tool_ids, "reasoning": result.get("reasoning", ""), "assisted": True}
+
+    except Exception as exc:
+        return {"tool_ids": [], "reasoning": f"AI suggestion unavailable: {exc}", "assisted": False}
