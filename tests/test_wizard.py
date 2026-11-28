@@ -1,6 +1,8 @@
 # tests/test_wizard.py
-import pytest
 from unittest.mock import MagicMock
+
+import pytest
+
 from stackwinnow.catalog import Category
 from stackwinnow.recommend import ToolRecommendation
 from stackwinnow.wizard import group_by_category, parse_selection, split_batches
@@ -48,9 +50,7 @@ def test_group_by_category_display_order():
     ]
     library_ids = {"litellm", "deepeval", "langfuse", "headroom"}
     groups = group_by_category(recs, library_ids)
-    assert list(groups.keys()) == [
-        "observability", "evaluation", "context", "model-gateway"
-    ]
+    assert list(groups.keys()) == ["observability", "evaluation", "context", "model-gateway"]
 
 
 def test_group_by_category_fallback_order():
@@ -141,6 +141,7 @@ def sample_tools_extended():
             m.tool_id = f"tool_{i}"
             tools.append(m)
         return tools
+
     return _make
 
 

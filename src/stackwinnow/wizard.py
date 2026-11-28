@@ -4,9 +4,15 @@
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 
 from stackwinnow.catalog import Category
-from stackwinnow.recommend import ToolRecommendation
+from stackwinnow.detect import InspectionError, inspect_project
+from stackwinnow.recommend import RecommendationError, ToolRecommendation, recommend_tools
+from stackwinnow.state.lock import ProjectLockError
+from stackwinnow.supported import select_tool, supported_modes
+from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
+from stackwinnow.workflow_state import WorkflowError
 
 _RESET = "\033[0m"
 _BOLD = "\033[1m"
@@ -72,11 +78,7 @@ def _print_selection_summary(
     tty: bool,
 ) -> None:
     _print_divider(f"Your selection ({len(selections)} tools)", tty=tty)
-    cat_lookup = {
-        rec.tool_id: cat_key
-        for cat_key, recs in groups.items()
-        for rec in recs
-    }
+    cat_lookup = {rec.tool_id: cat_key for cat_key, recs in groups.items() for rec in recs}
     for rec in selections:
         label, _ = _CATEGORY_LABELS.get(
             cat_lookup.get(rec.tool_id, ""),
@@ -116,9 +118,15 @@ _CATEGORY_ORDER = [
 
 # Used by display functions (_print_category_menu, _print_selection_summary) added in wizard.py.
 _CATEGORY_LABELS = {
-    Category.OBSERVABILITY: ("OBSERVABILITY", "Trace LLM calls, track spend, monitor AI performance"),
+    Category.OBSERVABILITY: (
+        "OBSERVABILITY",
+        "Trace LLM calls, track spend, monitor AI performance",
+    ),
     Category.EVALUATION: ("EVALUATION", "Test prompts, measure output quality, validate responses"),
-    Category.CONTEXT: ("CONTEXT COMPRESSION", "Reduce tokens before LLM calls to lower cost and latency"),
+    Category.CONTEXT: (
+        "CONTEXT COMPRESSION",
+        "Reduce tokens before LLM calls to lower cost and latency",
+    ),
     Category.MODEL_GATEWAY: ("MODEL ROUTING", "Route between models, unify API calls, track spend"),
 }
 
@@ -180,15 +188,6 @@ def split_batches(
         return []
     return [tools[i : i + batch_size] for i in range(0, len(tools), batch_size)]
 
-
-from pathlib import Path
-
-from stackwinnow.detect import InspectionError, inspect_project
-from stackwinnow.recommend import RecommendationError, recommend_tools
-from stackwinnow.supported import select_tool, supported_modes
-from stackwinnow.workflow import WorkflowRequest, apply_workflow, plan_workflow
-from stackwinnow.workflow_state import WorkflowError
-from stackwinnow.state.lock import ProjectLockError
 
 _DEFAULT_GOALS = ["evaluation", "track costs", "compress context", "model routing"]
 
