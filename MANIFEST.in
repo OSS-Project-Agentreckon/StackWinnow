@@ -2,6 +2,7 @@ include LICENSE THIRD_PARTY_NOTICES.md
 include docs/releasing.md docs/support-matrix.md
 recursive-include licenses *.json *.md *.txt
 include scripts/build_release.py scripts/check_distribution.py
+include scripts/export_audit_requirements.py
 prune docs/superpowers
 exclude AGENTS.md docs/person-a-progress-plan.md
 prune .stackwinnow

@@ -4,7 +4,7 @@ import { useWorkbench } from './Context'
 import { Badge, Icon, Notice } from './Elements'
 const pages = [
   ['/recommend', 'Discovery', 'scan'], ['/inspect', 'Source coverage', 'files'], ['/catalog', 'Tool catalog', 'catalog'],
-  ['/workflow', 'Manage tools', 'workflow'], ['/profiles', 'Portable profiles', 'profiles'], ['/reports', 'Project report', 'reports'], ['/environment', 'Environment', 'environment'],
+  ['/wizard', 'Install wizard', 'wizard'], ['/reports', 'Project report', 'reports'], ['/environment', 'Environment', 'environment'],
 ]
 export default function Shell({children}) {
   const {settings, update, scanProject, busy, connection, meta, error, setError, selected, scan} = useWorkbench()
@@ -26,7 +26,7 @@ export default function Shell({children}) {
           <label htmlFor="project-path">PROJECT DIRECTORY</label>
           <div className="project-input-row"><div className="path-input"><Icon name="files" size={18}/><input id="project-path" required value={settings.project_root} onChange={e => update('project_root',e.target.value)} placeholder="/path/to/your/project" disabled={!!busy}/></div>
           <button type="button" className={'button secondary' + (options ? ' selected' : '')} onClick={() => setOptions(!options)} aria-expanded={options}>Scan options{(settings.goals.length > 0 || settings.assistant || !settings.scan_source || settings.config_path) && <span className="option-dot"/>}</button>
-          <button className="button primary" disabled={!!busy || connection !== 'ready'}><Icon name="scan" size={17}/>{busy.startsWith('Scanning') ? 'Scanning…' : scan ? 'Rescan project' : 'Scan project'}</button></div>
+          <button className="button primary" disabled={!!busy || connection !== 'ready'}><Icon name="scan" size={17}/>{(busy.startsWith('Scanning') || busy.startsWith('Consulting')) ? 'Working…' : scan ? 'Rescan project' : 'Scan project'}</button></div>
         </form>
         <div className="scan-caption"><span>{settings.scan_source ? 'Recursive source analysis + project declarations' : 'Declarations only — source scan is disabled'}</span><span>{scan ? 'Last scan ' + scan.at : 'No goals required'}</span></div>
         {options && <div className="options-panel">

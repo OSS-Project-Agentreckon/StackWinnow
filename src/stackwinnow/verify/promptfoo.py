@@ -248,8 +248,9 @@ def check_promptfoo(
     if outcome.status == "blocked":
         _block_execution(checks, outcome.message, "execution-blocked")
         return _finish(checks, options)
-    evidence = Path(evaluation.result_path) if evaluation is not None else None
+    evidence = None
     if evaluation is not None:
+        evidence = Path(evaluation.result_path)
         try:
             expected_path = root / adapter.STATE_PREFIX / "results" / f"{plan.run_id}.json"
             if (

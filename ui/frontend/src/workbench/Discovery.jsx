@@ -3,6 +3,21 @@ import { Link } from 'react-router-dom'
 import { useWorkbench, requestFor } from './Context'
 import { Badge, Heading, Empty, Icon, JsonDetails, Notice, SectionTitle } from './Elements'
 
+const AI_PACKAGES = new Set([
+  'anthropic', 'openai', 'langchain', 'langchain-core', 'langchain-community',
+  'litellm', 'langfuse', 'openlit', 'opik', 'deepeval', 'ragas', 'trulens-eval',
+  'llama-index', 'llama-index-core', 'cohere', 'transformers', 'huggingface-hub',
+  'google-generativeai', 'tiktoken', 'sentence-transformers', 'inspect-ai',
+  'headroom', 'llmlingua',
+])
+const CATEGORY_ORDER = ['observability', 'evaluation', 'context', 'model-gateway']
+const CATEGORY_META = {
+  observability: { label: 'OBSERVABILITY', desc: 'Trace LLM calls, track spend, monitor AI performance' },
+  evaluation: { label: 'EVALUATION', desc: 'Test prompts, measure output quality, validate responses' },
+  context: { label: 'CONTEXT COMPRESSION', desc: 'Reduce tokens before LLM calls to lower cost and latency' },
+  'model-gateway': { label: 'MODEL ROUTING', desc: 'Route between models, unify API calls, track spend' },
+}
+
 export function ToolCard({tool, recommendation}) {
   const {selected, toggleTool, busy, settings, compatibilityReady} = useWorkbench()
   const [expanded, setExpanded] = useState(false)
@@ -31,14 +46,24 @@ export function Findings({discovery}) {
   </article>)}</div>
 }
 export default function Discovery() {
-  const {scan, settings, catalog, selected, busy} = useWorkbench()
+  const {scan, aiSuggested, settings, catalog, selected, toggleTool, busy} = useWorkbench()
   const [tab, setTab] = useState('opportunities')
-  const [filter, setFilter] = useState('all')
   const result = scan?.result
   const source = result?.inspection.source_discovery
   const request = requestFor(settings)
   const changed = scan && ['project_root','goals','model_preference','config_path','scan_source'].some(k => JSON.stringify(scan.request[k]) !== JSON.stringify(request[k]))
-  const recommendations = result?.recommendations.filter(t => filter === 'all' || t.reasons.some(r => r.kind === filter)) || []
+
+  // Dep facts — keys that mention "dependencies"
+  const facts = result?.inspection.profile.facts || {}
+  const depFacts = Object.entries(facts).filter(([k]) => k.includes('dependenc'))
+
+  // Group recommendations by category
+  const groupedRecs = {}
+  for (const rec of result?.recommendations || []) {
+    groupedRecs[rec.category] = [...(groupedRecs[rec.category] || []), rec]
+  }
+  const extraCats = Object.keys(groupedRecs).filter(c => !CATEGORY_ORDER.includes(c)).sort()
+
   return <>
     <Heading eyebrow="DISCOVER / UNDERSTAND / IMPROVE" title="Find the opportunities in your code." description="Inspect your source, understand the evidence, and choose the tools that fit."/>
     {!result ? <>
@@ -50,12 +75,101 @@ export default function Discovery() {
       <div className="stat-grid">{[[source.files_scanned,'Source files analyzed'],[source.model_calls ?? '—','Recognized model calls'],[source.findings.length,'Source opportunities'],[result.recommendations.length,'Tool matches']].map(([n,label]) => <div className="stat" key={label}><strong>{n}</strong><span>{label}</span></div>)}</div>
       <div className="scan-summary"><span><span className="live-dot"/>{source.status === 'complete' ? 'Supported scan completed' : source.status === 'not-scanned' ? 'Source scan disabled' : 'Partial source coverage'} · {Object.entries(source.languages || {}).map(([k,v]) => k + ' ' + v).join(' / ') || 'See file coverage'}</span><Link to="/inspect">Explore file coverage <Icon name="arrow" size={15}/></Link></div>
       {source.findings.length === 0 && <Notice>{source.status === 'not-scanned' ? 'Source analysis was disabled for this scan. Enable Source + declarations in scan options.' : source.files_scanned === 0 ? 'No supported source files were analyzed. Check the chosen directory, ignore rules, file types and scan diagnostics.' : 'Source files were analyzed, but no supported opportunity patterns matched. Wrappers, other languages, and indirect model calls may need additional analysis.'} Dependency and goal matches remain labeled separately below.</Notice>}
-      <div className="tabs"><button className={tab === 'opportunities' ? 'active' : ''} onClick={() => setTab('opportunities')}>Source opportunities <span>{source.findings.length}</span></button><button className={tab === 'tools' ? 'active' : ''} onClick={() => setTab('tools')}>Recommended tools <span>{result.recommendations.length}</span></button><button className={tab === 'facts' ? 'active' : ''} onClick={() => setTab('facts')}>Declarations & notes</button></div>
+      <div className="tabs">
+        <button className={tab === 'opportunities' ? 'active' : ''} onClick={() => setTab('opportunities')}>Source opportunities <span>{source.findings.length}</span></button>
+        <button className={tab === 'tools' ? 'active' : ''} onClick={() => setTab('tools')}>Tools <span>{result.recommendations.length}</span></button>
+        <button className={tab === 'facts' ? 'active' : ''} onClick={() => setTab('facts')}>Declarations & notes</button>
+      </div>
+
       {tab === 'opportunities' && (source.findings.length ? <Findings discovery={source}/> : <Empty title="No source opportunities matched">A completed scan is not proof that the project has no optimization opportunities. Review coverage for what was analyzed.</Empty>)}
-      {tab === 'tools' && <><div className="toolbar"><SectionTitle title="Tools to consider" count={recommendations.length}/><select aria-label="Filter recommendation basis" value={filter} onChange={e => setFilter(e.target.value)}><option value="all">All match types</option><option value="source">From source evidence</option><option value="goal">From goals</option><option value="dependency">Declared dependencies</option></select></div><div className="tool-grid">{recommendations.map(r => <ToolCard key={r.tool_id} tool={catalog.find(t => t.tool_id === r.tool_id) || r} recommendation={r}/>)}</div>{!recommendations.length && <Empty title="No matches in this view">Try another match type, or browse the catalog.</Empty>}</>}
+
+      {tab === 'tools' && <>
+        {/* ── Tools in project ─────────────────────────── */}
+        <div className="panel">
+          <SectionTitle title="Tools in project" />
+          {depFacts.length === 0
+            ? <p className="small muted">No dependency declarations found in this project.</p>
+            : depFacts.map(([key, values]) => {
+                const aiFound = values.filter(d => AI_PACKAGES.has(d))
+                return <div key={key} className="dep-section">
+                  <span className="dep-key eyebrow">{key.replace(/\./g, ' › ')}</span>
+                  <div className="dep-chips">
+                    {values.map(dep => (
+                      <span key={dep} className={'dep-chip' + (AI_PACKAGES.has(dep) ? ' dep-chip-ai' : ' dep-chip-other')}>
+                        {dep}
+                      </span>
+                    ))}
+                  </div>
+                  {aiFound.length === 0 && (
+                    <p className="small muted dep-no-ai">↳ No AI/LLM tools detected in these dependencies</p>
+                  )}
+                </div>
+              })
+          }
+        </div>
+
+        {/* ── Recommended tools ────────────────────────── */}
+        <div className="panel">
+          <SectionTitle title="Recommended tools" count={result.recommendations.length} />
+          {aiSuggested?.assisted && (
+            <div className="ai-consult-notice">
+              <span className="ai-consult-icon">✦</span>
+              <span><strong>Claude consulted</strong> — {aiSuggested.reasoning}</span>
+            </div>
+          )}
+          {result.recommendations.length === 0
+            ? <Empty title="No tool matches">Try adding goals in Scan options to surface relevant tools.</Empty>
+            : <>
+              {[...CATEGORY_ORDER, ...extraCats].map(cat => {
+                const catRecs = groupedRecs[cat]
+                if (!catRecs?.length) return null
+                const meta = CATEGORY_META[cat] || { label: cat.toUpperCase().replace(/-/g, ' '), desc: '' }
+                return <div key={cat} className="compact-cat">
+                  <div className="compact-cat-head">
+                    <span className="eyebrow compact-cat-label">{meta.label}</span>
+                    {meta.desc && <span className="small muted">{meta.desc}</span>}
+                  </div>
+                  <div className="compact-tool-list">
+                    {catRecs.map(rec => {
+                      const catalogTool = catalog.find(t => t.tool_id === rec.tool_id)
+                      const isManaged = !!(catalogTool?.managed_mode)
+                      const isAiSuggested = aiSuggested?.tool_ids?.includes(rec.tool_id)
+                      return <div key={rec.tool_id} className="compact-tool-row">
+                        <span className="compact-bullet">✦</span>
+                        <div className="compact-tool-text">
+                          <strong>{rec.name}</strong>
+                          {isAiSuggested && <span className="ai-badge">AI</span>}
+                          <span className="muted"> — </span>
+                          <span className="small">{rec.description}</span>
+                        </div>
+                        {isManaged && (
+                          <button
+                            className={'button small-button flex-shrink ' + (selected.includes(rec.tool_id) ? 'selected' : 'secondary')}
+                            disabled={!!busy}
+                            onClick={() => toggleTool(rec.tool_id)}
+                          >
+                            {selected.includes(rec.tool_id) ? '✓' : '+'}
+                          </button>
+                        )}
+                      </div>
+                    })}
+                  </div>
+                </div>
+              })}
+              <p className="small muted compact-footer">
+                {result.recommendations.length} tools found.{' '}
+                <Link to="/wizard">Open Install wizard</Link> to install interactively.
+              </p>
+            </>
+          }
+        </div>
+      </>}
+
       {tab === 'facts' && <div className="panel"><SectionTitle title="Declared project metadata"/><dl className="facts">{Object.entries(result.inspection.profile.facts).map(([k,v]) => <div key={k}><dt>{k}</dt><dd>{v.join(', ') || '(explicitly empty)'}</dd></div>)}</dl><h3>Inspection diagnostics</h3>{result.inspection.diagnostics.map((d,i) => <p key={i} className="diagnostic"><Badge>{d.status}</Badge>{d.message}</p>)}{[...source.diagnostics,...result.notes].map((n,i) => <p key={i} className="small muted">{n}</p>)}{result.unmatched_goals.length > 0 && <Notice tone="amber">Unmatched goals: {result.unmatched_goals.join(', ')}</Notice>}<JsonDetails value={result}/></div>}
+
       <p className="footnote">Static evidence suggests what to investigate. It does not establish runtime savings or full project understanding.</p>
     </>}
     {selected.length > 0 && <div className="selection-tray"><span><strong>{selected.length} tools selected</strong><small>{selected.join(' · ')}</small></span><Link className={'button primary' + (busy ? ' disabled' : '')} to="/workflow">Review setup <Icon name="arrow" size={17}/></Link></div>}
   </>
 }
+

@@ -148,11 +148,12 @@ def _restores(record: ExecutionRecord, selected: list[str]) -> list[ConfigRestor
 def _reference_patches(record):
     patches = _patches(record)
     patches.extend(release.ownership for release in record.configuration_releases)
-    for path, format in (
+    configuration_paths: tuple[tuple[str, Literal["json", "toml"]], ...] = (
         (".codex/config.toml", "toml"),
         ("promptfooconfig.stackwinnow.json", "json"),
         ("promptfooconfig.stackwinnow.openai.json", "json"),
-    ):
+    )
+    for path, format in configuration_paths:
         # Read-only descriptors for known foreign settings, never ownership.
         patches.append(
             ConfigPatch(
@@ -502,6 +503,8 @@ def apply_removal(plan: RemovalPlan, *, dry_run: bool = False) -> RemovalResult:
                     raise InstallerError("A preserved configuration now references the runtime.")
                 journal["current_runtime"] = runtime.path
                 _journal(root, relative, journal)
+                if runtime.snapshot_sha256 is None:
+                    raise InstallerError("Runtime removal requires its reviewed snapshot digest.")
                 _removal_fs.remove_tree(str(root), runtime.path, runtime.snapshot_sha256)
                 result.removed_paths.append(runtime.path)
                 journal["removed_paths"] = result.removed_paths

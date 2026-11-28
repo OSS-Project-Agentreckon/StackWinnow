@@ -289,23 +289,28 @@ def plan_workflow(project_root: str | Path, request: WorkflowRequest) -> Workflo
     root = _root(project_root)
     ids = request.tool_ids
     state = snapshot(root, ids)
-    if "graphify" in ids and any(
-        path not in state.sources
-        for path in (request.expectation.caller_file, request.expectation.callee_file)
-    ):
-        raise WorkflowError(
-            "Both explicitly expected relationship files must exist in the source snapshot."
-        )
+    expectation = request.expectation
     graphify = None
     graph_config = None
     reuse = False
     if "graphify" in ids:
+        if (
+            expectation is None
+            or state.sources is None
+            or any(
+                path not in state.sources
+                for path in (expectation.caller_file, expectation.callee_file)
+            )
+        ):
+            raise WorkflowError(
+                "Both explicitly expected relationship files must exist in the source snapshot."
+            )
         reuse = state.record.receipt_for(STEP_ID) is not None
         if reuse:
             graphify, _ = validate_graphify_installation(root)
-            plan_graphify_index(root, expectation=request.expectation, installation_plan=graphify)
+            plan_graphify_index(root, expectation=expectation, installation_plan=graphify)
         else:
-            graphify = plan_graphify_execution(root, expectation=request.expectation)
+            graphify = plan_graphify_execution(root, expectation=expectation)
         graph_config = _preview_graphify_configuration(root)
     plan = WorkflowPlan(
         workflow_id=uuid4().hex,
@@ -417,9 +422,12 @@ def _validate(plan: WorkflowPlan) -> Path:
     ):
         raise WorkflowError("Unified workflows only execute deterministic promptfoo checks.")
     if plan.graphify:
+        expectation = plan.request.expectation
+        if expectation is None:
+            raise WorkflowError("Graphify requires an explicit relationship expectation.")
         if any(
             path not in (plan.state.sources or {})
-            for path in (plan.request.expectation.caller_file, plan.request.expectation.callee_file)
+            for path in (expectation.caller_file, expectation.callee_file)
         ):
             raise WorkflowError(
                 "Expected relationship files are absent from the reviewed source snapshot."
@@ -432,24 +440,23 @@ def _validate(plan: WorkflowPlan) -> Path:
             original, _ = validate_graphify_installation(root)
             if original != plan.graphify:
                 raise WorkflowError("Graphify's original immutable installation recipe changed.")
-            plan_graphify_index(
-                root, expectation=plan.request.expectation, installation_plan=original
-            )
+            plan_graphify_index(root, expectation=expectation, installation_plan=original)
         else:
             if plan.graphify.expectation != plan.request.expectation:
                 raise WorkflowError("Graphify's explicit relationship changed.")
             apply_graphify_install(plan.graphify, dry_run=True)
     elif plan.graphify_reuse or plan.graphify_configuration is not None:
         raise WorkflowError("Unexpected Graphify configuration without a selection.")
-    for leaf, apply in (
-        (plan.headroom, headroom.apply_headroom),
-        (plan.promptfoo, promptfoo.apply_promptfoo),
-        (plan.playwright, playwright_mcp.apply_playwright),
-    ):
-        if leaf is not None:
-            result = apply(leaf, dry_run=True)
-            if result.status != OperationStatus.SKIPPED:
-                raise WorkflowError(result.message)
+    previews = []
+    if plan.headroom is not None:
+        previews.append(headroom.apply_headroom(plan.headroom, dry_run=True))
+    if plan.promptfoo is not None:
+        previews.append(promptfoo.apply_promptfoo(plan.promptfoo, dry_run=True))
+    if plan.playwright is not None:
+        previews.append(playwright_mcp.apply_playwright(plan.playwright, dry_run=True))
+    for result in previews:
+        if result.status != OperationStatus.SKIPPED:
+            raise WorkflowError(result.message)
     return root
 
 
@@ -573,6 +580,8 @@ def apply_workflow(
                 )
                 continue
             if phase == "graphify-runtime":
+                if checked.graphify is None:
+                    raise WorkflowError("The reviewed Graphify runtime plan is missing.")
                 if checked.graphify_reuse:
                     original, _ = validate_graphify_installation(root)
                     if original != checked.graphify:
@@ -670,6 +679,8 @@ def apply_workflow(
                 ):
                     patch = leaf.configuration
             elif phase == "graphify-index":
+                if checked.request.expectation is None:
+                    raise WorkflowError("Graphify requires an explicit relationship expectation.")
                 index = plan_graphify_index(
                     root,
                     expectation=checked.request.expectation,
@@ -688,6 +699,8 @@ def apply_workflow(
                         GRAPH_PATH: provenance.graph_sha256,
                     }
             else:
+                if checked.graphify_configuration is None:
+                    raise WorkflowError("The reviewed Graphify configuration is missing.")
                 configure = plan_graphify_configure(root)
                 if configure.configuration.edits != checked.graphify_configuration.edits:
                     raise WorkflowError(
@@ -719,6 +732,8 @@ def apply_workflow(
                 # fresh functional step rechecked it. Only its reviewed empty patch
                 # may yield a skipped receipt; installation/function still must succeed.
                 no_ops = {step_id for step_id in steps if step_id.endswith("-configure")}
+            if outcome.record is None:
+                raise WorkflowError("A completed adapter phase must return execution receipts.")
             expected.record = validate_transition(
                 expected.record, outcome.record, tool_id, steps, no_ops
             )
@@ -726,6 +741,8 @@ def apply_workflow(
                 relative = patch.relative_path
                 expected.configurations[relative] = patch.written_file.sha256
                 if expected.sources is not None and phase == "promptfoo":
+                    if patch.written_file.sha256 is None:
+                        raise WorkflowError("The written promptfoo source must have a digest.")
                     expected.sources[relative] = patch.written_file.sha256
             guard()
             result.outcomes.append(
