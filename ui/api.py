@@ -454,8 +454,7 @@ def suggest(req: SuggestInput):
         import anthropic
 
         catalog_lines = [
-            f"- {t.tool_id} ({t.category.value}): {t.description}"
-            for t in _catalog.tools
+            f"- {t.tool_id} ({t.category.value}): {t.description}" for t in _catalog.tools
         ]
         catalog_text = "\n".join(catalog_lines)
         goals_text = ", ".join(req.goals)
