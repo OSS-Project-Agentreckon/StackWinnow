@@ -13,3 +13,50 @@
 .goal-entry { display: flex; gap: .5rem; align-items: center; }
 .goal-entry input { flex: 1; min-width: 0; }
 .goal-remove { border: 0; background: transparent; color: inherit; cursor: pointer; margin-left: .35rem; padding: 0; }
+/* ── Wizard ──────────────────────────────────────────────────────────── */
+.wizard-info-bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:12px;color:#7a8b7c;margin-bottom:16px;padding:0 2px}
+.wizard-category{margin-bottom:16px}
+.wizard-cat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+.wizard-cat-label{color:#326d4e;letter-spacing:1.6px}
+.wizard-cat-controls{display:flex;gap:16px;flex-shrink:0}
+.wizard-tool-list{display:flex;flex-direction:column;gap:10px}
+.wizard-tool-row{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:7px;cursor:pointer;background:#fcfdfb;transition:.12s}
+.wizard-tool-row:hover{background:#f3f8f3;border-color:#b6ccb7}
+.wizard-tool-row.chosen{background:#f0f8ee;border-color:#90bb8c;box-shadow:0 0 0 1px #90bb8c}
+.wizard-tool-row input[type=checkbox]{margin-top:2px;flex-shrink:0}
+.wizard-tool-info{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wizard-tool-info strong{font-size:13px}
+.wizard-proceed{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px}
+.wizard-round{margin-bottom:16px}
+.wizard-round-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.wizard-install-list{display:flex;flex-direction:column;gap:9px}
+.wizard-install-row{display:flex;align-items:center;gap:10px;font-size:13px}
+.wizard-results{display:flex;flex-direction:column;gap:9px}
+.wizard-result-row{display:flex;align-items:center;gap:10px;font-size:13px}
+.wizard-icon{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;font-size:11px;font-weight:700;flex-shrink:0}
+.wizard-icon-ok{background:#e3f2e3;color:#2e7238}
+.wizard-icon-fail{background:#fce9e5;color:#a0392c}
+.wizard-icon-pending{background:#eef1ec;color:#8a9a87}
+.wizard-icon-spin{border:2px solid #cadfd3;border-top-color:var(--green);animation:spin .8s linear infinite}
+/* ── Discovery tools tab ─────────────────────────────────────────────── */
+.dep-section{margin-bottom:20px}
+.dep-section:last-child{margin-bottom:0}
+.dep-key{display:block;margin-bottom:8px}
+.dep-chips{display:flex;flex-wrap:wrap;gap:7px}
+.dep-chip{font-size:11px;padding:4px 9px;border-radius:4px;font-family:"SFMono-Regular",Consolas,monospace}
+.dep-chip-ai{background:#e3f2e3;color:#2a6b30;border:1px solid #b5d9b5;font-weight:600}
+.dep-chip-other{background:#f3f5f0;color:#8a9484;border:1px solid #e3e8de}
+.dep-no-ai{margin-top:8px;margin-bottom:0}
+.compact-cat{margin-bottom:22px}
+.compact-cat:last-of-type{margin-bottom:0}
+.compact-cat-head{display:flex;align-items:center;gap:14px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+.compact-cat-label{color:#326d4e;letter-spacing:1.6px}
+.compact-tool-list{display:flex;flex-direction:column;gap:8px}
+.compact-tool-row{display:flex;align-items:baseline;gap:9px;font-size:13px}
+.compact-bullet{color:#6ea67d;font-size:14px;flex-shrink:0;line-height:1.5}
+.compact-tool-text{flex:1;min-width:0;line-height:1.6}
+.compact-footer{margin-top:18px;padding-top:16px;border-top:1px solid var(--line)}
+/* ── AI suggestion badges ───────────────────────────────────────────────── */
+.ai-badge{display:inline-flex;align-items:center;font-size:9px;font-weight:700;letter-spacing:.6px;padding:2px 5px;border-radius:3px;background:#ede9f7;color:#6b4bbd;border:1px solid #d4c9f0;margin-left:5px;vertical-align:middle;line-height:1.5}
+.ai-consult-notice{display:flex;align-items:flex-start;gap:10px;font-size:12px;line-height:1.65;background:#f5f2fd;border:1px solid #d4c9f0;border-radius:6px;padding:12px 15px;margin-bottom:18px;color:#4a3b80}
+.ai-consult-icon{font-size:14px;color:#7c5de0;flex-shrink:0;line-height:1.65}

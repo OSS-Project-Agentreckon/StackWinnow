@@ -16,14 +16,17 @@ export function download(name, content, type = 'application/json') {
   setTimeout(() => URL.revokeObjectURL(url), 1000)
 }
 function savedSettings() {
-  const defaults = { project_root: '', goals: [], assistant: '', platform: '', model_preference: 'any', config_path: '', scan_source: true }
+  const defaults = { project_root: '', goals: ['evaluation', 'track costs', 'compress context', 'model routing'], assistant: '', platform: '', model_preference: 'any', config_path: '', scan_source: true }
   try {
     const raw = JSON.parse(localStorage.getItem('stackwinnow.workspace') || 'null')
     if (raw && typeof raw === 'object') {
       for (const key of Object.keys(defaults)) {
         if (key === 'goals') {
-          if (Array.isArray(raw.goals)) defaults.goals = raw.goals.filter(goal => typeof goal === 'string' && goal.trim()).map(goal => goal.trim())
-          else if (typeof raw.goals === 'string' && raw.goals.trim()) defaults.goals = [raw.goals.trim()]
+          const parsed = Array.isArray(raw.goals)
+            ? raw.goals.filter(goal => typeof goal === 'string' && goal.trim()).map(goal => goal.trim())
+            : typeof raw.goals === 'string' && raw.goals.trim() ? [raw.goals.trim()] : []
+          if (parsed.length > 0) defaults.goals = parsed
+          // else keep the default goals when stored value is empty
         } else if (typeof raw[key] === typeof defaults[key]) defaults[key] = raw[key]
       }
     } else {
@@ -45,6 +48,7 @@ export function WorkbenchProvider({ children }) {
   const [catalogTarget, setCatalogTarget] = useState('')
   const compatibilityReady = catalogTarget === JSON.stringify([settings.assistant, settings.platform])
   const [scan, setScan] = useState(null)
+  const [aiSuggested, setAiSuggested] = useState(null)
   const [selected, setSelected] = useState([])
   const [plan, setPlan] = useState(null)
   const [operation, setOperation] = useState(null)
@@ -74,7 +78,7 @@ export function WorkbenchProvider({ children }) {
     if (busyRef.current) return
     setSettings(previous => ({ ...previous, [key]: value }))
     setPlan(null); setOperation(null)
-    if (key === 'project_root') { sequence.current++; setScan(null) }
+    if (key === 'project_root') { sequence.current++; setScan(null); setAiSuggested(null) }
   }
   function toggleTool(id) {
     if (busyRef.current) return
@@ -101,11 +105,31 @@ export function WorkbenchProvider({ children }) {
     if (busyRef.current) return
     const body = requestFor(settings)
     const id = ++sequence.current
-    await run('Scanning project source', async () => {
+    busyRef.current = true
+    setError('')
+
+    // Phase 1 — Claude consultation (only when goals are set)
+    let suggestion = null
+    if (settings.goals.length > 0) {
+      setBusy('Consulting Claude')
+      try {
+        const { data } = await axios.post('/api/suggest', { goals: settings.goals })
+        if (data.assisted && data.tool_ids.length > 0) {
+          suggestion = data
+          body.selected_tools = [...new Set([...body.selected_tools, ...data.tool_ids])]
+        }
+      } catch { /* fall through without AI suggestions */ }
+    }
+    setAiSuggested(suggestion)
+
+    // Phase 2 — full scan
+    setBusy('Scanning project source')
+    try {
       const result = await post('recommend', body)
-      if (id === sequence.current) setScan({result, request: body, at: new Date().toLocaleTimeString()})
-    })
+      if (id === sequence.current) setScan({ result, request: body, at: new Date().toLocaleTimeString() })
+    } catch (err) { setError(errorText(err)) }
+    finally { busyRef.current = false; setBusy('') }
   }
-  return <Context.Provider value={{settings, update, meta, connection, catalog, compatibilityReady, scan, selected, toggleTool,
+  return <Context.Provider value={{settings, update, meta, connection, catalog, compatibilityReady, scan, aiSuggested, selected, toggleTool,
     plan, setPlan, adoptProfilePlan, operation, setOperation, busy, error, setError, run, post, scanProject}}>{children}</Context.Provider>
 }

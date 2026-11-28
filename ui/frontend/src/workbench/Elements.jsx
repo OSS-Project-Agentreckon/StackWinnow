@@ -6,6 +6,7 @@ export function Icon({name = 'scan', size = 20}) {
     files: <><path d="M14 2H5v20h14V7z"/><path d="M14 2v6h5M8 12h8m-8 4h5"/></>,
     catalog: <><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></>,
     workflow: <><rect x="2" y="8" width="6" height="8" rx="2"/><rect x="16" y="8" width="6" height="8" rx="2"/><path d="M8 12h8m-4-4 4 4-4 4"/></>,
+    wizard: <><path d="M9 3H5v4m14-4h-4v4M5 17v4h4m6 0h4v-4"/><path d="M9 12h6m-3-3v6"/></>,
     profiles: <><path d="M12 3v12m-4-4 4 4 4-4M4 15v6h16v-6"/></>,
     reports: <><path d="M5 3h14v18H5zM8 7h8M8 11h8M8 15h5"/></>,
     environment: <><rect x="3" y="3" width="18" height="14" rx="2"/><path d="M7 21h10m-5-4v4M6 8l3 2-3 2m6 0h5"/></>,
